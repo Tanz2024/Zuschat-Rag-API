@@ -1,0 +1,301 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.virtualenv/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# FAISS Index files
+data/*.faiss
+data/*.pkl
+data/*_meta.pkl
+
+# Model files (too large for GitHub)
+models/
+*.bin
+*.safetensors
+*.onnx
+*.h5
+*.hdf5
+
+# Cache directories
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+*.exe
+*.msi
+*.msm
+*.msp
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# API Keys and Secrets
+secrets.json
+config.json
+credentials.json
+.secrets
+api_keys.txt
+
+# Large data files
+*.csv
+*.json
+data/products.json
+data/outlets.json
+data/scraped_data/
+
+# Backup files
+*.bak
+*.backup
+backup/
+
+# Node.js (if any frontend integration)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# Test results and reports
+test-results/
+test-reports/
+coverage/
+.nyc_output/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PyCharm
+.idea/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Machine Learning / AI specific
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+wandb/
+mlruns/
+
+# Scraped data that might be too large
+scraped_data/
+raw_data/
+*.jsonl
+
+# Sensitive configuration
+local_settings.py
+.env.local
+.env.production
+
+# Runtime files
+*.pid
+*.sock
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+
+# Profiling data
+*.prof
+*.profile
+
+# Application specific
+start_server.bat
+start_server.sh
+deployment_config.json
+
+# Frontend specific (Next.js)
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.turbo/
+frontend/.swc/
+
+# Additional Next.js patterns
+.next/
+out/
+.turbo/
+.swc/
+
+# Additional Node.js patterns
+*.tgz
+*.tar
+.yarn/
+.pnp.*
+lerna-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Storybook
+.storybook/
+storybook-static/
+
+# Additional Python patterns
+.pytest_cache/
+*.py[cod]
+celerybeat-schedule
+celerybeat.pid
+
+# AI/ML specific
+*.model
+*.weights
+vectorstore/
+embeddings/
+.chroma/
+
+# Scraped data patterns
+scraped_*/
+raw_*/
+processed_*/
+
+# Task completion reports (development artifacts)
+*_COMPLETION_REPORT.md
+TASK_*.md
+PART_*.md
+start_dev.bat
+start_dev.ps1
+start_dev.sh
+
+# Keep docs/ directory for API documentation
+!docs/
+!docs/**
+

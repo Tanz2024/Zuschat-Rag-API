@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <clipPath id="circle">
+            <circle cx="16" cy="16" r="14"/>
+        </clipPath>
+    </defs>
+    
+    <!-- White background circle -->
+    <circle cx="16" cy="16" r="16" fill="#FFFFFF"/>
+    
+    <!-- Logo area with ZUS branding -->
+    <g clip-path="url(#circle)">
+        <!-- Subtle background -->
+        <circle cx="16" cy="16" r="14" fill="#f8f9ff"/>
+        
+        <!-- ZUS text centered -->
+        <text x="16" y="20" text-anchor="middle" 
+              font-family="Arial, sans-serif" 
+              font-weight="bold" 
+              font-size="8" 
+              fill="#0057FF">ZUS</text>
+    </g>
+    
+    <!-- Circular border -->
+    <circle cx="16" cy="16" r="14" 
+            fill="none" stroke="#0057FF" stroke-width="2"/>
+</svg>
