@@ -15,7 +15,15 @@ from models import (
 )
 from data.database import get_db, create_tables
 from agents.controller import get_agent_controller
-from services.product_search_service import get_vector_store
+
+# Try to import ML-based search, fallback to simple search
+try:
+    from services.product_search_service import get_vector_store
+    print("Using ML-based product search")
+except ImportError:
+    from services.simple_product_search import get_vector_store
+    print("ML dependencies not available, using simple product search")
+
 from services.real_data_outlet_filter import get_real_data_outlet_filter
 from tools.calculator import get_calculator
 
