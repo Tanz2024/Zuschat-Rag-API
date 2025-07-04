@@ -3,18 +3,18 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   env: {
-    BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8000',
+    BACKEND_URL: process.env.BACKEND_URL || 'https://zuschat-rag-api.onrender.com',
   },
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.BACKEND_URL || 'http://localhost:8000'}/:path*`,
+        destination: `${process.env.BACKEND_URL || 'https://zuschat-rag-api.onrender.com'}/:path*`,
       },
     ];
   },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'zuschat-rag-api.onrender.com'],
   },
 };
 

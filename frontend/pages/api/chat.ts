@@ -16,8 +16,8 @@ export default async function handler(
       return res.status(400).json({ error: 'Message is required' })
     }
 
-    // Get the backend URL from environment variable or use default
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000'
+    // Get the backend URL from environment variable or use production default
+    const backendUrl = process.env.BACKEND_URL || 'https://zuschat-rag-api.onrender.com'
     
     // Send request to FastAPI backend
     const response = await fetch(`${backendUrl}/chat`, {
