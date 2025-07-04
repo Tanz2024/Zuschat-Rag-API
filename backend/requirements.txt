@@ -1,4 +1,4 @@
-# RENDER-OPTIMIZED REQUIREMENTS
+# RENDER-COMPATIBLE REQUIREMENTS (Python 3.11)
 # Core FastAPI dependencies
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -10,17 +10,17 @@ sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 
-# Essential ML dependencies (Render-compatible versions)
-numpy==1.24.4
-sentence-transformers==2.2.2
-faiss-cpu==1.7.4
-
-# Web utilities
+# Essential dependencies with compatible versions
+numpy==1.25.2
 requests==2.31.0
 httpx==0.25.2
 beautifulsoup4==4.12.2
 aiofiles==23.2.1
 
-# Optional utilities
+# Utilities
 jinja2==3.1.2
-pandas==2.1.4
+
+# ML dependencies (if needed - add back gradually)
+# sentence-transformers==2.2.2
+# faiss-cpu==1.7.4
+# pandas==2.1.4

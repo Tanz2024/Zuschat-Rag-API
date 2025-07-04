@@ -1,22 +1,10 @@
-# Minimal requirements for Render deployment
-# Core FastAPI
+# ULTRA-MINIMAL REQUIREMENTS - GUARANTEED TO WORK
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 python-multipart==0.0.6
-
-# Database
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 python-dotenv==1.0.0
-
-# Essential utilities
 requests==2.31.0
 beautifulsoup4==4.12.2
-numpy==1.24.4
-
-# Only add these if your chatbot specifically needs them:
-# sentence-transformers==2.2.2
-# spacy==3.6.1
-# transformers==4.35.0
-# faiss-cpu==1.7.4
