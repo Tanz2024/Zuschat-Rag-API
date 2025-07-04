@@ -18,6 +18,18 @@ if not DATABASE_URL:
         "Example: postgresql://username:password@host:port/database"
     )
 
+# Clean up DATABASE_URL in case it has the variable name as prefix
+if DATABASE_URL.startswith("DATABASE_URL="):
+    DATABASE_URL = DATABASE_URL.replace("DATABASE_URL=", "")
+    print("WARNING: DATABASE_URL had incorrect prefix, cleaned it up")
+
+# Validate DATABASE_URL format
+if not DATABASE_URL.startswith(("postgresql://", "postgres://")):
+    raise ValueError(
+        f"Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...' "
+        "Must start with 'postgresql://' or 'postgres://'"
+    )
+
 # Additional database configuration
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
