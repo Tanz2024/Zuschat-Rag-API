@@ -34,7 +34,7 @@ class SimpleProductSearch:
                         'name': product.name,
                         'category': product.category,
                         'description': product.description,
-                        'price': float(product.price) if product.price else 0.0,
+                        'price': self._parse_price(product.price),
                         'material': product.material,
                         'collection': product.collection,
                         'capacity': product.capacity,
@@ -84,6 +84,19 @@ class SimpleProductSearch:
         # Sort by score and return top_k
         results.sort(key=lambda x: x['score'], reverse=True)
         return results[:top_k]
+    
+    def _parse_price(self, price_str: str) -> float:
+        """Parse price string like 'RM 55.00' to float value"""
+        if not price_str:
+            return 0.0
+        
+        try:
+            # Remove 'RM' and any whitespace, then convert to float
+            price_clean = str(price_str).replace('RM', '').strip()
+            return float(price_clean)
+        except (ValueError, AttributeError):
+            logger.warning(f"Could not parse price: {price_str}")
+            return 0.0
     
     def _calculate_text_similarity(self, query: str, product: Dict) -> float:
         """Calculate simple text similarity score"""
