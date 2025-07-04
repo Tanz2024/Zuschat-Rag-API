@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: zuschat-rag-api
+    env: python
+    buildCommand: |
+      pip install --upgrade pip
+      pip install --no-cache-dir -r requirements.txt
+    startCommand: python main.py
+    plan: starter
+    region: singapore
+    envVars:
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "10"
+      - key: DB_POOL_TIMEOUT
+        value: "60"
+      - key: DB_ECHO
+        value: "false"
+      - key: MAX_CONVERSATION_HISTORY
+        value: "20"
+      - key: SESSION_TIMEOUT_HOURS
+        value: "2"
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: ENVIRONMENT
+        value: "production"
+      - key: PORT
+        value: "10000"
