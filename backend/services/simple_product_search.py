@@ -35,12 +35,19 @@ class SimpleProductSearch:
                         'category': product.category,
                         'description': product.description,
                         'price': self._parse_price(product.price),
+                        'sale_price': product.sale_price,
+                        'regular_price': product.regular_price,
                         'material': product.material,
                         'collection': product.collection,
                         'capacity': product.capacity,
-                        'color': product.color,
-                        'image_url': product.image_url,
-                        'product_url': product.product_url
+                        'colors': product.colors,
+                        'features': product.features,
+                        'ingredients': product.ingredients,
+                        'promotion': product.promotion,
+                        'on_sale': product.on_sale,
+                        'discount': product.discount,
+                        'image_url': getattr(product, 'image_url', ''),
+                        'product_url': getattr(product, 'product_url', '')
                     })
                 logger.info(f"Loaded {len(self.products)} products from database")
                 db.close()
@@ -122,11 +129,25 @@ class SimpleProductSearch:
         if query in product.get('collection', '').lower():
             score += 1.0
         
+        # Check ingredients
+        if query in product.get('ingredients', '').lower():
+            score += 1.0
+        
+        # Check colors (JSON string)
+        colors_str = product.get('colors', '')
+        if colors_str and query in colors_str.lower():
+            score += 0.8
+        
+        # Check features (JSON string)
+        features_str = product.get('features', '')
+        if features_str and query in features_str.lower():
+            score += 0.8
+        
         # Check individual words
         query_words = query.split()
         for word in query_words:
             if len(word) > 2:  # Skip short words
-                text_to_search = f"{product.get('name', '')} {product.get('description', '')}".lower()
+                text_to_search = f"{product.get('name', '')} {product.get('description', '')} {product.get('ingredients', '')}".lower()
                 if word in text_to_search:
                     score += 0.5
         
