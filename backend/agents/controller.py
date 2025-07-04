@@ -9,7 +9,14 @@ from models import (
     ChatRequest, ChatResponse
 )
 from tools.calculator import get_calculator
-from services.product_search_service import get_vector_store
+# Try to import ML-based search, fallback to simple search
+try:
+    from services.product_search_service import get_vector_store
+    USE_ML_SEARCH = True
+except ImportError:
+    from services.simple_product_search import get_vector_store
+    USE_ML_SEARCH = False
+    print("ML dependencies not available, using simple product search")
 from services.real_data_outlet_filter import get_real_data_outlet_filter
 from sqlalchemy.orm import Session
 
