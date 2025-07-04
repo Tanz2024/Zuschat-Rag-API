@@ -164,6 +164,27 @@ class SimpleProductSearch:
         """Get products by category"""
         return [p for p in self.products if p.get('category', '').lower() == category.lower()]
     
+    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        Main search method for compatibility with ML-based search
+        """
+        results = self.search_products(query, top_k)
+        # Return just the products, not the wrapper with scores
+        return [result['product'] for result in results]
+    
+    def generate_summary(self, query: str, results: List[Dict]) -> str:
+        """Generate a summary of search results"""
+        if not results:
+            return f"No products found for '{query}'"
+        
+        product_names = [p.get('name', 'Unknown') for p in results[:3]]
+        if len(results) == 1:
+            return f"Found 1 product: {product_names[0]}"
+        elif len(results) <= 3:
+            return f"Found {len(results)} products: {', '.join(product_names)}"
+        else:
+            return f"Found {len(results)} products including: {', '.join(product_names)} and {len(results)-3} more"
+    
     def get_featured_products(self, limit: int = 5) -> List[Dict]:
         """Get featured/sale products"""
         featured = [p for p in self.products if p.get('on_sale') or p.get('promotion')]
