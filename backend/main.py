@@ -98,6 +98,24 @@ async def general_exception_handler(request, exc):
         content=jsonable_encoder(error_response.dict())
     )
 
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint - Welcome message."""
+    return {
+        "message": "Welcome to ZUS Coffee Chatbot API",
+        "version": "1.0.0",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "chat": "/chat",
+            "products": "/products",
+            "outlets": "/outlets",
+            "calculator": "/calculator"
+        }
+    }
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
