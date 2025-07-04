@@ -1,7 +1,18 @@
 """
 Database configuration and setup for ZUS Coffee chatbot
-PostgreSQL with SQLAlchemy ORM
-"""
+PostgreSQL with SQLAlcdef validate_database_config():
+    """Validate database configuration and connection"""
+    try:
+        # Test database connection
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            conn.execute(text("SELECT 1"))
+        print("✅ Database connection successful")
+        return True
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        print("Please check your DATABASE_URL and ensure PostgreSQL is running")
+        return False"
 import os
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
@@ -65,27 +76,6 @@ class ChatMessage(Base):
     role = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
-
-# Product model
-class Product(Base):
-    __tablename__ = "products"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, index=True)
-    category = Column(String, nullable=False, index=True)
-    price = Column(String, nullable=False)
-    sale_price = Column(Text)
-    regular_price = Column(String)
-    description = Column(Text)
-    ingredients = Column(Text)
-    capacity = Column(String)
-    material = Column(String)
-    colors = Column(Text)  # JSON string for colors array
-    features = Column(Text)  # JSON string for features array
-    collection = Column(String)
-    promotion = Column(String)
-    on_sale = Column(String)  # Boolean as string
-    discount = Column(String)
 
 def get_db():
     """Get database session"""

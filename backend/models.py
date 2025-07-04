@@ -8,6 +8,42 @@ from typing import List, Optional, Any, Dict, Union
 from datetime import datetime
 from enum import Enum
 
+# Database Models (SQLAlchemy)
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class OutletDB(Base):
+    """SQLAlchemy model for outlets table"""
+    __tablename__ = "outlets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    address = Column(Text, nullable=False)
+    opening_hours = Column(Text)
+    services = Column(Text)
+
+class ChatSessionDB(Base):
+    """SQLAlchemy model for chat sessions table"""
+    __tablename__ = "chat_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_activity = Column(DateTime, default=datetime.utcnow)
+
+class ChatMessageDB(Base):
+    """SQLAlchemy model for chat messages table"""
+    __tablename__ = "chat_messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 
 class MessageRole(str, Enum):
     """Message role enumeration."""

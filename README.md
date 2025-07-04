@@ -25,7 +25,26 @@ A comprehensive full-stack AI chatbot application for ZUS Coffee with RAG (Retri
 ### Prerequisites
 - Python 3.8+
 - Node.js 16+
+- PostgreSQL 12+
 - npm or yarn
+
+## 🚀 Deployment
+
+### Production Deployment on Render
+
+For complete production deployment on Render with PostgreSQL:
+
+**Quick Deployment (25 minutes):**
+1. 📋 Follow the [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+2. 📖 Read the [Complete Render Guide](docs/RENDER_DEPLOYMENT_GUIDE.md)
+3. 🧪 Test with `test_render_deployment.ps1` after deployment
+
+**Key Files:**
+- `render.yaml` - Render Blueprint for one-click deployment
+- `backend/migrate_to_postgresql.py` - Database migration script
+- `backend/.env.render` - Production environment template
+
+**Estimated Cost:** Free tier for development, ~$14/month for production
 
 ### Backend Setup
 
@@ -39,17 +58,37 @@ cd backend
 pip install -r requirements.txt
 ```
 
-3. **Install spaCy model:**
+3. **Set up PostgreSQL database:**
+```bash
+# Create database
+createdb zuschat
+
+# Copy environment template and configure
+cp .env.template .env
+# Edit .env file with your database connection details
+
+# Example DATABASE_URL values:
+# Local: postgresql://postgres:password@localhost:5432/zuschat
+# Railway: postgresql://postgres:pass@containers-us-west-xxx.railway.app:5432/railway
+# Supabase: postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres
+```
+
+4. **Migrate data from SQLite to PostgreSQL:**
+```bash
+python migrate_to_postgresql.py
+```
+
+5. **Install spaCy model:**
 ```bash
 python -m spacy download en_core_web_sm
 ```
 
-4. **Install Playwright browsers:**
+6. **Install Playwright browsers:**
 ```bash
 playwright install
 ```
 
-5. **Start the backend server:**
+7. **Start the backend server:**
 ```bash
 uvicorn main:app --reload
 ```
@@ -86,8 +125,8 @@ zuschat-rag-api/
 │   ├── chatbot/
 │   │   └── agent.py           # Core chatbot functionality
 │   ├── data/
-│   │   ├── database.py        # Database configuration
-│   │   ├── outlets.db         # SQLite database for outlets
+│   │   ├── database.py        # PostgreSQL configuration with SQLAlchemy ORM
+│   │   ├── outlets.db         # Legacy SQLite database (for migration)
 │   │   ├── products.json      # Product data
 │   │   ├── products.faiss     # FAISS vector index
 │   │   └── products_meta.pkl  # Product metadata
@@ -99,6 +138,7 @@ zuschat-rag-api/
 │   │   └── real_data_outlet_filter.py   # Outlet filtering
 │   ├── tools/
 │   │   └── calculator.py      # Calculator functionality
+│   ├── migrate_to_postgresql.py # Database migration script
 │   ├── requirements.txt       # Python dependencies
 │   └── start_backend.bat     # Windows startup script
 ├── frontend/
@@ -221,7 +261,7 @@ Invoke-RestMethod -Uri "http://localhost:8000/outlets?query=selangor" -Method Ge
 
 ### Backend
 - **Framework**: FastAPI
-- **Database**: SQLite with SQLAlchemy
+- **Database**: PostgreSQL with SQLAlchemy ORM
 - **Vector Search**: FAISS
 - **Web Scraping**: Playwright, BeautifulSoup4
 - **NLP**: spaCy
@@ -238,12 +278,20 @@ Invoke-RestMethod -Uri "http://localhost:8000/outlets?query=selangor" -Method Ge
 
 ### Backend (.env)
 ```env
-# Database
-DATABASE_URL=sqlite:///./data/outlets.db
+# Database Configuration (REQUIRED)
+DATABASE_URL=postgresql://username:password@host:port/database_name
 
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
+# Database Pool Settings (Optional)
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+DB_POOL_TIMEOUT=30
+DB_ECHO=false
+
+# Application Configuration
+MAX_CONVERSATION_HISTORY=20
+SESSION_TIMEOUT_HOURS=2
+DEBUG=false
+LOG_LEVEL=INFO
 ```
 
 ### Frontend (.env.local)
@@ -305,7 +353,49 @@ npm start
 - **Typography**: Modern, readable fonts
 - **Spacing**: Consistent 8px grid system
 - **Components**: Reusable, accessible components
-- **Animations**: Smooth transitions and micro-interactions
+
+## 🌐 Production Deployment
+
+### Render Platform (Recommended)
+
+**Quick Deploy:**
+```bash
+# 1. Create Render PostgreSQL database
+# 2. Get database URL from Render dashboard
+# 3. Run migration
+cd backend
+python migrate_to_postgresql.py
+python check_database.py
+
+# 4. Deploy backend (Web Service)
+# 5. Deploy frontend (Static Site)
+# 6. Test deployment
+.\test_render_deployment.ps1 -BackendUrl "YOUR_BACKEND_URL" -FrontendUrl "YOUR_FRONTEND_URL"
+```
+
+**Deployment Resources:**
+- 📋 [Quick Checklist](DEPLOYMENT_CHECKLIST.md) - 25-minute deployment guide
+- 📖 [Complete Guide](docs/RENDER_DEPLOYMENT_GUIDE.md) - Detailed instructions with troubleshooting
+- 🔧 [render.yaml](render.yaml) - Blueprint for one-click deployment
+- 🧪 [Test Script](test_render_deployment.ps1) - Automated deployment validation
+
+**Production URLs:**
+- Backend: `https://your-backend.onrender.com`
+- Frontend: `https://your-frontend.onrender.com`
+- API Docs: `https://your-backend.onrender.com/docs`
+
+### Cost Estimation
+- **Development**: Free (90-day PostgreSQL trial)
+- **Production**: ~$14/month (PostgreSQL + Backend Starter plans)
+
+## 🔒 Security & Environment
+
+- ✅ No hardcoded credentials
+- ✅ Environment-based configuration
+- ✅ SQL injection protection
+- ✅ CORS properly configured
+- ✅ HTTPS-ready for production
+- ✅ Connection pooling and timeouts
 
 ##  Getting Started for Development
 

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Real Data Only Outlet Filter - Production Level
-Uses only actual data from outlets.db without any dummy/fake information
+Real Data Only Outlet Filter - Production Level with PostgreSQL
+Uses only actual data from PostgreSQL database without any dummy/fake information
 Database schema: id, name, address, opening_hours, services
 """
 import re
 from typing import Dict, List, Any, Optional, Tuple
-import sqlite3
+from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, and_
+from data.database import get_db, Outlet
 
 class RealDataOutletFilter:
     """Production outlet filter using only real ZUS Coffee data"""
@@ -94,71 +96,84 @@ class RealDataOutletFilter:
         
         return filters
     
-    def build_sql_query(self, filters: Dict[str, Any]) -> str:
-        """Build SQL query using only real database schema"""
-        base_query = "SELECT id, name, address, opening_hours, services FROM outlets WHERE 1=1"
-        conditions = []
-        
-        # Only proceed if we have actual filters, otherwise return empty result
-        has_filters = (filters['locations'] or filters['landmarks'] or filters['services'])
-        
-        if not has_filters:
-            # Return a query that returns no results for unrecognized queries
-            return "SELECT id, name, address, opening_hours, services FROM outlets WHERE 1=0"
-        
-        # Location filters
-        if filters['locations']:
-            location_conditions = []
-            for location in filters['locations']:
-                location_conditions.append(f"LOWER(address) LIKE LOWER('%{location}%')")
-            if location_conditions:
-                conditions.append(f"({' OR '.join(location_conditions)})")
-        
-        # Landmark filters
-        if filters['landmarks']:
-            landmark_conditions = []
-            for landmark in filters['landmarks']:
-                landmark_conditions.append(f"(LOWER(name) LIKE LOWER('%{landmark}%') OR LOWER(address) LIKE LOWER('%{landmark}%'))")
-            if landmark_conditions:
-                conditions.append(f"({' OR '.join(landmark_conditions)})")
-        
-        # Service filters
-        if filters['services']:
-            service_conditions = []
-            for service in filters['services']:
-                service_conditions.append(f"LOWER(services) LIKE LOWER('%{service}%')")
-            if service_conditions:
-                conditions.append(f"({' OR '.join(service_conditions)})")
-        
-        # Add conditions to query
-        if conditions:
-            base_query += " AND " + " AND ".join(conditions)
-        
-        base_query += " ORDER BY name"
-        return base_query
-    
     def search_outlets(self, query: str) -> List[Dict]:
-        """Search outlets using real data only"""
+        """Search outlets using SQLAlchemy ORM"""
         filters = self.parse_query(query)
-        sql = self.build_sql_query(filters)
         
         try:
-            conn = sqlite3.connect('data/outlets.db')
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            results = cursor.fetchall()
-            conn.close()
+            # Get database session
+            db = next(get_db())
             
+            # Start with base query
+            query_obj = db.query(Outlet)
+            
+            # Apply location filters
+            if filters['locations']:
+                location_conditions = []
+                for location in filters['locations']:
+                    if location == 'kuala lumpur':
+                        # Enhanced KL matching patterns
+                        kl_conditions = [
+                            Outlet.address.ilike('%kuala lumpur%'),
+                            Outlet.address.ilike('%wilayah persekutuan%'),
+                            Outlet.address.ilike('% kl %'),
+                            Outlet.address.ilike('%klcc%'),
+                            Outlet.address.ilike('%kl eco city%'),
+                            Outlet.address.ilike('%kl gateway%'),
+                            Outlet.address.ilike('%kl sentral%')
+                        ]
+                        location_conditions.extend(kl_conditions)
+                    else:
+                        location_conditions.append(Outlet.address.ilike(f'%{location}%'))
+                
+                if location_conditions:
+                    query_obj = query_obj.filter(or_(*location_conditions))
+            
+            # Apply service filters
+            if filters['services']:
+                service_conditions = []
+                for service in filters['services']:
+                    service_conditions.append(Outlet.services.ilike(f'%{service}%'))
+                
+                if service_conditions:
+                    query_obj = query_obj.filter(or_(*service_conditions))
+            
+            # Apply landmark filters
+            if filters['landmarks']:
+                landmark_conditions = []
+                for landmark in filters['landmarks']:
+                    landmark_conditions.append(Outlet.address.ilike(f'%{landmark}%'))
+                
+                if landmark_conditions:
+                    query_obj = query_obj.filter(or_(*landmark_conditions))
+            
+            # Apply keyword filters
+            if filters['keywords']:
+                keyword_conditions = []
+                for keyword in filters['keywords']:
+                    keyword_conditions.extend([
+                        Outlet.name.ilike(f'%{keyword}%'),
+                        Outlet.address.ilike(f'%{keyword}%')
+                    ])
+                
+                if keyword_conditions:
+                    query_obj = query_obj.filter(or_(*keyword_conditions))
+            
+            # Execute query with limit
+            results = query_obj.limit(50).all()
+            
+            # Convert to dictionary format
             outlets = []
-            for result in results:
+            for outlet in results:
                 outlets.append({
-                    'id': result[0],
-                    'name': result[1],
-                    'address': result[2],
-                    'opening_hours': result[3],
-                    'services': result[4]
+                    'id': outlet.id,
+                    'name': outlet.name,
+                    'address': outlet.address,
+                    'opening_hours': outlet.opening_hours,
+                    'services': outlet.services
                 })
             
+            db.close()
             return outlets
             
         except Exception as e:
