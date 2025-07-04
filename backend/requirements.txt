@@ -19,6 +19,7 @@ aiofiles==23.2.1
 
 # Utilities
 jinja2==3.1.2
+sympy==1.12
 
 # ML dependencies (if needed - add back gradually)
 # sentence-transformers==2.2.2
