@@ -6,6 +6,8 @@ import json
 import os
 import logging
 from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from data.database import get_db, Product
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +20,42 @@ class SimpleProductSearch:
         self._load_products()
     
     def _load_products(self):
-        """Load products from JSON file"""
+        """Load products from database or JSON file as fallback"""
+        try:
+            # Try to load from database first
+            db = next(get_db())
+            db_products = db.query(Product).all()
+            
+            if db_products:
+                self.products = []
+                for product in db_products:
+                    self.products.append({
+                        'id': product.id,
+                        'name': product.name,
+                        'category': product.category,
+                        'description': product.description,
+                        'price': float(product.price) if product.price else 0.0,
+                        'material': product.material,
+                        'collection': product.collection,
+                        'capacity': product.capacity,
+                        'color': product.color,
+                        'image_url': product.image_url,
+                        'product_url': product.product_url
+                    })
+                logger.info(f"Loaded {len(self.products)} products from database")
+                db.close()
+                return
+                
+        except Exception as e:
+            logger.warning(f"Could not load from database: {e}")
+        
+        # Fallback to JSON file
         try:
             products_file = os.path.join(self.data_dir, "products.json")
             if os.path.exists(products_file):
                 with open(products_file, 'r', encoding='utf-8') as f:
                     self.products = json.load(f)
-                logger.info(f"Loaded {len(self.products)} products")
+                logger.info(f"Loaded {len(self.products)} products from JSON file")
             else:
                 logger.warning(f"Products file not found: {products_file}")
         except Exception as e:

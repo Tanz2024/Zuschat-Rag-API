@@ -184,19 +184,22 @@ async def search_products(query: str, top_k: int = 5):
 
 # Outlet search endpoint
 @app.get("/outlets", response_model=OutletQueryResponse)
-async def search_outlets(query: str, location: str = None, db: Session = Depends(get_db)):
+async def search_outlets(query: str = None, location: str = None, db: Session = Depends(get_db)):
     """Search outlets using natural language to SQL conversion."""
     try:
+        # Use location as query if query is not provided
+        search_query = query or location or ""
+        
         # Validate parameters
-        if not query or not query.strip():
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        if not search_query.strip():
+            raise HTTPException(status_code=400, detail="Query or location parameter is required")
         
         # Search outlets using real data filter
         outlet_filter = get_real_data_outlet_filter()
-        result = outlet_filter.generate_response(query)
+        result = outlet_filter.generate_response(search_query)
         
         # For API response, we need to extract outlets from the response
-        outlets = outlet_filter.search_outlets(query)
+        outlets = outlet_filter.search_outlets(search_query)
         
         return OutletQueryResponse(
             outlets=outlets,
@@ -210,8 +213,8 @@ async def search_outlets(query: str, location: str = None, db: Session = Depends
         logger.error(f"Error in outlets endpoint: {e}")
         raise HTTPException(status_code=500, detail="Error searching outlets")
 
-# Calculator endpoint
-@app.post("/calculate", response_model=CalculatorResponse)
+# Calculator endpoint  
+@app.post("/calculator", response_model=CalculatorResponse)
 async def calculate(request: CalculatorRequest):
     """Perform mathematical calculations."""
     try:
@@ -243,6 +246,12 @@ async def calculate(request: CalculatorRequest):
     except Exception as e:
         logger.error(f"Error in calculate endpoint: {e}")
         raise HTTPException(status_code=500, detail="Error performing calculation")
+
+# Legacy endpoint for backwards compatibility
+@app.post("/calculate", response_model=CalculatorResponse)
+async def calculate_legacy(request: CalculatorRequest):
+    """Legacy calculate endpoint - redirects to /calculator."""
+    return await calculate(request)
 
 # Admin endpoints for data management
 @app.post("/admin/rebuild-vector-store")
