@@ -15,8 +15,16 @@ from models import (
 )
 from data.database import get_db, create_tables
 
-# Import enhanced chatbot agent
-from chatbot.agent_enhanced import get_chatbot
+# Import enhanced chatbot agent with fallback
+try:
+    from chatbot.agent_enhanced import get_chatbot
+    print("✅ Using enhanced intelligent chatbot")
+    ENHANCED_CHATBOT = True
+except ImportError as e:
+    print(f"⚠️  Enhanced chatbot not available: {e}")
+    from agents.controller import get_agent_controller
+    ENHANCED_CHATBOT = False
+    print("📝 Using basic chatbot as fallback")
 
 # Try to import ML-based search, fallback to simple search
 try:
@@ -131,7 +139,7 @@ async def health_check():
 # Main chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
-    """Enhanced chatbot endpoint with advanced intelligence."""
+    """Enhanced chatbot endpoint with intelligent fallback."""
     try:
         # Validate input
         if not request.message or not request.message.strip():
@@ -140,18 +148,24 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         if len(request.message) > 1000:
             raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
         
-        # Process message with enhanced chatbot
-        chatbot = get_chatbot()
-        response_data = await chatbot.process_message(
-            message=request.message,
-            session_id=request.session_id
-        )
-        
-        # Convert to expected response format
-        return ChatResponse(
-            message=response_data["response"],
-            session_id=response_data["session_id"]
-        )
+        # Use enhanced chatbot if available, otherwise fallback
+        if ENHANCED_CHATBOT:
+            # Process with enhanced chatbot
+            chatbot = get_chatbot()
+            response_data = await chatbot.process_message(
+                message=request.message,
+                session_id=request.session_id
+            )
+            
+            return ChatResponse(
+                message=response_data["response"],
+                session_id=response_data["session_id"]
+            )
+        else:
+            # Fallback to basic chatbot
+            controller = get_agent_controller()
+            response = await controller.process_message(request, db)
+            return response
         
     except HTTPException:
         raise
@@ -284,11 +298,20 @@ async def rebuild_vector_store():
 async def get_active_sessions():
     """Get information about active chat sessions (debug only)."""
     try:
-        chatbot = get_chatbot()
-        sessions_info = {
-            "total_sessions": len(chatbot.user_sessions),
-            "session_ids": list(chatbot.user_sessions.keys())
-        }
+        if ENHANCED_CHATBOT:
+            chatbot = get_chatbot()
+            sessions_info = {
+                "chatbot_type": "enhanced",
+                "total_sessions": len(chatbot.user_sessions),
+                "session_ids": list(chatbot.user_sessions.keys())
+            }
+        else:
+            controller = get_agent_controller()
+            sessions_info = {
+                "chatbot_type": "basic",
+                "total_sessions": len(controller.memory.sessions),
+                "session_ids": list(controller.memory.sessions.keys())
+            }
         return sessions_info
         
     except Exception as e:
