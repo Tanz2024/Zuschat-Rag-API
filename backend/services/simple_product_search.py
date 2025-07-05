@@ -177,13 +177,16 @@ class SimpleProductSearch:
         if not results:
             return f"No products found for '{query}'"
         
-        product_names = [p.get('name', 'Unknown') for p in results[:3]]
+        # Show more product names in summary
+        max_names_to_show = min(5, len(results))
+        product_names = [p.get('name', 'Unknown') for p in results[:max_names_to_show]]
+        
         if len(results) == 1:
             return f"Found 1 product: {product_names[0]}"
-        elif len(results) <= 3:
+        elif len(results) <= max_names_to_show:
             return f"Found {len(results)} products: {', '.join(product_names)}"
         else:
-            return f"Found {len(results)} products including: {', '.join(product_names)} and {len(results)-3} more"
+            return f"Found {len(results)} products including: {', '.join(product_names)} and {len(results)-max_names_to_show} more"
     
     def get_featured_products(self, limit: int = 5) -> List[Dict]:
         """Get featured/sale products"""

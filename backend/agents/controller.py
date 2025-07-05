@@ -296,7 +296,7 @@ class AgentPlanner:
         # Always try to search for products when product intent is detected
         return AgentAction.CALL_PRODUCT_SEARCH, {
             'query': text,
-            'top_k': 5
+            'top_k': 15
         }
     
     def _plan_outlet_inquiry(self, text: str, context: Dict[str, Any]) -> Tuple[AgentAction, Dict[str, Any]]:
@@ -406,7 +406,7 @@ What would you like to know about ZUS Coffee products or outlets?"""
         if any(indicator in text_lower for indicator in product_indicators):
             return AgentAction.CALL_PRODUCT_SEARCH, {
                 'query': text,
-                'top_k': 5
+                'top_k': 15
             }
         elif any(indicator in text_lower for indicator in outlet_indicators):
             return AgentAction.CALL_OUTLET_SEARCH, {
@@ -427,7 +427,7 @@ What would you like to know about ZUS Coffee products or outlets?"""
         if last_intent == Intent.PRODUCT_SEARCH:
             return AgentAction.CALL_PRODUCT_SEARCH, {
                 'query': text,
-                'top_k': 5
+                'top_k': 15
             }
         elif last_intent == Intent.OUTLET_SEARCH:
             return AgentAction.CALL_OUTLET_SEARCH, {

@@ -14,7 +14,9 @@ from models import (
     ErrorResponse
 )
 from data.database import get_db, create_tables
-from agents.controller import get_agent_controller
+
+# Import enhanced chatbot agent
+from chatbot.agent_enhanced import get_chatbot
 
 # Try to import ML-based search, fallback to simple search
 try:
@@ -129,7 +131,7 @@ async def health_check():
 # Main chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
-    """Main chatbot endpoint for conversational AI."""
+    """Enhanced chatbot endpoint with advanced intelligence."""
     try:
         # Validate input
         if not request.message or not request.message.strip():
@@ -138,11 +140,18 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         if len(request.message) > 1000:
             raise HTTPException(status_code=400, detail="Message too long (max 1000 characters)")
         
-        # Process message
-        controller = get_agent_controller()
-        response = await controller.process_message(request, db)
+        # Process message with enhanced chatbot
+        chatbot = get_chatbot()
+        response_data = await chatbot.process_message(
+            message=request.message,
+            session_id=request.session_id
+        )
         
-        return response
+        # Convert to expected response format
+        return ChatResponse(
+            message=response_data["response"],
+            session_id=response_data["session_id"]
+        )
         
     except HTTPException:
         raise
@@ -152,15 +161,15 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
 # Product search endpoint
 @app.get("/products", response_model=ProductSearchResponse)
-async def search_products(query: str, top_k: int = 5):
+async def search_products(query: str, top_k: int = 15):
     """Search products using vector similarity."""
     try:
         # Validate parameters
         if not query or not query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        if top_k < 1 or top_k > 20:
-            raise HTTPException(status_code=400, detail="top_k must be between 1 and 20")
+        if top_k < 1 or top_k > 50:
+            raise HTTPException(status_code=400, detail="top_k must be between 1 and 50")
         
         # Search products
         vector_store = get_vector_store()
@@ -275,10 +284,10 @@ async def rebuild_vector_store():
 async def get_active_sessions():
     """Get information about active chat sessions (debug only)."""
     try:
-        controller = get_agent_controller()
+        chatbot = get_chatbot()
         sessions_info = {
-            "total_sessions": len(controller.memory.sessions),
-            "session_ids": list(controller.memory.sessions.keys())
+            "total_sessions": len(chatbot.user_sessions),
+            "session_ids": list(chatbot.user_sessions.keys())
         }
         return sessions_info
         
