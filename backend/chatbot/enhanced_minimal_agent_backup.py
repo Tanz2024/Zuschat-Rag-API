@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced minimal chatbot agent with proper keyword matching - FIXED VERSION
+Enhanced minimal chatbot agent with proper keyword matching
 Handles real ZUS Coffee products and outlets with clean emoji-free responses
 """
 
@@ -315,7 +315,7 @@ class EnhancedMinimalAgent:
                 unique_outlets.append(outlet)
         
         return unique_outlets[:3]  # Return max 3 outlets
-
+    
     def format_product_response(self, products: List[Dict]) -> str:
         """Format product list response without problematic emojis."""
         if not products:
@@ -365,11 +365,8 @@ class EnhancedMinimalAgent:
             
             response += " | ".join(outlet_details)
         
-        response += " Would you like directions, contact information, or details about specific services?"
-        return response
-
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
-        """Process message with FIXED keyword detection and routing."""
+        """Process message with enhanced keyword matching and intelligent intent detection."""
         try:
             # Store session
             if session_id not in self.sessions:
@@ -378,116 +375,29 @@ class EnhancedMinimalAgent:
             self.sessions[session_id]["count"] += 1
             message_lower = message.lower()
             
-            # PRIORITY 1: Greeting detection (but not 24-hour queries)
-            if (any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]) and
-                not any(word in message_lower for word in ["24", "hour", "outlet", "open"])):
-                response = "Hello and welcome to ZUS Coffee! I'm your AI assistant ready to help you explore our drinkware collection, find outlet locations with hours and services, calculate pricing, or answer questions about ZUS Coffee. What would you like to know today?"
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "greeting",
-                    "confidence": 0.9
-                }
+            # PRIORITY 1: Product queries (most specific first)
+            product_keywords = ['tumbler', 'cup', 'mug', 'bottle', 'drinkware', 'product', 'steel', 'ceramic', 'acrylic', 
+                              'og cup', 'all-can', 'frozee', 'sundaze', 'aqua', 'corak', 'collection', 'rm', 'price', 
+                              'under', 'below', 'eco-friendly', 'eco', 'available', 'show me', 'what', 'which']
             
-            # PRIORITY 2: Outlet/location queries (check BEFORE product queries for "all" patterns)
-            outlet_indicators = ['outlet', 'location', 'store', 'branch', 'klcc', 'pavilion', 'sunway', 'mid valley', 
-                               'selangor', 'kuala lumpur', 'kl', 'shah alam', 'avenue k', 'one utama', 'sentral',
-                               'drive-thru', 'drive thru', '24 hour', '24/7', 'open', 'hours', 'dine-in', 'takeaway',
-                               'delivery', 'wifi', 'service', 'where', 'find', 'near', 'all outlets', 'show outlets',
-                               'locations', 'which outlets', 'outlet locations']
-            
-            # Special handling for outlet queries that might contain "all"
-            is_outlet_query = (any(indicator in message_lower for indicator in outlet_indicators) or
-                             'outlet' in message_lower or 'location' in message_lower)
-            
-            if is_outlet_query:
-                matching_outlets = self.find_matching_outlets(message)
+            if any(keyword in message_lower for keyword in product_keywords):
+                matching_products = self.find_matching_products(message)
                 
-                # Handle specific service queries
-                if 'drive-thru' in message_lower or 'drive thru' in message_lower:
-                    drive_thru_outlets = [o for o in self.outlets if 'Drive-Thru' in o['services']]
-                    if drive_thru_outlets:
-                        matching_outlets = drive_thru_outlets
-                    else:
-                        response = "Currently, our Shah Alam outlet offers Drive-Thru service. Most other ZUS Coffee outlets provide Dine-in, Takeaway, and Delivery options. Would you like to see all our outlet locations?"
-                        return {
-                            "message": response,
-                            "session_id": session_id,
-                            "intent": "outlet_search",
-                            "confidence": 0.8
-                        }
-                elif '24 hour' in message_lower or '24/7' in message_lower or 'open 24' in message_lower:
-                    # Based on real data, most outlets have standard hours
-                    response = "Most ZUS Coffee outlets operate from early morning to late evening (typically 6:00 AM - 11:00 PM). KL Sentral opens early at 6:00 AM and some locations stay open until 11:00 PM. For specific 24-hour availability, please check with individual outlets as hours may vary. Would you like to see our regular operating hours?"
-                    return {
-                        "message": response,
-                        "session_id": session_id,
-                        "intent": "outlet_search",
-                        "confidence": 0.8
-                    }
-                
-                # Handle "all outlets" queries  
-                if (any(phrase in message_lower for phrase in ['all outlets', 'show outlets', 'all locations', 'show me all', 'outlet locations']) 
-                    and not matching_outlets):
-                    matching_outlets = self.outlets[:6]  # Show first 6 outlets
-                
-                response = self.format_outlet_response(matching_outlets)
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "outlet_search",
-                    "confidence": 0.9
-                }
-            
-            # PRIORITY 3: Product/drinkware queries (comprehensive detection)
-            product_indicators = ['product', 'tumbler', 'cup', 'mug', 'bottle', 'drinkware', 'collection', 
-                                'stainless steel', 'ceramic', 'acrylic', 'steel', 'sundaze', 'aqua', 
-                                'corak malaysia', 'og cup', 'all-can', 'all day', 'frozee', 'cold cup',
-                                '500ml', '600ml', '16oz', 'under rm', 'price range', 'eco-friendly',
-                                'insulation', 'leak proof', 'car holder', 'blue', 'black', 'pink',
-                                'green', 'orange', 'what products', 'collections', 'available', 'options']
-            
-            # Check if this is a product query (not just containing numbers for calculation)
-            is_product_query = (any(indicator in message_lower for indicator in product_indicators) and 
-                              not is_outlet_query)  # Don't override outlet queries
-            is_pure_calculation = (any(op in message for op in ['+', '-', '*', '/']) and 
-                                 not any(indicator in message_lower for indicator in product_indicators))
-            
-            # Handle specific product queries
-            if is_product_query and not is_pure_calculation:
-                # Handle price range queries FIRST
-                if 'under rm' in message_lower or 'below rm' in message_lower:
-                    price_match = re.search(r'under rm\s*(\d+)|below rm\s*(\d+)', message_lower)
+                # Handle price filters
+                if 'under' in message_lower or 'below' in message_lower:
+                    price_match = re.search(r'(under|below).*?rm\s*(\d+)', message_lower)
                     if price_match:
-                        max_price = float(price_match.group(1) or price_match.group(2))
-                        matching_products = []
-                        for p in self.products:
-                            try:
-                                product_price = float(p['price'].replace('RM ', '').replace(',', ''))
-                                if product_price <= max_price:
-                                    matching_products.append(p)
-                            except:
-                                continue
-                    else:
-                        matching_products = self.find_matching_products(message)
-                else:
-                    matching_products = self.find_matching_products(message)
+                        max_price = float(price_match.group(2))
+                        filtered_products = []
+                        for product in matching_products:
+                            product_price = float(product['price'].replace('RM ', '').replace(',', ''))
+                            if product_price <= max_price:
+                                filtered_products.append(product)
+                        matching_products = filtered_products
                 
-                # Handle "all products" or "what do you have" queries (only if no price filter)
-                if (any(phrase in message_lower for phrase in ['what products', 'show me products', 'what do you have', 
-                                                              'all products', 'what drinkware', 'collections do you have',
-                                                              'show me', 'what']) 
-                    and not matching_products and not is_outlet_query and 'under rm' not in message_lower):
-                    matching_products = self.products[:5]  # Show first 5 products
-                
-                # Handle eco-friendly queries
-                if 'eco-friendly' in message_lower or 'sustainable' in message_lower:
-                    # Highlight stainless steel products as more eco-friendly
-                    eco_products = [p for p in self.products if 'Stainless Steel' in p['material']]
-                    if eco_products:
-                        matching_products = eco_products[:3]
-                    else:
-                        matching_products = self.products[:3]
+                # Handle "all products" or general queries
+                if any(word in message_lower for word in ['all', 'what', 'show me', 'available']) and not matching_products:
+                    matching_products = self.products[:3]  # Show first 3 products
                 
                 response = self.format_product_response(matching_products)
                 return {
@@ -497,8 +407,30 @@ class EnhancedMinimalAgent:
                     "confidence": 0.9
                 }
             
-            # PRIORITY 4: Pure calculation queries (only when no product/outlet context)
-            if is_pure_calculation or ('calculate' in message_lower and not is_product_query):
+            # PRIORITY 2: Outlet/location queries
+            outlet_keywords = ['outlet', 'location', 'store', 'branch', 'klcc', 'pavilion', 'sunway', 'mid valley', 
+                             'selangor', 'kuala lumpur', 'kl', 'shah alam', 'avenue k', 'one utama', 'sentral',
+                             'drive-thru', 'drive thru', '24 hour', '24/7', 'open', 'hours', 'dine-in', 'takeaway',
+                             'delivery', 'wifi', 'service']
+            
+            if any(keyword in message_lower for keyword in outlet_keywords):
+                matching_outlets = self.find_matching_outlets(message)
+                
+                # Handle "all outlets" queries
+                if any(word in message_lower for word in ['all', 'show me']) and not matching_outlets:
+                    matching_outlets = self.outlets[:4]  # Show first 4 outlets
+                
+                response = self.format_outlet_response(matching_outlets)
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "outlet_search",
+                    "confidence": 0.9
+                }
+            
+            # PRIORITY 3: Calculation queries
+            calc_keywords = ['+', '-', '*', '/', 'calculate', 'add', 'multiply', '%', 'percent']
+            if any(op in message for op in calc_keywords) or re.search(r'\d+.*\d+', message):
                 try:
                     calc_part = message
                     if 'calculate' in message_lower:
@@ -555,8 +487,18 @@ class EnhancedMinimalAgent:
                         "confidence": 0.6
                     }
             
+            # PRIORITY 4: Greeting detection
+            if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]):
+                response = "Hello and welcome to ZUS Coffee! I'm your AI assistant ready to help you explore our drinkware collection, find outlet locations with hours and services, calculate pricing, or answer questions about ZUS Coffee. What would you like to know today?"
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "greeting",
+                    "confidence": 0.9
+                }
+            
             # PRIORITY 5: Farewell detection
-            elif any(word in message_lower for word in ["thank", "thanks", "bye", "goodbye", "see you"]):
+            if any(word in message_lower for word in ["thank", "thanks", "bye", "goodbye", "see you"]):
                 response = "Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets!"
                 return {
                     "message": response,
@@ -566,7 +508,7 @@ class EnhancedMinimalAgent:
                 }
             
             # PRIORITY 6: Empty or very short messages
-            elif len(message.strip()) < 2:
+            if len(message.strip()) < 2:
                 response = "I'd love to help you! I can assist with outlet locations and hours, product recommendations and details, pricing calculations, or general ZUS Coffee information. What interests you most?"
                 return {
                     "message": response,
@@ -576,7 +518,7 @@ class EnhancedMinimalAgent:
                 }
             
             # PRIORITY 7: Security check for malicious content
-            elif any(word in message_lower for word in ["drop", "delete", "script", "sql", "injection", "hack"]):
+            if any(word in message_lower for word in ["drop", "delete", "script", "sql", "injection", "hack"]):
                 response = "I can't process that type of request for security reasons. I'm here to help with ZUS Coffee products, outlet locations, calculations, and general inquiries. What would you like to know?"
                 return {
                     "message": response,
@@ -585,16 +527,15 @@ class EnhancedMinimalAgent:
                     "confidence": 0.9
                 }
             
-            # PRIORITY 8: Default helpful response with suggestions
-            else:
-                response = "I want to help you! I can assist with ZUS Coffee product information (tumblers, cups, mugs), outlet locations and hours, pricing calculations, or general inquiries. For example, try asking: 'Show me tumblers', 'Find outlets in KLCC', or 'Calculate 25 + 15'. What would you like to know?"
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "general",
-                    "confidence": 0.6
-                }
-                
+            # DEFAULT: Helpful fallback response
+            response = "I want to help you! I can assist with ZUS Coffee product information (tumblers, cups, mugs), outlet locations and hours, pricing calculations, or general inquiries. Could you please be more specific about what you're looking for?"
+            return {
+                "message": response,
+                "session_id": session_id,
+                "intent": "general",
+                "confidence": 0.5
+            }
+            
         except Exception as e:
             logger.error(f"Error in enhanced minimal agent: {e}")
             return {
