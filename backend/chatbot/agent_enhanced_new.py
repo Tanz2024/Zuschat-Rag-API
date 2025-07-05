@@ -33,17 +33,107 @@ except ImportError:
 
 # Import professional formatter
 try:
-    from chatbot.professional_formatter import ProfessionalResponseFormatter
+    from .professional_formatter import ProfessionalResponseFormatter
 except ImportError:
-    # Fallback if formatter not available
-    class ProfessionalResponseFormatter:
-        @staticmethod
-        def clean_response(response: str) -> str:
-            return response
-        @staticmethod
-        def format_greeting(is_returning_user: bool = False) -> str:
-            return "👋 Welcome to ZUS Coffee! How can I help you today?"
-        # Add other fallback methods as needed...
+    try:
+        from chatbot.professional_formatter import ProfessionalResponseFormatter
+    except ImportError:
+        # Fallback if formatter not available
+        class ProfessionalResponseFormatter:
+            @staticmethod
+            def clean_response(response: str) -> str:
+                import re
+                response = re.sub(r'\n+', ' ', response)
+                response = re.sub(r'\s+', ' ', response)
+                return response.strip()
+            
+            @staticmethod
+            def format_greeting(is_returning_user: bool = False) -> str:
+                if is_returning_user:
+                    return "👋 Welcome back to ZUS Coffee! How can I assist you today? I'm here to help with product recommendations, outlet locations, pricing calculations, and any questions about our services."
+                else:
+                    return "🎉 Hello and welcome to ZUS Coffee! I'm your friendly AI assistant, ready to help you explore our premium drinkware collection, find nearby outlets with their hours and services, calculate pricing and taxes, or answer any questions about ZUS Coffee. What would you like to know today?"
+            
+            @staticmethod
+            def format_farewell() -> str:
+                return "☕ Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets for the best coffee experience! 🌟"
+            
+            @staticmethod
+            def format_outlet_list(outlets, location="") -> str:
+                if not outlets:
+                    return "🔍 I couldn't find any ZUS Coffee outlets matching your search criteria. Could you try specifying a more specific location like KLCC, Pavilion KL, Sunway Pyramid, or mention your preferred area? I'll help you find the perfect outlet nearby!"
+                
+                location_text = f" in {location}" if location else ""
+                response = f"🏪 Great! I found {len(outlets)} ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}{location_text} for you: "
+                
+                outlet_details = []
+                for i, outlet in enumerate(outlets, 1):
+                    details = f"{i}. **{outlet['name']}** 📍 {outlet['address']}"
+                    outlet_details.append(details)
+                
+                response += " | ".join(outlet_details)
+                response += " 💡 Would you like more details about any of these outlets, such as contact information or specific services?"
+                return response
+            
+            @staticmethod
+            def format_outlet_hours(outlets) -> str:
+                if not outlets:
+                    return "⏰ I don't have specific hour information available right now. Could you specify which outlet you're interested in? I'll help you find their exact operating hours!"
+                
+                response = f"🕒 Here are the operating hours for our ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}: "
+                hour_details = []
+                for outlet in outlets:
+                    detail = f"**{outlet['name']}** Hours available upon request"
+                    hour_details.append(detail)
+                
+                response += " | ".join(hour_details)
+                response += " 📞 For the most up-to-date hours or holiday schedules, feel free to call the outlet directly or ask me about specific days!"
+                return response
+            
+            @staticmethod
+            def format_product_list(products, user_context="") -> str:
+                if not products:
+                    return "🔍 I couldn't find products matching your criteria right now. Try asking about our popular items like 'tumblers', 'coffee mugs', 'travel cups', or specific features like 'dishwasher safe' or 'double wall insulation'. I'm here to help you find the perfect ZUS drinkware!"
+                
+                response = f"☕ Excellent choice! Here are {len(products)} fantastic ZUS Coffee product{'s' if len(products) > 1 else ''} I'd recommend: "
+                
+                product_details = []
+                for i, product in enumerate(products, 1):
+                    detail = f"{i}. **{product.get('name', 'Premium Product')}** 💰 {product.get('price', 'Contact for pricing')}"
+                    product_details.append(detail)
+                
+                response += " | ".join(product_details)
+                response += " 🛒 Would you like more details about any of these products, or shall I help you with pricing calculations?"
+                return response
+            
+            @staticmethod
+            def format_calculation_result(expression, result, calculation_type="general") -> str:
+                return f"🧮 Calculation complete! **{expression}** equals **{result}**. Is there anything else I can calculate for you?"
+            
+            @staticmethod
+            def format_error_message(error_type="general") -> str:
+                if error_type == "calculation":
+                    return "🤔 I had trouble with that calculation. Could you rephrase it using numbers and basic operations like '+', '-', '*', '/' or percentages? For example: '15% of 50' or '25.50 + 18.90'. I'm here to help!"
+                elif error_type == "product":
+                    return "🔍 I'm having trouble accessing our product catalog right now. Could you try asking about specific items like 'coffee mugs', 'tumblers', or 'travel cups'? I'll do my best to help you find what you're looking for!"
+                elif error_type == "outlet":
+                    return "📍 I'm having difficulty finding outlet information at the moment. Could you specify a location like 'KLCC', 'Sunway', or your preferred area? I'll help you locate the nearest ZUS Coffee outlet!"
+                elif error_type == "malicious":
+                    return "🛡️ I can't process that type of request for security reasons. I'm here to help with ZUS Coffee products, outlet locations, calculations, and general inquiries. What would you like to know about our coffee and drinkware?"
+                else:
+                    return "🤝 I want to help you, but I'm not quite sure what you're looking for. Could you rephrase your question? I can assist with product information, outlet locations, pricing calculations, or general ZUS Coffee inquiries!"
+            
+            @staticmethod
+            def format_clarification_request() -> str:
+                return "🤝 I'd love to help you find exactly what you need! Could you please be more specific? I can assist with 🏪 outlet locations and hours, ☕ product recommendations and details, 🧮 pricing calculations and tax computations, or 💰 current promotions and offers. What interests you most?"
+            
+            @staticmethod
+            def format_about_us() -> str:
+                return "🏢 ZUS Coffee is Malaysia's leading tech-driven coffee chain, passionate about delivering premium coffee experiences and innovative drinkware products! 📍 We proudly operate 243 outlets across Malaysia, especially in Kuala Lumpur and Selangor, serving quality coffee and offering an amazing selection of tumblers, mugs, and cups. 🚀 We're committed to innovation, technology, and creating exceptional customer experiences. Visit zuscoffee.com to discover more about our journey and latest offerings!"
+            
+            @staticmethod
+            def format_context_recall(context_type, items) -> str:
+                return "🔄 I'd be happy to continue helping you! Could you remind me what specific information you're looking for? I have access to all our outlet and product details!"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
