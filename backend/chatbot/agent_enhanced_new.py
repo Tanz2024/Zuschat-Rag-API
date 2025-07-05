@@ -3,6 +3,7 @@
 Advanced Intelligent Chatbot Agent for ZUS Coffee
 Production-ready conversational AI with sophisticated natural language understanding,
 multi-turn memory, agentic planning, robust error handling, and direct database access.
+Enhanced with professional response formatting for production deployment.
 """
 
 import logging
@@ -29,6 +30,20 @@ except ImportError:
         SessionLocal = None
         Outlet = None
         get_vector_store = None
+
+# Import professional formatter
+try:
+    from chatbot.professional_formatter import ProfessionalResponseFormatter
+except ImportError:
+    # Fallback if formatter not available
+    class ProfessionalResponseFormatter:
+        @staticmethod
+        def clean_response(response: str) -> str:
+            return response
+        @staticmethod
+        def format_greeting(is_returning_user: bool = False) -> str:
+            return "👋 Welcome to ZUS Coffee! How can I help you today?"
+        # Add other fallback methods as needed...
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -422,10 +437,11 @@ class EnhancedChatbotAgent:
             
             # Handle malicious input
             if intent == Intent.MALICIOUS:
-                response = "I can't process that request. Please rephrase your question about ZUS Coffee products or outlets."
+                response = ProfessionalResponseFormatter.format_error_message("malicious")
+                response = ProfessionalResponseFormatter.clean_response(response)
                 user_state.add_message("assistant", response)
                 return {
-                    "response": response,
+                    "message": response,
                     "session_id": session_id,
                     "intent": intent.value,
                     "confidence": confidence
@@ -433,10 +449,11 @@ class EnhancedChatbotAgent:
             
             # Handle unclear input
             if intent == Intent.UNCLEAR or confidence < 0.3:
-                response = self._generate_clarification_response(user_state)
+                response = ProfessionalResponseFormatter.format_clarification_request()
+                response = ProfessionalResponseFormatter.clean_response(response)
                 user_state.add_message("assistant", response)
                 return {
-                    "response": response,
+                    "message": response,
                     "session_id": session_id,
                     "intent": intent.value,
                     "confidence": confidence
@@ -444,11 +461,12 @@ class EnhancedChatbotAgent:
             
             # Route to appropriate handler
             response = await self._route_intent(intent, message, user_state)
+            response = ProfessionalResponseFormatter.clean_response(response)
             
             user_state.add_message("assistant", response)
             
             return {
-                "response": response,
+                "message": response,
                 "session_id": session_id,
                 "intent": intent.value,
                 "confidence": confidence
@@ -456,8 +474,10 @@ class EnhancedChatbotAgent:
         
         except Exception as e:
             logger.error(f"Error processing message: {e}")
+            response = "🔧 I'm experiencing some technical difficulties right now. Please try again in a moment, and I'll be happy to help you with ZUS Coffee information, outlet locations, or product recommendations!"
+            response = ProfessionalResponseFormatter.clean_response(response)
             return {
-                "response": "I'm having technical difficulties. Please try again in a moment.",
+                "message": response,
                 "session_id": session_id,
                 "error": str(e)
             }
@@ -469,7 +489,8 @@ class EnhancedChatbotAgent:
             return self._handle_greeting(user_state)
         
         elif intent == Intent.FAREWELL:
-            return "Thank you for using ZUS Coffee chatbot! Have a great day! ☕"
+            response = ProfessionalResponseFormatter.format_farewell()
+            return ProfessionalResponseFormatter.clean_response(response)
         
         elif intent in [Intent.OUTLET_INQUIRY, Intent.OUTLET_HOURS, Intent.OUTLET_SERVICES]:
             return await self._handle_outlet_query(intent, message, user_state)
@@ -487,19 +508,14 @@ class EnhancedChatbotAgent:
             return self._handle_about_us()
         
         else:
-            return self._generate_helpful_response(user_state)
+            response = ProfessionalResponseFormatter.format_clarification_request()
+            return ProfessionalResponseFormatter.clean_response(response)
     
     def _handle_greeting(self, user_state: SmartUserState) -> str:
         """Handle greeting with personalization."""
-        if user_state.interaction_count > 1:
-            return f"Welcome back! 👋 How can I help you with ZUS Coffee today?"
-        else:
-            return ("Hello! 👋 Welcome to ZUS Coffee! I'm your AI assistant ready to help with:\n\n"
-                   "☕ **Products** - Explore our drinkware collection\n"
-                   "📍 **Outlets** - Find stores with hours & contact info\n"
-                   "🧮 **Calculations** - Price calculations, tax, discounts\n"
-                   "💰 **Pricing** - Product prices and comparisons\n\n"
-                   "What can I help you with today?")
+        is_returning = user_state.interaction_count > 1
+        response = ProfessionalResponseFormatter.format_greeting(is_returning)
+        return ProfessionalResponseFormatter.clean_response(response)
     
     async def _handle_outlet_query(self, intent: Intent, message: str, user_state: SmartUserState) -> str:
         """Handle outlet queries with database access."""
@@ -514,24 +530,24 @@ class EnhancedChatbotAgent:
                 max_results=5
             )
             
-            if not outlets:
-                return ("I couldn't find any outlets matching your criteria. "
-                       "Could you try specifying a location like KLCC, Pavilion, or Sunway?")
-            
             # Store results for context
-            user_state.store_search_results("outlets", outlets)
+            if outlets:
+                user_state.store_search_results("outlets", outlets)
             
             # Format response based on intent
             if intent == Intent.OUTLET_HOURS:
-                return self._format_outlet_hours(outlets)
+                response = ProfessionalResponseFormatter.format_outlet_hours(outlets)
             elif intent == Intent.OUTLET_SERVICES:
-                return self._format_outlet_services(outlets)
+                response = ProfessionalResponseFormatter.format_outlet_list(outlets, location)
             else:
-                return self._format_outlet_list(outlets, location)
+                response = ProfessionalResponseFormatter.format_outlet_list(outlets, location)
+            
+            return ProfessionalResponseFormatter.clean_response(response)
         
         except Exception as e:
             logger.error(f"Error handling outlet query: {e}")
-            return "I'm having trouble accessing outlet information right now. Please try again in a moment."
+            response = ProfessionalResponseFormatter.format_error_message("outlet")
+            return ProfessionalResponseFormatter.clean_response(response)
     
     async def _handle_product_query(self, intent: Intent, message: str, user_state: SmartUserState) -> str:
         """Handle product queries with vector search."""
@@ -539,35 +555,47 @@ class EnhancedChatbotAgent:
             # Get products from vector search
             products = self.db_service.get_products(message, max_results=5)
             
-            if not products:
-                return ("I couldn't find any products matching your criteria. "
-                       "Try asking about tumblers, mugs, cups, or specific features like 'dishwasher safe'.")
-            
             # Filter by price if budget range specified
-            if user_state.budget_range:
+            if user_state.budget_range and products:
                 min_price, max_price = user_state.budget_range
                 products = [p for p in products if min_price <= p.get('sale_price', 0) <= max_price]
             
             # Store results for context
-            user_state.store_search_results("products", products)
+            if products:
+                user_state.store_search_results("products", products)
             
-            return self._format_product_list(products, intent, user_state)
+            response = ProfessionalResponseFormatter.format_product_list(products, str(intent))
+            return ProfessionalResponseFormatter.clean_response(response)
         
         except Exception as e:
             logger.error(f"Error handling product query: {e}")
-            return "I'm having trouble accessing product information right now. Please try again in a moment."
+            response = ProfessionalResponseFormatter.format_error_message("product")
+            return ProfessionalResponseFormatter.clean_response(response)
     
     def _handle_calculation(self, intent: Intent, message: str, user_state: SmartUserState) -> str:
         """Handle calculations with enhanced logic."""
         if intent == Intent.CALCULATION:
             result = self.calculator.solve_math(message)
             if "error" in result:
-                return f"I couldn't solve that calculation. {result['error']} Please provide a clear mathematical expression like '2 + 3 * 4' or '15% of 200'."
+                response = ProfessionalResponseFormatter.format_error_message("calculation")
+                return ProfessionalResponseFormatter.clean_response(response)
             else:
-                return f"🧮 **Calculation Result:**\n**{result['expression']}** = **{result['formatted']}**"
+                calculation_type = "general"
+                if "%" in message.lower() or "tax" in message.lower():
+                    calculation_type = "tax"
+                elif "discount" in message.lower():
+                    calculation_type = "discount"
+                elif "total" in message.lower() or "cart" in message.lower():
+                    calculation_type = "cart"
+                
+                response = ProfessionalResponseFormatter.format_calculation_result(
+                    result['expression'], result['formatted'], calculation_type
+                )
+                return ProfessionalResponseFormatter.clean_response(response)
         
         # For cart/tax calculations, would need product context
-        return "I can help with calculations! Please provide a mathematical expression or specify which products you'd like to calculate pricing for."
+        response = "🧮 I'm ready to help with your calculations! Please provide a mathematical expression like '25.50 + 18.90', percentage calculations like '15% of 200', or let me know which products you'd like pricing calculations for."
+        return ProfessionalResponseFormatter.clean_response(response)
     
     def _handle_context_recall(self, message: str, user_state: SmartUserState) -> str:
         """Handle context recall for multi-turn conversations."""
@@ -575,26 +603,21 @@ class EnhancedChatbotAgent:
         
         if recalled_context.get("outlets"):
             outlets = recalled_context["outlets"][-3:]  # Last 3 mentioned
-            return f"From our earlier conversation, you were asking about these outlets:\n\n" + \
-                   self._format_outlet_list(outlets, "")
+            response = ProfessionalResponseFormatter.format_context_recall("outlets", outlets)
+            return ProfessionalResponseFormatter.clean_response(response)
         
         if recalled_context.get("products"):
             products = recalled_context["products"][-3:]  # Last 3 mentioned
-            return f"From our earlier conversation, you were looking at these products:\n\n" + \
-                   self._format_product_list(products, Intent.PRODUCT_INQUIRY, user_state)
+            response = ProfessionalResponseFormatter.format_context_recall("products", products)
+            return ProfessionalResponseFormatter.clean_response(response)
         
-        return "I'd be happy to help! Could you please be more specific about what you're referring to?"
+        response = ProfessionalResponseFormatter.format_context_recall("general", [])
+        return ProfessionalResponseFormatter.clean_response(response)
     
     def _handle_about_us(self) -> str:
         """Handle about us queries."""
-        return ("🏢 **About ZUS Coffee**\n\n"
-               "ZUS Coffee is Malaysia's leading tech-driven coffee chain, bringing you premium coffee "
-               "and innovative drinkware products. We're passionate about quality coffee and creating "
-               "great experiences for our customers.\n\n"
-               "📍 We have **243 outlets** across Malaysia, primarily in Kuala Lumpur and Selangor\n"
-               "☕ We offer a wide range of premium drinkware including tumblers, mugs, and cups\n"
-               "🚀 We're committed to innovation and technology in the coffee industry\n\n"
-               "Visit zuscoffee.com to learn more!")
+        response = ProfessionalResponseFormatter.format_about_us()
+        return ProfessionalResponseFormatter.clean_response(response)
     
     def _generate_clarification_response(self, user_state: SmartUserState) -> str:
         """Generate helpful clarification."""

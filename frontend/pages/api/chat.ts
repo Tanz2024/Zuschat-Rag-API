@@ -41,6 +41,9 @@ export default async function handler(
     res.status(200).json({
       message: data.message || data.response || data.answer || 'No response from backend',
       timestamp: new Date().toISOString(),
+      intent: data.intent || null,
+      confidence: data.confidence || null,
+      session_id: data.session_id || req.headers['x-session-id'] || 'default-session'
     })
   } catch (error) {
     console.error('Chat API error:', error)
