@@ -88,6 +88,37 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
     category: "ℹ️ Help",
     priority: 2,
     tags: ["outlets", "locations", "all", "where"]
+  },
+  // Calculator & Math
+  {
+    text: "Calculate 25 + 15",
+    category: "🔢 Calculator",
+    priority: 2,
+    tags: ["calculator", "math", "addition", "calculate"]
+  },
+  {
+    text: "What is 15% of 200?",
+    category: "🔢 Calculator", 
+    priority: 2,
+    tags: ["percentage", "calculator", "math", "percent"]
+  },
+  {
+    text: "Calculate 8 × 7",
+    category: "🔢 Calculator",
+    priority: 2,
+    tags: ["multiplication", "calculator", "math", "times"]
+  },
+  {
+    text: "Square root of 25",
+    category: "🔢 Calculator",
+    priority: 2,
+    tags: ["square root", "calculator", "math", "sqrt"]
+  },
+  {
+    text: "2 to the power of 3",
+    category: "🔢 Calculator",
+    priority: 2,
+    tags: ["power", "calculator", "math", "exponent"]
   }
 ]
 
