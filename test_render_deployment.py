@@ -38,7 +38,7 @@ class RenderChatbotTester:
                         result = await response.json()
                         return {
                             "success": True,
-                            "message": result.get("response", "No response"),
+                            "message": result.get("message", "No response"),
                             "intent": result.get("intent", "unknown"),
                             "confidence": result.get("confidence", 0),
                             "status": response.status

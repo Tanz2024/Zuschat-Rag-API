@@ -294,7 +294,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
         except Exception as e:
             logger.error(f"Failed to get chatbot: {e}")
             return ChatResponse(
-                response="I'm temporarily experiencing technical difficulties. Please try again in a moment.",
+                message="I'm temporarily experiencing technical difficulties. Please try again in a moment.",
                 session_id=request.session_id,
                 intent="error",
                 confidence=0.1
@@ -306,7 +306,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
             if hasattr(chatbot, 'process_message'):
                 result = await chatbot.process_message(request.message, request.session_id)
                 return ChatResponse(
-                    response=result.get("message", "I'm sorry, I couldn't process that request properly."),
+                    message=result.get("message", "I'm sorry, I couldn't process that request properly."),
                     session_id=request.session_id,
                     intent=result.get("intent", "unknown"),
                     confidence=result.get("confidence", 0.5)
@@ -315,7 +315,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
             elif hasattr(chatbot, 'chat'):
                 result = chatbot.chat(request.message, request.session_id)
                 return ChatResponse(
-                    response=result.get("response", "I'm sorry, I couldn't process that request properly."),
+                    message=result.get("response", "I'm sorry, I couldn't process that request properly."),
                     session_id=request.session_id,
                     intent=result.get("intent", "unknown"),
                     confidence=result.get("confidence", 0.5)
@@ -323,7 +323,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
             else:
                 # Ultimate fallback
                 return ChatResponse(
-                    response="Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
+                    message="Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
                     session_id=request.session_id,
                     intent="fallback",
                     confidence=0.3
@@ -332,7 +332,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
         except Exception as e:
             logger.error(f"Chatbot processing error: {e}")
             return ChatResponse(
-                response="I apologize for the inconvenience. I'm experiencing some technical issues but I'm still here to help! ZUS Coffee offers premium drinkware and has outlets across KL and Selangor. Please try your question again.",
+                message="I apologize for the inconvenience. I'm experiencing some technical issues but I'm still here to help! ZUS Coffee offers premium drinkware and has outlets across KL and Selangor. Please try your question again.",
                 session_id=request.session_id,
                 intent="error",
                 confidence=0.2
@@ -344,7 +344,7 @@ async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
     except Exception as e:
         logger.error(f"Unexpected chat endpoint error: {e}")
         return ChatResponse(
-            response="Thank you for contacting ZUS Coffee! While I'm experiencing some technical difficulties right now, I want you to know that we offer premium drinkware and have multiple outlet locations. Please try again shortly!",
+            message="Thank you for contacting ZUS Coffee! While I'm experiencing some technical difficulties right now, I want you to know that we offer premium drinkware and have multiple outlet locations. Please try again shortly!",
             session_id=request.session_id,
             intent="critical_error",
             confidence=0.1
