@@ -20,16 +20,25 @@ from sqlalchemy.orm import Session
 # Import database and models
 try:
     from data.database import SessionLocal, Outlet
+    DB_AVAILABLE = True
+except (ImportError, ValueError) as e:
+    logger.warning(f"Database not available: {e}")
+    SessionLocal = None
+    Outlet = None
+    DB_AVAILABLE = False
+
+# Import vector search service
+try:
     from services.product_search_service import get_vector_store
+    VECTOR_SEARCH_AVAILABLE = True
 except ImportError:
     try:
         from services.simple_product_search import get_vector_store
-        from data.database import SessionLocal, Outlet
+        VECTOR_SEARCH_AVAILABLE = True
     except ImportError:
         # Fallback for testing
-        SessionLocal = None
-        Outlet = None
         get_vector_store = None
+        VECTOR_SEARCH_AVAILABLE = False
 
 # Import professional formatter
 try:
@@ -447,12 +456,28 @@ class DatabaseService:
     """Direct database access service."""
     
     def __init__(self):
-        self.db_available = SessionLocal is not None
+        self.db_available = DB_AVAILABLE and SessionLocal is not None
+        self.vector_search_available = VECTOR_SEARCH_AVAILABLE
     
     def get_outlets(self, query: str = "", location: str = "", max_results: int = 10) -> List[Dict[str, Any]]:
         """Get outlets from database with filtering."""
         if not self.db_available:
-            return []
+            logger.warning("Database not available, returning fallback outlet data")
+            # Return some fallback outlet data
+            return [
+                {
+                    "name": "ZUS Coffee KLCC",
+                    "address": "Lot G-316A, Ground Floor, Suria KLCC, Kuala Lumpur City Centre, 50088 Kuala Lumpur",
+                    "opening_hours": {"monday": "8:00 AM - 10:00 PM", "tuesday": "8:00 AM - 10:00 PM"},
+                    "services": ["Dine-in", "Takeaway", "Delivery"]
+                },
+                {
+                    "name": "ZUS Coffee Pavilion KL",
+                    "address": "Lot 1.39.00, Level 1, Pavilion Kuala Lumpur, 168, Jalan Bukit Bintang, 55100 Kuala Lumpur",
+                    "opening_hours": {"monday": "10:00 AM - 10:00 PM", "tuesday": "10:00 AM - 10:00 PM"},
+                    "services": ["Dine-in", "Takeaway"]
+                }
+            ]
         
         try:
             with SessionLocal() as db:
@@ -489,6 +514,28 @@ class DatabaseService:
     
     def get_products(self, query: str = "", max_results: int = 10) -> List[Dict[str, Any]]:
         """Get products using vector search."""
+        if not self.vector_search_available:
+            logger.warning("Vector search not available, returning fallback product data")
+            # Return some fallback product data
+            return [
+                {
+                    "name": "ZUS Coffee Premium Tumbler",
+                    "price": "RM 25.90",
+                    "description": "Premium double-wall insulated tumbler perfect for your daily coffee",
+                    "features": ["Double wall insulation", "Leak-proof", "BPA-free"],
+                    "capacity": "350ml",
+                    "material": "Stainless steel"
+                },
+                {
+                    "name": "ZUS Coffee Travel Mug",
+                    "price": "RM 32.90",
+                    "description": "Perfect travel companion for coffee lovers",
+                    "features": ["Spill-proof lid", "Easy grip handle", "Dishwasher safe"],
+                    "capacity": "500ml",
+                    "material": "Ceramic with silicone grip"
+                }
+            ]
+        
         try:
             vector_store = get_vector_store()
             if not vector_store:

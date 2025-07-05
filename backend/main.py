@@ -28,9 +28,19 @@ except ImportError as e:
         ENHANCED_CHATBOT = True
     except ImportError as e2:
         print(f"⚠️  Enhanced chatbot not available: {e2}")
-        from agents.controller import get_agent_controller
-        ENHANCED_CHATBOT = False
-        print("📝 Using basic chatbot as fallback")
+        try:
+            from agents.controller import get_agent_controller
+            ENHANCED_CHATBOT = False
+            print("📝 Using basic chatbot as fallback")
+        except ImportError as e3:
+            print(f"❌ No chatbot available: {e3}")
+            # Create a simple fallback
+            def get_agent_controller():
+                class SimpleAgent:
+                    def chat(self, message, session_id="default"):
+                        return {"response": "I'm temporarily unavailable. Please try again later."}
+                return SimpleAgent()
+            ENHANCED_CHATBOT = False
 
 # Try to import ML-based search, fallback to simple search
 try:
@@ -164,8 +174,8 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             )
             
             return ChatResponse(
-                message=response_data["response"],
-                session_id=response_data["session_id"]
+                message=response_data.get("message", response_data.get("response", "No response")),
+                session_id=response_data.get("session_id", request.session_id)
             )
         else:
             # Fallback to basic chatbot
