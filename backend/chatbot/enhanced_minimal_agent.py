@@ -369,7 +369,7 @@ class EnhancedMinimalAgent:
         return response
 
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
-        """Process message with FIXED keyword detection and routing."""
+        """Process message with ADVANCED pattern detection and routing."""
         try:
             # Store session
             if session_id not in self.sessions:
@@ -377,6 +377,9 @@ class EnhancedMinimalAgent:
             
             self.sessions[session_id]["count"] += 1
             message_lower = message.lower()
+            
+            # ADVANCED PATTERN DETECTION
+            patterns = self.detect_advanced_patterns(message)
             
             # PRIORITY 1: Greeting detection (but not 24-hour queries)
             if (any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]) and
@@ -389,47 +392,119 @@ class EnhancedMinimalAgent:
                     "confidence": 0.9
                 }
             
-            # PRIORITY 2: Outlet/location queries (check BEFORE product queries for "all" patterns)
+            # PRIORITY 2: Advanced Pattern Responses (What's new, promotions, best-selling, etc.)
+            if patterns['patterns']['whats_new']:
+                response = self.get_whats_new_response()
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "whats_new",
+                    "confidence": 0.95
+                }
+            
+            if patterns['patterns']['promotions']:
+                response = self.get_promotions_response()
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "promotions",
+                    "confidence": 0.95
+                }
+            
+            if patterns['patterns']['best_selling'] and not patterns['has_location']:
+                response = self.get_best_selling_response()
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "best_selling",
+                    "confidence": 0.95
+                }
+            
+            if patterns['patterns']['collections'] and not patterns['has_location']:
+                response = self.get_collections_response()
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "collections",
+                    "confidence": 0.95
+                }
+            
+            if patterns['patterns']['eco_friendly'] and not patterns['has_location']:
+                response = self.get_eco_friendly_response()
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "eco_friendly",
+                    "confidence": 0.95
+                }
+            
+            # PRIORITY 3: Outlet/location queries with advanced detection
             outlet_indicators = ['outlet', 'location', 'store', 'branch', 'klcc', 'pavilion', 'sunway', 'mid valley', 
                                'selangor', 'kuala lumpur', 'kl', 'shah alam', 'avenue k', 'one utama', 'sentral',
                                'drive-thru', 'drive thru', '24 hour', '24/7', 'open', 'hours', 'dine-in', 'takeaway',
                                'delivery', 'wifi', 'service', 'where', 'find', 'near', 'all outlets', 'show outlets',
                                'locations', 'which outlets', 'outlet locations']
             
-            # Special handling for outlet queries that might contain "all"
             is_outlet_query = (any(indicator in message_lower for indicator in outlet_indicators) or
-                             'outlet' in message_lower or 'location' in message_lower)
+                             'outlet' in message_lower or 'location' in message_lower or patterns['has_location'])
             
             if is_outlet_query:
                 matching_outlets = self.find_matching_outlets(message)
                 
-                # Handle specific service queries
-                if 'drive-thru' in message_lower or 'drive thru' in message_lower:
-                    drive_thru_outlets = [o for o in self.outlets if 'Drive-Thru' in o['services']]
-                    if drive_thru_outlets:
-                        matching_outlets = drive_thru_outlets
+                # Handle specific advanced queries
+                if patterns['patterns']['near_location'] and 'klcc' in message_lower:
+                    klcc_outlets = [o for o in self.outlets if 'KLCC' in o['name'] or 'klcc' in o['address'].lower()]
+                    if klcc_outlets:
+                        response = f"Perfect! **ZUS Coffee KLCC** is right in Suria KLCC at {klcc_outlets[0]['address']}. Open {klcc_outlets[0]['hours']} with services: {', '.join(klcc_outlets[0]['services'])}. It's conveniently located on the Ground Floor, perfect for shopping breaks or quick coffee runs!"
                     else:
-                        response = "Currently, our Shah Alam outlet offers Drive-Thru service. Most other ZUS Coffee outlets provide Dine-in, Takeaway, and Delivery options. Would you like to see all our outlet locations?"
-                        return {
-                            "message": response,
-                            "session_id": session_id,
-                            "intent": "outlet_search",
-                            "confidence": 0.8
-                        }
-                elif '24 hour' in message_lower or '24/7' in message_lower or 'open 24' in message_lower:
-                    # Based on real data, most outlets have standard hours
-                    response = "Most ZUS Coffee outlets operate from early morning to late evening (typically 6:00 AM - 11:00 PM). KL Sentral opens early at 6:00 AM and some locations stay open until 11:00 PM. For specific 24-hour availability, please check with individual outlets as hours may vary. Would you like to see our regular operating hours?"
+                        response = "ZUS Coffee KLCC is located in Suria KLCC shopping center, perfect for your visit to the twin towers area!"
                     return {
                         "message": response,
                         "session_id": session_id,
-                        "intent": "outlet_search",
-                        "confidence": 0.8
+                        "intent": "outlet_search_klcc",
+                        "confidence": 0.9
                     }
                 
-                # Handle "all outlets" queries  
-                if (any(phrase in message_lower for phrase in ['all outlets', 'show outlets', 'all locations', 'show me all', 'outlet locations']) 
+                if patterns['patterns']['drive_thru']:
+                    drive_thru_outlets = [o for o in self.outlets if 'Drive-Thru' in o['services']]
+                    if drive_thru_outlets:
+                        response = f"For drive-thru convenience, visit **{drive_thru_outlets[0]['name']}** at {drive_thru_outlets[0]['address']}. Open {drive_thru_outlets[0]['hours']} with full drive-thru service plus {', '.join([s for s in drive_thru_outlets[0]['services'] if s != 'Drive-Thru'])}. Perfect for busy days when you need your ZUS Coffee on the go!"
+                        matching_outlets = drive_thru_outlets
+                    else:
+                        response = "Currently, our **Shah Alam outlet** offers Drive-Thru service for ultimate convenience. Most other ZUS Coffee outlets provide Dine-in, Takeaway, and Delivery options. Would you like to see all our outlet locations?"
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "outlet_search_drive_thru",
+                        "confidence": 0.9
+                    }
+                    
+                if patterns['patterns']['hours_24']:
+                    response = "Most ZUS Coffee outlets operate from early morning to late evening (typically 6:00 AM - 11:00 PM). **KL Sentral** opens earliest at 6:00 AM and some locations stay open until 11:00 PM for late-night coffee lovers. While we don't currently have 24-hour outlets, our extended hours cover most of your coffee needs. Would you like specific outlet hours?"
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "outlet_search_24hours",
+                        "confidence": 0.9
+                    }
+                
+                # Handle "all outlets" queries with enhanced response
+                if patterns['patterns']['all_outlets'] or (any(phrase in message_lower for phrase in ['all outlets', 'show outlets', 'all locations', 'show me all', 'outlet locations']) 
                     and not matching_outlets):
                     matching_outlets = self.outlets[:6]  # Show first 6 outlets
+                    response = "Here are our ZUS Coffee outlet locations: "
+                    outlet_details = []
+                    for i, outlet in enumerate(matching_outlets, 1):
+                        detail = f"{i}. **{outlet['name']}** - {outlet['address']}, Hours: {outlet['hours']}"
+                        outlet_details.append(detail)
+                    response += " | ".join(outlet_details)
+                    response += " Each outlet offers unique ambiance with consistent ZUS quality. Which location interests you most?"
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "outlet_search_all",
+                        "confidence": 0.9
+                    }
                 
                 response = self.format_outlet_response(matching_outlets)
                 return {
@@ -439,55 +514,98 @@ class EnhancedMinimalAgent:
                     "confidence": 0.9
                 }
             
-            # PRIORITY 3: Product/drinkware queries (comprehensive detection)
+            # PRIORITY 4: Product/drinkware queries with advanced pattern detection
             product_indicators = ['product', 'tumbler', 'cup', 'mug', 'bottle', 'drinkware', 'collection', 
                                 'stainless steel', 'ceramic', 'acrylic', 'steel', 'sundaze', 'aqua', 
                                 'corak malaysia', 'og cup', 'all-can', 'all day', 'frozee', 'cold cup',
                                 '500ml', '600ml', '16oz', 'under rm', 'price range', 'eco-friendly',
                                 'insulation', 'leak proof', 'car holder', 'blue', 'black', 'pink',
-                                'green', 'orange', 'what products', 'collections', 'available', 'options']
+                                'green', 'orange', 'what products', 'collections', 'available', 'options',
+                                'drinks', 'best selling', 'popular']
             
-            # Check if this is a product query (not just containing numbers for calculation)
             is_product_query = (any(indicator in message_lower for indicator in product_indicators) and 
-                              not is_outlet_query)  # Don't override outlet queries
+                              not is_outlet_query) or patterns['has_product']
             is_pure_calculation = (any(op in message for op in ['+', '-', '*', '/']) and 
                                  not any(indicator in message_lower for indicator in product_indicators))
             
-            # Handle specific product queries
             if is_product_query and not is_pure_calculation:
-                # Handle price range queries FIRST
-                if 'under rm' in message_lower or 'below rm' in message_lower:
-                    price_match = re.search(r'under rm\s*(\d+)|below rm\s*(\d+)', message_lower)
-                    if price_match:
-                        max_price = float(price_match.group(1) or price_match.group(2))
-                        matching_products = []
-                        for p in self.products:
-                            try:
-                                product_price = float(p['price'].replace('RM ', '').replace(',', ''))
-                                if product_price <= max_price:
-                                    matching_products.append(p)
-                            except:
-                                continue
+                # Handle price range queries with advanced detection
+                if patterns['patterns']['price_range'] and patterns['price_limit']:
+                    max_price = patterns['price_limit']
+                    matching_products = []
+                    for p in self.products:
+                        try:
+                            product_price = float(p['price'].replace('RM ', '').replace(',', ''))
+                            if product_price <= max_price:
+                                matching_products.append(p)
+                        except:
+                            continue
+                    
+                    if matching_products:
+                        response = f"Perfect! Here are ZUS Coffee products under RM{max_price}: "
+                        product_details = []
+                        for i, product in enumerate(matching_products, 1):
+                            detail = f"{i}. **{product['name']}** - {product['price']} ({product['material']}, {product['capacity']})"
+                            if 'on_sale' in product and product['on_sale']:
+                                detail += " [ON SALE - Great Deal!]"
+                            product_details.append(detail)
+                        response += " | ".join(product_details)
+                        response += f" All these options offer excellent value under your RM{max_price} budget!"
                     else:
-                        matching_products = self.find_matching_products(message)
-                else:
-                    matching_products = self.find_matching_products(message)
+                        response = f"Looking for drinkware under RM{max_price}? Our **ZUS OG Ceramic Mug** at RM39.00 is perfect for your budget! It's great for hot drinks with classic design and comfortable handle."
+                    
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "product_search_price_range",
+                        "confidence": 0.95
+                    }
                 
-                # Handle "all products" or "what do you have" queries (only if no price filter)
-                if (any(phrase in message_lower for phrase in ['what products', 'show me products', 'what do you have', 
-                                                              'all products', 'what drinkware', 'collections do you have',
-                                                              'show me', 'what']) 
-                    and not matching_products and not is_outlet_query and 'under rm' not in message_lower):
-                    matching_products = self.products[:5]  # Show first 5 products
+                # Material-specific queries
+                if patterns['patterns']['material_specific']:
+                    if 'steel' in message_lower or 'stainless' in message_lower:
+                        steel_products = [p for p in self.products if 'Stainless Steel' in p['material']]
+                        response = "Our premium **stainless steel collection** offers the best in durability and insulation: "
+                        product_details = []
+                        for i, product in enumerate(steel_products, 1):
+                            detail = f"{i}. **{product['name']}** - {product['price']} ({product['capacity']})"
+                            if 'on_sale' in product and product['on_sale']:
+                                detail += " [ON SALE]"
+                            if 'promotion' in product:
+                                detail += f" [{product['promotion']}]"
+                            product_details.append(detail)
+                        response += " | ".join(product_details)
+                        response += " All feature double-wall insulation and leak-proof design for the ultimate coffee experience!"
+                        return {
+                            "message": response,
+                            "session_id": session_id,
+                            "intent": "product_search_steel",
+                            "confidence": 0.95
+                        }
                 
-                # Handle eco-friendly queries
-                if 'eco-friendly' in message_lower or 'sustainable' in message_lower:
-                    # Highlight stainless steel products as more eco-friendly
-                    eco_products = [p for p in self.products if 'Stainless Steel' in p['material']]
-                    if eco_products:
-                        matching_products = eco_products[:3]
-                    else:
-                        matching_products = self.products[:3]
+                # Standard product search
+                matching_products = self.find_matching_products(message)
+                
+                # Handle "all products" with enhanced response
+                if patterns['patterns']['all_products'] and not matching_products:
+                    matching_products = self.products[:5]
+                    response = "Here's our complete ZUS Coffee drinkware collection: "
+                    product_details = []
+                    for i, product in enumerate(matching_products, 1):
+                        detail = f"{i}. **{product['name']}** - {product['price']} ({product['material']}, {product['capacity']})"
+                        if 'on_sale' in product and product['on_sale']:
+                            detail += " [ON SALE]"
+                        if 'promotion' in product:
+                            detail += f" [{product['promotion']}]"
+                        product_details.append(detail)
+                    response += " | ".join(product_details)
+                    response += " Each product is crafted for quality, style, and functionality. What catches your eye?"
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "product_search_all",
+                        "confidence": 0.9
+                    }
                 
                 response = self.format_product_response(matching_products)
                 return {
@@ -602,6 +720,79 @@ class EnhancedMinimalAgent:
                 "session_id": session_id,
                 "error": str(e)
             }
+
+    def detect_advanced_patterns(self, message: str) -> Dict[str, Any]:
+        """Detect advanced patterns and intentions in user messages."""
+        message_lower = message.lower()
+        patterns = {
+            'whats_new': any(phrase in message_lower for phrase in ['what\'s new', 'whats new', 'new at zus', 'latest', 'this month', 'recent']),
+            'best_selling': any(phrase in message_lower for phrase in ['best selling', 'bestselling', 'popular', 'top selling', 'most popular']),
+            'promotions': any(phrase in message_lower for phrase in ['promotion', 'promo', 'sale', 'discount', 'offer', 'deal', 'special', 'available today']),
+            'price_range': any(phrase in message_lower for phrase in ['under rm', 'below rm', 'less than rm', 'price range', 'budget']),
+            'collections': any(phrase in message_lower for phrase in ['collection', 'collections', 'what collections', 'drinkware collections']),
+            'eco_friendly': any(phrase in message_lower for phrase in ['eco-friendly', 'sustainable', 'environmentally friendly', 'green']),
+            'material_specific': any(phrase in message_lower for phrase in ['steel', 'stainless steel', 'ceramic', 'acrylic']),
+            'near_location': any(phrase in message_lower for phrase in ['near', 'nearby', 'close to', 'around']),
+            'drive_thru': any(phrase in message_lower for phrase in ['drive-thru', 'drive thru', 'drive through']),
+            'hours_24': any(phrase in message_lower for phrase in ['24 hours', '24/7', 'open 24', 'all night']),
+            'all_products': any(phrase in message_lower for phrase in ['all products', 'what products', 'show me products', 'what do you have']),
+            'all_outlets': any(phrase in message_lower for phrase in ['all outlets', 'all locations', 'show outlets', 'outlet locations'])
+        }
+        
+        # Extract price range if specified
+        price_match = re.search(r'under rm\s*(\d+)|below rm\s*(\d+)|less than rm\s*(\d+)', message_lower)
+        price_limit = None
+        if price_match:
+            price_limit = float(price_match.group(1) or price_match.group(2) or price_match.group(3))
+        
+        return {
+            'patterns': patterns,
+            'price_limit': price_limit,
+            'has_location': any(patterns[key] for key in ['near_location', 'drive_thru', 'hours_24', 'all_outlets']),
+            'has_product': any(patterns[key] for key in ['best_selling', 'collections', 'eco_friendly', 'material_specific', 'all_products'])
+        }
+
+    def get_whats_new_response(self) -> str:
+        """Generate response about what's new at ZUS Coffee."""
+        return ("Here's what's exciting at ZUS Coffee this month! Our **ZUS OG Cup 2.0** is currently on sale for RM 55.00 (regular RM 79.00) with improved screw-on lid and better grip. The **All-Can Tumbler** has a special Buy 1 Free 1 promotion. We also have our beautiful collections: **Sundaze** with bright vibrant colors, **Aqua** with water-inspired tones, and **Corak Malaysia** celebrating our heritage. All feature premium stainless steel construction and double-wall insulation. What catches your interest?")
+
+    def get_best_selling_response(self) -> str:
+        """Generate response about best-selling products."""
+        best_sellers = [
+            "**ZUS OG Cup 2.0** - Our flagship 500ml stainless steel cup with screw-on lid, currently on sale!",
+            "**ZUS All-Can Tumbler** - Perfect 600ml car-friendly tumbler with Buy 1 Free 1 promotion",
+            "**ZUS All Day Cup Sundaze Collection** - Bright, cheerful colors perfect for daily use"
+        ]
+        return f"Our best-selling drinkware includes: {' | '.join(best_sellers)}. These are customer favorites for their quality, design, and functionality. Would you like detailed information about any of these?"
+
+    def get_promotions_response(self) -> str:
+        """Generate response about current promotions."""
+        return ("Current ZUS Coffee promotions: **ZUS OG Cup 2.0** is on sale for RM 55.00 (regular RM 79.00) - that's 30% off! Plus our **ZUS All-Can Tumbler** has a special Buy 1 Free 1 offer. These deals won't last long, so grab yours today! All our products come with premium features like double-wall insulation and leak-proof design. Which promotion interests you most?")
+
+    def get_collections_response(self) -> str:
+        """Generate response about drinkware collections."""
+        collections = [
+            "**Sundaze Collection** - Bright, vibrant colors (Bright Yellow, Sunset Orange, Sky Blue) perfect for energetic days",
+            "**Aqua Collection** - Water-inspired tones (Ocean Blue, Sea Green, Aqua Mint) for a refreshing feel", 
+            "**Corak Malaysia Collection** - Heritage-inspired patterns (Malaysia Red, Heritage Gold, Unity Blue) celebrating our culture"
+        ]
+        return f"ZUS Coffee has three beautiful drinkware collections: {' | '.join(collections)}. All collections feature premium 500ml stainless steel construction with double-wall insulation. Which collection speaks to you?"
+
+    def get_eco_friendly_response(self) -> str:
+        """Generate response about eco-friendly options."""
+        eco_products = [p for p in self.products if 'Stainless Steel' in p['material']]
+        response = "Great choice for the environment! Our **stainless steel drinkware** is the most eco-friendly option - reusable, durable, and plastic-free. Featured eco-friendly products: "
+        
+        eco_details = []
+        for product in eco_products[:3]:
+            detail = f"**{product['name']}** - {product['price']} (premium stainless steel, double-wall insulation)"
+            if 'on_sale' in product and product['on_sale']:
+                detail += " [ON SALE]"
+            eco_details.append(detail)
+        
+        response += " | ".join(eco_details)
+        response += " By choosing ZUS drinkware, you're reducing single-use cup waste and supporting sustainability!"
+        return response
 
 # Global instance
 _enhanced_minimal_agent = None
