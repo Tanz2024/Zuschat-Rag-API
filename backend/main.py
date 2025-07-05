@@ -17,14 +17,20 @@ from data.database import get_db, create_tables
 
 # Import enhanced chatbot agent with fallback
 try:
-    from chatbot.agent_enhanced import get_chatbot
-    print("✅ Using enhanced intelligent chatbot")
+    from chatbot.agent_enhanced_new import get_chatbot
+    print("✅ Using NEW enhanced intelligent chatbot with advanced patterns")
     ENHANCED_CHATBOT = True
 except ImportError as e:
-    print(f"⚠️  Enhanced chatbot not available: {e}")
-    from agents.controller import get_agent_controller
-    ENHANCED_CHATBOT = False
-    print("📝 Using basic chatbot as fallback")
+    print(f"⚠️  New enhanced chatbot not available: {e}")
+    try:
+        from chatbot.agent_enhanced import get_chatbot
+        print("✅ Using previous enhanced intelligent chatbot")
+        ENHANCED_CHATBOT = True
+    except ImportError as e2:
+        print(f"⚠️  Enhanced chatbot not available: {e2}")
+        from agents.controller import get_agent_controller
+        ENHANCED_CHATBOT = False
+        print("📝 Using basic chatbot as fallback")
 
 # Try to import ML-based search, fallback to simple search
 try:
