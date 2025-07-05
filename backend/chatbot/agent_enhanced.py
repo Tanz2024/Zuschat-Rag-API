@@ -403,40 +403,69 @@ class SmartCalculationEngine:
             return {"error": f"Calculation error: {str(e)}"}
 
 class EnhancedAPIService:
-    """Enhanced API service with intelligent data handling."""
+    """Enhanced API service with direct database access."""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url
+    def __init__(self):
         self.timeout = 15
     
     async def call_outlets_api(self, query: str) -> Dict[str, Any]:
-        """Call outlets API with enhanced error handling."""
+        """Get outlets from database with enhanced filtering."""
         try:
-            url = f"{self.base_url}/outlets"
-            response = requests.get(url, params={"query": query}, timeout=self.timeout)
+            # Import here to avoid circular imports
+            from data.database import SessionLocal, Outlet
             
-            if response.status_code == 200:
-                return {"success": True, "data": response.json()}
-            else:
-                return {"success": False, "error": f"API returned status {response.status_code}"}
+            with SessionLocal() as db:
+                # Search outlets by address or name
+                outlets = db.query(Outlet).filter(
+                    Outlet.address.ilike(f'%{query}%') | 
+                    Outlet.name.ilike(f'%{query}%')
+                ).limit(10).all()
+                
+                outlet_data = []
+                for outlet in outlets:
+                    outlet_data.append({
+                        "name": outlet.name,
+                        "address": outlet.address,
+                        "opening_hours": outlet.opening_hours,
+                        "services": outlet.services
+                    })
+                
+                return {"success": True, "data": {"outlets": outlet_data, "total_found": len(outlet_data)}}
                 
         except Exception as e:
-            logger.error(f"Outlets API error: {str(e)}")
+            logger.error(f"Outlets database error: {str(e)}")
             return {"success": False, "error": str(e)}
     
     async def call_products_api(self, query: str, top_k: int = 12) -> Dict[str, Any]:
-        """Call products API with enhanced filtering."""
+        """Get products from JSON file with enhanced filtering."""
         try:
-            url = f"{self.base_url}/products"
-            response = requests.get(url, params={"query": query, "top_k": top_k}, timeout=self.timeout)
+            import json
+            import os
             
-            if response.status_code == 200:
-                return {"success": True, "data": response.json()}
-            else:
-                return {"success": False, "error": f"API returned status {response.status_code}"}
+            # Load products from JSON file
+            products_file = os.path.join(os.path.dirname(__file__), '../data/products.json')
+            with open(products_file, 'r', encoding='utf-8') as f:
+                products = json.load(f)
+            
+            # Simple text search in product names and descriptions
+            query_lower = query.lower()
+            filtered_products = []
+            
+            for product in products:
+                name_match = query_lower in product.get('name', '').lower()
+                desc_match = query_lower in product.get('description', '').lower()
+                category_match = query_lower in product.get('category', '').lower()
+                
+                if name_match or desc_match or category_match:
+                    filtered_products.append(product)
+            
+            # Limit results
+            limited_products = filtered_products[:top_k]
+            
+            return {"success": True, "data": {"products": limited_products, "total_found": len(limited_products)}}
                 
         except Exception as e:
-            logger.error(f"Products API error: {str(e)}")
+            logger.error(f"Products file error: {str(e)}")
             return {"success": False, "error": str(e)}
 
 class AdvancedZUSChatbot:
@@ -445,9 +474,9 @@ class AdvancedZUSChatbot:
     Intelligent conversational AI with context awareness and natural responses.
     """
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self):
         self.intent_detector = IntelligentIntentDetector()
-        self.api_service = EnhancedAPIService(base_url)
+        self.api_service = EnhancedAPIService()
         self.calculation_engine = SmartCalculationEngine()
         self.user_sessions: Dict[str, SmartUserState] = {}
     
