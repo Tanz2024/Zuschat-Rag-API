@@ -421,16 +421,19 @@ class EnhancedAPIService:
                     Outlet.name.ilike(f'%{query}%')
                 ).limit(10).all()
                 
-                outlet_data = []
-                for outlet in outlets:
-                    outlet_data.append({
-                        "name": outlet.name,
-                        "address": outlet.address,
-                        "opening_hours": outlet.opening_hours,
-                        "services": outlet.services
-                    })
+                if not outlets:
+                    # Try broader search
+                    outlets = db.query(Outlet).limit(5).all()
                 
-                return {"success": True, "data": {"outlets": outlet_data, "total_found": len(outlet_data)}}
+                if outlets:
+                    outlet_list = []
+                    for outlet in outlets:
+                        outlet_list.append(f"📍 **{outlet.name}**\\n   📧 {outlet.address}\\n   🕒 Hours: {outlet.opening_hours}\\n   🔧 Services: {outlet.services}")
+                    
+                    message = f"🏪 **ZUS Coffee Outlets:**\\n\\n" + "\\n\\n".join(outlet_list)
+                    return {"success": True, "data": {"message": message}}
+                else:
+                    return {"success": True, "data": {"message": "No outlets found matching your query. Please try a different location or visit zuscoffee.com for all store locations."}}
                 
         except Exception as e:
             logger.error(f"Outlets database error: {str(e)}")
@@ -459,10 +462,31 @@ class EnhancedAPIService:
                 if name_match or desc_match or category_match:
                     filtered_products.append(product)
             
+            # If no matches, show all products
+            if not filtered_products:
+                filtered_products = products[:top_k]
+            
             # Limit results
             limited_products = filtered_products[:top_k]
             
-            return {"success": True, "data": {"products": limited_products, "total_found": len(limited_products)}}
+            if limited_products:
+                product_list = []
+                for product in limited_products:
+                    price_info = f"**{product.get('price', 'Price N/A')}**"
+                    if product.get('regular_price') and product.get('regular_price') != product.get('price'):
+                        price_info += f" ~~{product.get('regular_price')}~~"
+                    
+                    product_text = f"☕ **{product.get('name', 'Unknown Product')}**\\n   💰 {price_info}\\n   📝 {product.get('description', 'No description available')}"
+                    
+                    if product.get('on_sale') or product.get('promotion'):
+                        product_text += "\\n   🔥 **ON SALE!**"
+                    
+                    product_list.append(product_text)
+                
+                message = f"🛍️ **ZUS Coffee Products:**\\n\\n" + "\\n\\n".join(product_list)
+                return {"success": True, "data": {"message": message}}
+            else:
+                return {"success": True, "data": {"message": "No products found matching your query. Please try different keywords or visit zuscoffee.com to see all products."}}
                 
         except Exception as e:
             logger.error(f"Products file error: {str(e)}")
