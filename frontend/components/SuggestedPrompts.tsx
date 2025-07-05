@@ -1,5 +1,56 @@
 import React from 'react'
-import { getHighPriorityPrompts } from '../lib/suggestedPrompts'
+
+// EMBEDDED PROMPTS DATA - NO EXTERNAL IMPORTS TO AVOID VERCEL CACHE ISSUES
+interface SuggestedPrompt {
+  text: string
+  category: string
+  icon?: string
+  priority: number
+  tags: string[]
+}
+
+const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  {
+    text: "What's new at ZUS Coffee this month?",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["new", "latest", "updates", "promotion"]
+  },
+  {
+    text: "Find ZUS Coffee outlets near KLCC",
+    category: "🌟 Popular", 
+    priority: 1,
+    tags: ["location", "klcc", "outlets", "nearby"]
+  },
+  {
+    text: "Show me your best-selling drinks",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["drinks", "popular", "coffee", "bestseller"]
+  },
+  {
+    text: "What promotions are available today?",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["promotion", "deals", "discount", "offers"]
+  },
+  {
+    text: "Show me coffee tumblers under RM40",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["tumbler", "drinkware", "price", "budget"]
+  },
+  {
+    text: "What drinkware collections do you have?",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["drinkware", "collection", "merchandise", "products"]
+  }
+]
+
+const getHighPriorityPrompts = (): SuggestedPrompt[] => {
+  return SUGGESTED_PROMPTS.filter(prompt => prompt.priority <= 2).slice(0, 8)
+}
 
 interface SuggestedPromptsProps {
   onPromptClick: (prompt: string) => void

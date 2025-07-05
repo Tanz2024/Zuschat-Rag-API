@@ -1,7 +1,116 @@
 import React, { useState } from 'react'
 import { Trash2, Moon, Sun, Sparkles, Coffee, Search } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
-import { SUGGESTED_PROMPTS, getPromptsByCategory, getHighPriorityPrompts, searchPrompts, getPromptCategories } from '../lib/suggestedPrompts'
+
+// VERCEL CACHE BUSTER - BUILD: 2025-07-05-19:55:00 - VERSION 2.0.0 - NO EXTERNAL IMPORTS
+// EMBEDDED PROMPTS DATA TO ELIMINATE ALL MODULE RESOLUTION ISSUES
+interface SuggestedPrompt {
+  text: string
+  category: string
+  icon?: string
+  priority: number
+  tags: string[]
+}
+
+const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  // High Priority - Popular Queries
+  {
+    text: "What's new at ZUS Coffee this month?",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["new", "latest", "updates", "promotion"]
+  },
+  {
+    text: "Find ZUS Coffee outlets near KLCC",
+    category: "🌟 Popular", 
+    priority: 1,
+    tags: ["location", "klcc", "outlets", "nearby"]
+  },
+  {
+    text: "Show me your best-selling drinks",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["drinks", "popular", "coffee", "bestseller"]
+  },
+  {
+    text: "What promotions are available today?",
+    category: "🌟 Popular",
+    priority: 1,
+    tags: ["promotion", "deals", "discount", "offers"]
+  },
+  // Product Related
+  {
+    text: "Show me coffee tumblers under RM40",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["tumbler", "drinkware", "price", "budget"]
+  },
+  {
+    text: "What drinkware collections do you have?",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["drinkware", "collection", "merchandise", "products"]
+  },
+  {
+    text: "Show me eco-friendly drinkware options",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["eco", "sustainable", "environment", "green"]
+  },
+  {
+    text: "What steel tumblers are available?",
+    category: "☕ Products",
+    priority: 2,
+    tags: ["steel", "tumbler", "available", "metal"]
+  },
+  // Outlet Related
+  {
+    text: "ZUS Coffee outlets in KL with drive-thru",
+    category: "📍 Outlets",
+    priority: 2,
+    tags: ["location", "drive-thru", "kuala lumpur", "convenient"]
+  },
+  {
+    text: "Which outlets are open 24 hours?",
+    category: "📍 Outlets",
+    priority: 2,
+    tags: ["24hours", "late night", "hours", "open"]
+  },
+  // Help & Information
+  {
+    text: "What products do you have?",
+    category: "ℹ️ Help",
+    priority: 2,
+    tags: ["products", "available", "catalog", "what"]
+  },
+  {
+    text: "Show me all outlet locations",
+    category: "ℹ️ Help",
+    priority: 2,
+    tags: ["outlets", "locations", "all", "where"]
+  }
+]
+
+const getPromptsByCategory = (category: string): SuggestedPrompt[] => {
+  return SUGGESTED_PROMPTS.filter(prompt => prompt.category === category)
+}
+
+const getHighPriorityPrompts = (): SuggestedPrompt[] => {
+  return SUGGESTED_PROMPTS.filter(prompt => prompt.priority <= 2).slice(0, 8)
+}
+
+const searchPrompts = (query: string): SuggestedPrompt[] => {
+  const lowercaseQuery = query.toLowerCase()
+  return SUGGESTED_PROMPTS.filter(prompt => 
+    prompt.text.toLowerCase().includes(lowercaseQuery) ||
+    prompt.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
+  ).sort((a, b) => a.priority - b.priority)
+}
+
+const getPromptCategories = (): string[] => {
+  const categories = new Set(SUGGESTED_PROMPTS.map(prompt => prompt.category))
+  return Array.from(categories)
+}
 
 interface SidebarProps {
   onClose?: () => void
