@@ -164,6 +164,32 @@ async def health_check():
         "version": "1.0.0"
     }
 
+# Debug endpoint to check chatbot status
+@app.get("/debug/chatbot")
+async def debug_chatbot():
+    """Debug endpoint to check chatbot import status."""
+    try:
+        if ENHANCED_CHATBOT:
+            chatbot = get_chatbot()
+            test_result = await chatbot.process_message("test", "debug")
+            return {
+                "status": "success",
+                "chatbot_type": "enhanced",
+                "test_message": test_result.get("message", "No message")[:100]
+            }
+        else:
+            return {
+                "status": "fallback",
+                "chatbot_type": "basic",
+                "message": "Using basic fallback chatbot"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "chatbot_type": "unknown"
+        }
+
 # Main chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
@@ -178,22 +204,38 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         
         # Use enhanced chatbot if available, otherwise fallback
         if ENHANCED_CHATBOT:
-            # Process with enhanced chatbot
-            chatbot = get_chatbot()
-            response_data = await chatbot.process_message(
-                message=request.message,
-                session_id=request.session_id
-            )
-            
-            return ChatResponse(
-                message=response_data.get("message", response_data.get("response", "No response")),
-                session_id=response_data.get("session_id", request.session_id)
-            )
+            try:
+                # Process with enhanced chatbot
+                chatbot = get_chatbot()
+                response_data = await chatbot.process_message(
+                    message=request.message,
+                    session_id=request.session_id
+                )
+                
+                return ChatResponse(
+                    message=response_data.get("message", response_data.get("response", "No response")),
+                    session_id=response_data.get("session_id", request.session_id)
+                )
+            except Exception as enhanced_error:
+                logger.error(f"Enhanced chatbot failed: {enhanced_error}")
+                # Fallback to basic response
+                return ChatResponse(
+                    message="Hello! I'm temporarily experiencing some technical difficulties. I can still help you with ZUS Coffee products, outlet locations, and general inquiries. What would you like to know?",
+                    session_id=request.session_id
+                )
         else:
-            # Fallback to basic chatbot
-            controller = get_agent_controller()
-            response = await controller.process_message(request, db)
-            return response
+            try:
+                # Fallback to basic chatbot
+                controller = get_agent_controller()
+                response = await controller.process_message(request, db)
+                return response
+            except Exception as basic_error:
+                logger.error(f"Basic chatbot failed: {basic_error}")
+                # Ultimate fallback
+                return ChatResponse(
+                    message="I'm currently experiencing technical difficulties. Please try again in a moment. I'm here to help with ZUS Coffee information!",
+                    session_id=request.session_id
+                )
         
     except HTTPException:
         raise
