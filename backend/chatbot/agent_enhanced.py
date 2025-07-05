@@ -409,88 +409,423 @@ class EnhancedAPIService:
         self.timeout = 15
     
     async def call_outlets_api(self, query: str) -> Dict[str, Any]:
-        """Get outlets from database with enhanced filtering."""
+        """Get outlets from database with advanced filtering and pattern recognition."""
         try:
             # Import here to avoid circular imports
             from data.database import SessionLocal, Outlet
             
+            query_lower = query.lower()
+            
+            # Extract advanced search parameters
+            time_filter = None
+            location_filter = None
+            service_filter = None
+            
+            # Time-based filtering
+            if any(time in query_lower for time in ['open until', 'closes at', 'late night', '10pm', '11pm', 'after 10']):
+                if '10pm' in query_lower or 'until 10' in query_lower or 'after 10' in query_lower:
+                    time_filter = "10:00 PM"
+                elif '11pm' in query_lower or 'until 11' in query_lower:
+                    time_filter = "11:00 PM"
+                elif 'late' in query_lower:
+                    time_filter = "10:00 PM"
+            
+            # Location-based filtering
+            location_keywords = {
+                'klcc': ['klcc', 'city centre', 'petronas'],
+                'pavilion': ['pavilion', 'bukit bintang'],
+                'pj': ['pj', 'petaling jaya'],
+                'bangsar': ['bangsar'],
+                'damansara': ['damansara', 'taman tun dr ismail', 'ttdi'],
+                'kl': ['kuala lumpur', ' kl ', 'wilayah persekutuan'],
+                'selangor': ['selangor', 'shah alam', 'ampang', 'cheras', 'subang'],
+                'putrajaya': ['putrajaya']
+            }
+            
+            for area, keywords in location_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    location_filter = area
+                    break
+            
+            # Service-based filtering
+            if any(service in query_lower for service in ['wifi', 'wi-fi', 'internet']):
+                service_filter = "WiFi"
+            elif any(service in query_lower for service in ['drive', 'drive-thru', 'drive through']):
+                service_filter = "Drive-Thru"
+            elif 'delivery' in query_lower:
+                service_filter = "Delivery"
+            elif 'takeaway' in query_lower or 'take away' in query_lower:
+                service_filter = "Takeaway"
+            
             with SessionLocal() as db:
-                # Search outlets by address or name
-                outlets = db.query(Outlet).filter(
-                    Outlet.address.ilike(f'%{query}%') | 
-                    Outlet.name.ilike(f'%{query}%')
-                ).limit(10).all()
+                # Base query
+                outlets_query = db.query(Outlet)
                 
-                if not outlets:
-                    # Try broader search
-                    outlets = db.query(Outlet).limit(5).all()
+                # Apply location filter
+                if location_filter:
+                    if location_filter == 'kl':
+                        outlets_query = outlets_query.filter(
+                            Outlet.address.ilike('%kuala lumpur%') | 
+                            Outlet.address.ilike('%wilayah persekutuan%') |
+                            Outlet.address.ilike('% kl %')
+                        )
+                    elif location_filter == 'selangor':
+                        outlets_query = outlets_query.filter(Outlet.address.ilike('%selangor%'))
+                    elif location_filter == 'putrajaya':
+                        outlets_query = outlets_query.filter(Outlet.address.ilike('%putrajaya%'))
+                    else:
+                        outlets_query = outlets_query.filter(Outlet.address.ilike(f'%{location_filter}%'))
                 
-                if outlets:
-                    outlet_list = []
-                    for outlet in outlets:
-                        outlet_list.append(f"📍 **{outlet.name}**\\n   📧 {outlet.address}\\n   🕒 Hours: {outlet.opening_hours}\\n   🔧 Services: {outlet.services}")
+                # Get all matching outlets
+                all_outlets = outlets_query.limit(50).all()
+                
+                # Apply additional filters
+                filtered_outlets = []
+                for outlet in all_outlets:
+                    include_outlet = True
                     
-                    message = f"🏪 **ZUS Coffee Outlets:**\\n\\n" + "\\n\\n".join(outlet_list)
-                    return {"success": True, "data": {"message": message}}
-                else:
-                    return {"success": True, "data": {"message": "No outlets found matching your query. Please try a different location or visit zuscoffee.com for all store locations."}}
+                    # Apply time filter
+                    if time_filter and outlet.opening_hours:
+                        hours_str = outlet.opening_hours.lower()
+                        if time_filter.lower() not in hours_str:
+                            # Check if it actually closes at or after the requested time
+                            if '10:00 pm' not in hours_str and '11:00 pm' not in hours_str and '12:00 am' not in hours_str:
+                                include_outlet = False
+                    
+                    # Apply service filter
+                    if service_filter and outlet.services:
+                        services_str = outlet.services.lower()
+                        if service_filter.lower() not in services_str:
+                            include_outlet = False
+                    
+                    if include_outlet:
+                        filtered_outlets.append(outlet)
                 
+                # If no specific filters applied, use general search
+                if not time_filter and not location_filter and not service_filter:
+                    outlets = db.query(Outlet).filter(
+                        Outlet.address.ilike(f'%{query}%') | 
+                        Outlet.name.ilike(f'%{query}%')
+                    ).limit(10).all()
+                    
+                    if not outlets:
+                        # Show popular outlets
+                        outlets = db.query(Outlet).filter(
+                            Outlet.address.ilike('%kuala lumpur%') | 
+                            Outlet.address.ilike('%pavilion%') |
+                            Outlet.address.ilike('%klcc%')
+                        ).limit(8).all()
+                    
+                    filtered_outlets = outlets
+                
+                # Limit final results
+                final_outlets = filtered_outlets[:12]
+                
+                if final_outlets:
+                    return {"success": True, "data": {"message": self._format_outlets_response(final_outlets, query)}}
+                else:
+                    suggestion = "🔍 **No outlets found matching your criteria.** Try:\\n• 'Outlets in KLCC' - Popular city center locations\\n• 'Outlets open until 10pm' - Late night options\\n• 'Outlets with WiFi' - Work-friendly spaces\\n• 'Outlets in Selangor' - Suburban locations"
+                    return {"success": True, "data": {"message": suggestion}}
+                    
         except Exception as e:
             logger.error(f"Outlets database error: {str(e)}")
             return {"success": False, "error": str(e)}
     
+    def _format_outlets_response(self, outlets, query: str) -> str:
+        """Format outlets response with enhanced information display."""
+        query_lower = query.lower()
+        
+        # Determine what information to highlight
+        show_hours = any(word in query_lower for word in ['hour', 'open', 'close', 'time'])
+        show_services = any(word in query_lower for word in ['service', 'wifi', 'delivery', 'drive'])
+        
+        outlet_list = []
+        for outlet in outlets:
+            outlet_info = f"📍 **{outlet.name}**\\n   📧 {outlet.address}"
+            
+            if show_hours and outlet.opening_hours:
+                # Parse and format hours nicely
+                try:
+                    import json
+                    hours_data = json.loads(outlet.opening_hours)
+                    if isinstance(hours_data, dict):
+                        # Show today's hours or general pattern
+                        sample_hours = next(iter(hours_data.values()))
+                        outlet_info += f"\\n   🕒 **Hours**: {sample_hours} (Daily)"
+                    else:
+                        outlet_info += f"\\n   🕒 **Hours**: {outlet.opening_hours}"
+                except:
+                    outlet_info += f"\\n   🕒 **Hours**: {outlet.opening_hours}"
+            
+            if show_services and outlet.services:
+                # Format services nicely
+                try:
+                    import json
+                    services_data = json.loads(outlet.services)
+                    if isinstance(services_data, list):
+                        services_str = ", ".join(services_data)
+                        outlet_info += f"\\n   🔧 **Services**: {services_str}"
+                    else:
+                        outlet_info += f"\\n   🔧 **Services**: {outlet.services}"
+                except:
+                    outlet_info += f"\\n   🔧 **Services**: {outlet.services}"
+            
+            outlet_list.append(outlet_info)
+        
+        # Create response header based on query
+        if 'hour' in query_lower or 'open' in query_lower:
+            header = f"🕒 **ZUS Coffee Outlets - Operating Hours**"
+        elif 'service' in query_lower or 'wifi' in query_lower:
+            header = f"🔧 **ZUS Coffee Outlets - Services Available**"
+        else:
+            header = f"🏪 **ZUS Coffee Outlets**"
+        
+        response = f"{header}\\n\\n" + "\\n\\n".join(outlet_list)
+        
+        # Add helpful tips
+        if len(outlets) >= 10:
+            response += f"\\n\\n💡 **Showing {len(outlets)} outlets.** For more specific results, try adding location details like 'KLCC area' or 'Selangor'."
+        
+        return response
+    
     async def call_products_api(self, query: str, top_k: int = 12) -> Dict[str, Any]:
-        """Get products from JSON file with enhanced filtering."""
+        """Get products from JSON file with advanced filtering and price range support."""
         try:
             import json
             import os
+            import re
             
             # Load products from JSON file
             products_file = os.path.join(os.path.dirname(__file__), '../data/products.json')
             with open(products_file, 'r', encoding='utf-8') as f:
                 products = json.load(f)
             
-            # Simple text search in product names and descriptions
             query_lower = query.lower()
+            
+            # Extract price range from query
+            price_min = None
+            price_max = None
+            
+            # Look for price patterns like "under 50", "below RM50", "RM40-60", "between 40 and 60"
+            price_patterns = [
+                r'under\s+(?:rm\s*)?(\d+)',
+                r'below\s+(?:rm\s*)?(\d+)', 
+                r'less\s+than\s+(?:rm\s*)?(\d+)',
+                r'(?:rm\s*)?(\d+)\s*-\s*(?:rm\s*)?(\d+)',
+                r'between\s+(?:rm\s*)?(\d+)\s+and\s+(?:rm\s*)?(\d+)',
+                r'(\d+)\s+(?:rm\s+)?to\s+(?:rm\s*)?(\d+)',
+                r'above\s+(?:rm\s*)?(\d+)',
+                r'over\s+(?:rm\s*)?(\d+)',
+                r'more\s+than\s+(?:rm\s*)?(\d+)'
+            ]
+            
+            for pattern in price_patterns:
+                match = re.search(pattern, query_lower)
+                if match:
+                    if 'under' in pattern or 'below' in pattern or 'less' in pattern:
+                        price_max = float(match.group(1))
+                    elif 'above' in pattern or 'over' in pattern or 'more' in pattern:
+                        price_min = float(match.group(1))
+                    elif len(match.groups()) == 2:  # Range patterns
+                        price_min = float(match.group(1))
+                        price_max = float(match.group(2))
+                    break
+            
+            # Extract material preferences
+            material_filter = None
+            materials = ['stainless steel', 'ceramic', 'acrylic', 'steel', 'glass']
+            for material in materials:
+                if material in query_lower:
+                    material_filter = material
+                    break
+            
+            # Extract capacity preferences
+            capacity_filter = None
+            if any(size in query_lower for size in ['small', '350ml', '14oz', '16oz']):
+                capacity_filter = 'small'
+            elif any(size in query_lower for size in ['medium', '500ml', '17oz']):
+                capacity_filter = 'medium'
+            elif any(size in query_lower for size in ['large', '600ml', '650ml', '20oz', '22oz']):
+                capacity_filter = 'large'
+            
+            # Extract collection preferences
+            collection_filter = None
+            collections = ['mountain', 'aqua', 'sundaze', 'kopi patah hati', 'corak malaysia']
+            for collection in collections:
+                if collection in query_lower:
+                    collection_filter = collection
+                    break
+            
+            # Extract sale/promotion preferences
+            sale_only = any(word in query_lower for word in ['sale', 'discount', 'promotion', 'deal', 'offer'])
+            
+            # Filter products
             filtered_products = []
             
             for product in products:
-                name_match = query_lower in product.get('name', '').lower()
-                desc_match = query_lower in product.get('description', '').lower()
-                category_match = query_lower in product.get('category', '').lower()
+                include_product = True
                 
-                if name_match or desc_match or category_match:
+                # Text matching
+                if query_lower and query_lower not in 'show all products':
+                    text_match = any([
+                        query_lower in product.get('name', '').lower(),
+                        query_lower in product.get('description', '').lower(),
+                        query_lower in product.get('category', '').lower(),
+                        any(query_lower in color.lower() for color in product.get('colors', [])),
+                        any(query_lower in feature.lower() for feature in product.get('features', []))
+                    ])
+                    
+                    # If no specific filters, require text match
+                    if not (price_min or price_max or material_filter or capacity_filter or collection_filter or sale_only):
+                        if not text_match:
+                            include_product = False
+                
+                # Price range filter
+                if price_min or price_max:
+                    try:
+                        product_price = float(product.get('sale_price', 0))
+                        if price_min and product_price < price_min:
+                            include_product = False
+                        if price_max and product_price > price_max:
+                            include_product = False
+                    except (ValueError, TypeError):
+                        include_product = False
+                
+                # Material filter
+                if material_filter and include_product:
+                    product_material = product.get('material', '').lower()
+                    if material_filter not in product_material:
+                        include_product = False
+                
+                # Capacity filter
+                if capacity_filter and include_product:
+                    capacity = product.get('capacity', '').lower()
+                    if capacity_filter == 'small' and not any(size in capacity for size in ['14oz', '16oz', '350ml']):
+                        include_product = False
+                    elif capacity_filter == 'medium' and not any(size in capacity for size in ['17oz', '500ml']):
+                        include_product = False
+                    elif capacity_filter == 'large' and not any(size in capacity for size in ['20oz', '22oz', '600ml', '650ml']):
+                        include_product = False
+                
+                # Collection filter
+                if collection_filter and include_product:
+                    product_collection = product.get('collection', '').lower()
+                    if collection_filter not in product_collection:
+                        include_product = False
+                
+                # Sale filter
+                if sale_only and include_product:
+                    if not (product.get('on_sale') or product.get('promotion')):
+                        include_product = False
+                
+                if include_product:
                     filtered_products.append(product)
             
-            # If no matches, show all products
+            # If no matches and we used filters, try with relaxed criteria
+            if not filtered_products and (price_min or price_max or material_filter):
+                for product in products:
+                    # Just use price filter if specified
+                    if price_min or price_max:
+                        try:
+                            product_price = float(product.get('sale_price', 0))
+                            if price_min and product_price >= price_min:
+                                filtered_products.append(product)
+                            elif price_max and product_price <= price_max:
+                                filtered_products.append(product)
+                        except:
+                            pass
+            
+            # If still no matches, show all products
             if not filtered_products:
                 filtered_products = products[:top_k]
+            
+            # Sort by relevance (sale items first, then by price)
+            def sort_key(product):
+                sale_priority = 0 if product.get('on_sale') or product.get('promotion') else 1
+                price = float(product.get('sale_price', 999))
+                return (sale_priority, price)
+            
+            filtered_products.sort(key=sort_key)
             
             # Limit results
             limited_products = filtered_products[:top_k]
             
             if limited_products:
-                product_list = []
-                for product in limited_products:
-                    price_info = f"**{product.get('price', 'Price N/A')}**"
-                    if product.get('regular_price') and product.get('regular_price') != product.get('price'):
-                        price_info += f" ~~{product.get('regular_price')}~~"
-                    
-                    product_text = f"☕ **{product.get('name', 'Unknown Product')}**\\n   💰 {price_info}\\n   📝 {product.get('description', 'No description available')}"
-                    
-                    if product.get('on_sale') or product.get('promotion'):
-                        product_text += "\\n   🔥 **ON SALE!**"
-                    
-                    product_list.append(product_text)
-                
-                message = f"🛍️ **ZUS Coffee Products:**\\n\\n" + "\\n\\n".join(product_list)
-                return {"success": True, "data": {"message": message}}
+                return {"success": True, "data": {"message": self._format_products_response(limited_products, query)}}
             else:
-                return {"success": True, "data": {"message": "No products found matching your query. Please try different keywords or visit zuscoffee.com to see all products."}}
+                return {"success": True, "data": {"message": "No products found matching your criteria. Try broader search terms or check out our full collection at zuscoffee.com!"}}
                 
         except Exception as e:
             logger.error(f"Products file error: {str(e)}")
             return {"success": False, "error": str(e)}
+    
+    def _format_products_response(self, products, query: str) -> str:
+        """Format products response with enhanced information display."""
+        query_lower = query.lower()
+        
+        # Determine what information to highlight
+        show_price_focus = any(word in query_lower for word in ['price', 'cost', 'cheap', 'expensive', 'rm', 'under', 'above'])
+        show_material_focus = any(material in query_lower for material in ['steel', 'ceramic', 'acrylic', 'material'])
+        show_capacity_focus = any(word in query_lower for word in ['size', 'capacity', 'ml', 'oz', 'small', 'large'])
+        
+        product_list = []
+        for product in products:
+            # Basic info
+            name = product.get('name', 'Unknown Product')
+            price = product.get('price', 'Price N/A')
+            regular_price = product.get('regular_price')
+            
+            # Format price info
+            price_info = f"**{price}**"
+            if regular_price and regular_price != price:
+                try:
+                    savings = float(regular_price.replace('RM ', '')) - float(product.get('sale_price', 0))
+                    price_info += f" ~~{regular_price}~~ (Save RM {savings:.0f}!)"
+                except:
+                    price_info += f" ~~{regular_price}~~"
+            
+            product_text = f"☕ **{name}**\\n   💰 {price_info}"
+            
+            # Add capacity if relevant
+            if show_capacity_focus and product.get('capacity'):
+                product_text += f"\\n   📏 **Size**: {product.get('capacity')}"
+            
+            # Add material if relevant
+            if show_material_focus and product.get('material'):
+                product_text += f"\\n   � **Material**: {product.get('material')}"
+            
+            # Add description
+            if product.get('description'):
+                desc = product.get('description')[:100] + "..." if len(product.get('description', '')) > 100 else product.get('description')
+                product_text += f"\\n   📝 {desc}"
+            
+            # Add special indicators
+            if product.get('on_sale'):
+                product_text += "\\n   🔥 **ON SALE!**"
+            if product.get('promotion'):
+                product_text += f"\\n   🎁 **{product.get('promotion')}**"
+            if product.get('collection'):
+                product_text += f"\\n   ✨ **{product.get('collection')} Collection**"
+            
+            product_list.append(product_text)
+        
+        # Create header based on query
+        if 'price' in query_lower or 'under' in query_lower or 'rm' in query_lower:
+            header = f"� **ZUS Coffee Products - Price Range**"
+        elif 'material' in query_lower or 'steel' in query_lower or 'ceramic' in query_lower:
+            header = f"🔧 **ZUS Coffee Products - Material Focus**"
+        elif 'sale' in query_lower or 'promotion' in query_lower:
+            header = f"🔥 **ZUS Coffee Products - Special Offers**"
+        else:
+            header = f"🛍️ **ZUS Coffee Products**"
+        
+        response = f"{header}\\n\\n" + "\\n\\n".join(product_list)
+        
+        # Add helpful tips
+        if len(products) >= 10:
+            response += f"\\n\\n💡 **Showing {len(products)} products.** Try specific filters like 'ceramic mugs under RM50' or 'stainless steel tumblers' for targeted results."
+        
+        return response
 
 class AdvancedZUSChatbot:
     """
