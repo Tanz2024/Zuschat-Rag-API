@@ -15,38 +15,44 @@ from models import (
 )
 from data.database import get_db, create_tables
 
-# Import enhanced chatbot agent with fallback
+# Import enhanced chatbot agent with fallback (prioritize enhanced_minimal_agent)
 try:
-    from chatbot.agent_enhanced_new import get_chatbot
-    print("✅ Using NEW enhanced intelligent chatbot with advanced patterns")
+    from chatbot.enhanced_minimal_agent import get_chatbot
+    print("✅ Using ENHANCED MINIMAL chatbot with real data keyword matching")
     ENHANCED_CHATBOT = True
 except Exception as e:
-    print(f"⚠️  New enhanced chatbot not available: {e}")
+    print(f"⚠️  Enhanced minimal chatbot not available: {e}")
     try:
-        from chatbot.agent_enhanced import get_chatbot
-        print("✅ Using previous enhanced intelligent chatbot")
+        from chatbot.agent_enhanced_new import get_chatbot
+        print("✅ Using NEW enhanced intelligent chatbot with advanced patterns")
         ENHANCED_CHATBOT = True
     except Exception as e2:
-        print(f"⚠️  Enhanced chatbot not available: {e2}")
+        print(f"⚠️  New enhanced chatbot not available: {e2}")
         try:
-            from chatbot.minimal_agent import get_chatbot
-            print("✅ Using minimal working chatbot")
+            from chatbot.agent_enhanced import get_chatbot
+            print("✅ Using previous enhanced intelligent chatbot")
             ENHANCED_CHATBOT = True
         except Exception as e3:
-            print(f"⚠️  Minimal chatbot not available: {e3}")
+            print(f"⚠️  Enhanced chatbot not available: {e3}")
             try:
-                from agents.controller import get_agent_controller
-                ENHANCED_CHATBOT = False
-                print("📝 Using basic chatbot as fallback")
-            except ImportError as e4:
-                print(f"❌ No chatbot available: {e4}")
-                # Create a simple fallback
-                def get_agent_controller():
-                    class SimpleAgent:
-                        def chat(self, message, session_id="default"):
-                            return {"response": "I'm temporarily unavailable. Please try again later."}
-                    return SimpleAgent()
-                ENHANCED_CHATBOT = False
+                from chatbot.minimal_agent import get_chatbot
+                print("✅ Using minimal working chatbot")
+                ENHANCED_CHATBOT = True
+            except Exception as e4:
+                print(f"⚠️  Minimal chatbot not available: {e4}")
+                try:
+                    from agents.controller import get_agent_controller
+                    ENHANCED_CHATBOT = False
+                    print("📝 Using basic chatbot as fallback")
+                except ImportError as e5:
+                    print(f"❌ No chatbot available: {e5}")
+                    # Create a simple fallback
+                    def get_agent_controller():
+                        class SimpleAgent:
+                            def chat(self, message, session_id="default"):
+                                return {"response": "I'm temporarily unavailable. Please try again later."}
+                        return SimpleAgent()
+                    ENHANCED_CHATBOT = False
 
 # Try to import ML-based search, fallback to simple search
 try:
