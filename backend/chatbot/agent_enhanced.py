@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Advanced Intelligent Chatbot Agent for ZUS Coffee
-Production-ready conversational AI with sophisticated natural language understanding
+Production-ready conversational AI with sophisticated natural language understanding,
+multi-turn memory, agentic planning, and robust error handling.
 """
 
 import logging
@@ -13,6 +14,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 import asyncio
 import math
+import os
+from sqlalchemy.orm import Session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,44 +27,67 @@ class Intent(str, Enum):
     FAREWELL = "farewell"
     OUTLET_INQUIRY = "outlet_inquiry"
     OUTLET_HOURS = "outlet_hours"
+    OUTLET_SERVICES = "outlet_services"
     OUTLET_CONTACT = "outlet_contact"
     PRODUCT_INQUIRY = "product_inquiry"
     PRODUCT_COMPARISON = "product_comparison"
     PRODUCT_RECOMMENDATION = "product_recommendation"
     PRICE_INQUIRY = "price_inquiry"
+    PRICE_FILTER = "price_filter"  # New: "show products under RM50"
     CALCULATION = "calculation"
     CART_CALCULATION = "cart_calculation"
     TAX_CALCULATION = "tax_calculation"
     DISCOUNT_INQUIRY = "discount_inquiry"
     PROMOTION_INQUIRY = "promotion_inquiry"
     GENERAL_QUESTION = "general_question"
+    ABOUT_US = "about_us"
     COMPLAINT = "complaint"
     COMPLIMENT = "compliment"
+    MALICIOUS = "malicious"  # New: SQL injection, etc.
     UNCLEAR = "unclear"
+    CONTEXT_RECALL = "context_recall"  # New: "which one of those", "back to earlier"
 
 class SmartUserState:
-    """Advanced user state tracking with intelligence and context awareness."""
+    """Advanced user state tracking with sequential conversation memory and slot filling."""
     
     def __init__(self, session_id: str = None):
         self.session_id = session_id or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.conversation_history: List[Dict[str, Any]] = []
-        self.mentioned_outlets: List[str] = []
-        self.mentioned_products: List[str] = []
+        
+        # Slot/State Memory for multi-turn conversations
+        self.mentioned_outlets: List[Dict[str, Any]] = []  # Store outlet objects, not just names
+        self.mentioned_products: List[Dict[str, Any]] = []  # Store product objects
+        self.last_search_results: Dict[str, List] = {}  # Store last search results by type
+        self.pending_question: Optional[Dict[str, Any]] = None  # For follow-up questions
+        
+        # Location and preference tracking
         self.preferred_location: Optional[str] = None
+        self.current_context_location: Optional[str] = None  # For current conversation
         self.budget_range: Optional[Tuple[float, float]] = None
         self.last_intent: Optional[Intent] = None
-        self.context: Dict[str, Any] = {}
+        self.conversation_topic: Optional[str] = None  # Track main topic
+        
+        # Context for interrupted conversations
+        self.saved_context: Dict[str, Any] = {}  # Store context when conversation changes topic
+        
+        # User preferences with enhanced tracking
         self.user_preferences: Dict[str, Any] = {
             "preferred_material": None,
             "preferred_capacity": None,
-            "price_sensitivity": "medium"
+            "preferred_features": [],
+            "price_sensitivity": "medium",
+            "favorite_outlets": [],
+            "search_history": []
         }
+        
+        # Session metadata
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
         self.interaction_count = 0
+        self.topic_changes = 0
     
     def add_message(self, role: str, content: str, intent: Intent = None, metadata: Dict = None):
-        """Add message with intelligent context extraction."""
+        """Add message with intelligent context extraction and topic tracking."""
         message = {
             "role": role,
             "content": content,
@@ -73,6 +99,12 @@ class SmartUserState:
         self.updated_at = datetime.now()
         self.interaction_count += 1
         
+        # Track topic changes
+        if intent and self.last_intent and intent != self.last_intent:
+            if self._is_topic_change(self.last_intent, intent):
+                self.topic_changes += 1
+                self._save_current_context()
+        
         if intent:
             self.last_intent = intent
         
@@ -80,53 +112,143 @@ class SmartUserState:
         if role == "user":
             self._extract_context(content)
     
+    def _is_topic_change(self, old_intent: Intent, new_intent: Intent) -> bool:
+        """Detect if this is a significant topic change."""
+        outlet_intents = {Intent.OUTLET_INQUIRY, Intent.OUTLET_HOURS, Intent.OUTLET_SERVICES}
+        product_intents = {Intent.PRODUCT_INQUIRY, Intent.PRODUCT_COMPARISON, Intent.PRODUCT_RECOMMENDATION}
+        
+        return (old_intent in outlet_intents and new_intent in product_intents) or \
+               (old_intent in product_intents and new_intent in outlet_intents)
+    
+    def _save_current_context(self):
+        """Save current conversation context before topic change."""
+        self.saved_context = {
+            "location": self.current_context_location,
+            "outlets": self.mentioned_outlets.copy(),
+            "products": self.mentioned_products.copy(),
+            "search_results": self.last_search_results.copy(),
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    def recall_context(self, query: str) -> Dict[str, Any]:
+        """Recall previous context based on user query."""
+        query_lower = query.lower()
+        
+        if any(phrase in query_lower for phrase in ["back to", "earlier", "before", "previous"]):
+            return self.saved_context
+        
+        if any(phrase in query_lower for phrase in ["which one", "that one", "those", "them"]):
+            return {
+                "outlets": self.mentioned_outlets,
+                "products": self.mentioned_products,
+                "search_results": self.last_search_results
+            }
+        
+        return {}
+    
+    def store_search_results(self, result_type: str, results: List[Dict]):
+        """Store search results for context recall."""
+        self.last_search_results[result_type] = results
+        
+        if result_type == "outlets":
+            self.mentioned_outlets.extend(results)
+        elif result_type == "products":
+            self.mentioned_products.extend(results)
+    
     def _extract_context(self, content: str):
-        """Extract intelligent context from user input."""
+        """Extract intelligent context from user input with enhanced patterns."""
         content_lower = content.lower()
         
-        # Extract location preferences
+        # Enhanced location mapping with more variations
         location_map = {
-            'klcc': 'KLCC area', 'pavilion': 'Pavilion KL', 'mid valley': 'Mid Valley',
-            'sunway': 'Sunway', 'one utama': 'One Utama', 'bangsar': 'Bangsar',
-            'damansara': 'Damansara', 'pj': 'Petaling Jaya', 'shah alam': 'Shah Alam'
+            'klcc': 'KLCC', 'kuala lumpur city centre': 'KLCC',
+            'pavilion': 'Pavilion KL', 'pavilion kl': 'Pavilion KL',
+            'mid valley': 'Mid Valley', 'midvalley': 'Mid Valley',
+            'sunway': 'Sunway', 'sunway pyramid': 'Sunway Pyramid',
+            'one utama': 'One Utama', '1 utama': 'One Utama', '1u': 'One Utama',
+            'bangsar': 'Bangsar', 'bangsar village': 'Bangsar Village',
+            'damansara': 'Damansara', 'pj': 'Petaling Jaya', 'petaling jaya': 'Petaling Jaya',
+            'shah alam': 'Shah Alam', 'kl': 'Kuala Lumpur', 'kuala lumpur': 'Kuala Lumpur',
+            'selangor': 'Selangor', 'ss2': 'SS2', 'ss 2': 'SS2'
         }
         
         for keyword, location in location_map.items():
             if keyword in content_lower:
-                self.preferred_location = location
+                self.current_context_location = location
+                if not self.preferred_location:
+                    self.preferred_location = location
                 break
         
-        # Extract budget information
-        price_matches = re.findall(r'rm\s*(\d+(?:\.\d{2})?)', content_lower)
-        if price_matches:
-            prices = [float(p) for p in price_matches]
-            if len(prices) == 1:
-                self.budget_range = (0, prices[0])
-            elif len(prices) >= 2:
-                self.budget_range = (min(prices), max(prices))
+        # Enhanced price extraction with ranges and comparisons
+        # "under RM50", "below RM30", "between RM20 and RM40"
+        price_patterns = [
+            (r'under\s+rm\s*(\d+(?:\.\d{2})?)', lambda m: (0, float(m.group(1)))),
+            (r'below\s+rm\s*(\d+(?:\.\d{2})?)', lambda m: (0, float(m.group(1)))),
+            (r'above\s+rm\s*(\d+(?:\.\d{2})?)', lambda m: (float(m.group(1)), 1000)),
+            (r'over\s+rm\s*(\d+(?:\.\d{2})?)', lambda m: (float(m.group(1)), 1000)),
+            (r'between\s+rm\s*(\d+(?:\.\d{2})?)\s+and\s+rm\s*(\d+(?:\.\d{2})?)', 
+             lambda m: (float(m.group(1)), float(m.group(2)))),
+            (r'rm\s*(\d+(?:\.\d{2})?)\s*to\s*rm\s*(\d+(?:\.\d{2})?)', 
+             lambda m: (float(m.group(1)), float(m.group(2)))),
+            (r'rm\s*(\d+(?:\.\d{2})?)', lambda m: (0, float(m.group(1))))
+        ]
         
-        # Extract material preferences
-        if 'stainless steel' in content_lower or 'steel' in content_lower:
-            self.user_preferences['preferred_material'] = 'stainless steel'
-        elif 'ceramic' in content_lower:
-            self.user_preferences['preferred_material'] = 'ceramic'
-        elif 'acrylic' in content_lower:
-            self.user_preferences['preferred_material'] = 'acrylic'
+        for pattern, extractor in price_patterns:
+            match = re.search(pattern, content_lower)
+            if match:
+                self.budget_range = extractor(match)
+                break
         
-        # Extract capacity preferences
-        if any(word in content_lower for word in ['large', 'big', '600ml', '650ml', '20oz', '22oz']):
-            self.user_preferences['preferred_capacity'] = 'large'
-        elif any(word in content_lower for word in ['small', 'compact', '350ml', '12oz', '14oz']):
-            self.user_preferences['preferred_capacity'] = 'small'
-        elif any(word in content_lower for word in ['medium', '500ml', '16oz', '17oz']):
-            self.user_preferences['preferred_capacity'] = 'medium'
+        # Enhanced material and feature extraction
+        material_map = {
+            'stainless steel': 'stainless steel', 'steel': 'stainless steel',
+            'ceramic': 'ceramic', 'mug': 'ceramic',
+            'acrylic': 'acrylic', 'plastic': 'acrylic'
+        }
+        
+        for keyword, material in material_map.items():
+            if keyword in content_lower:
+                self.user_preferences['preferred_material'] = material
+                break
+        
+        # Feature extraction
+        features = []
+        feature_map = {
+            'leak proof': 'leak-proof', 'leakproof': 'leak-proof',
+            'dishwasher safe': 'dishwasher safe', 'microwave safe': 'microwave safe',
+            'double wall': 'double-wall insulation', 'insulated': 'double-wall insulation',
+            'screw on': 'screw-on lid', 'car cup holder': 'car cup holder friendly'
+        }
+        
+        for keyword, feature in feature_map.items():
+            if keyword in content_lower:
+                features.append(feature)
+        
+        if features:
+            self.user_preferences['preferred_features'].extend(features)
+            # Remove duplicates
+            self.user_preferences['preferred_features'] = list(set(self.user_preferences['preferred_features']))
+        
+        # Capacity extraction with more patterns
+        capacity_patterns = {
+            'large': ['large', 'big', '600ml', '650ml', '20oz', '22oz'],
+            'medium': ['medium', '500ml', '16oz', '17oz'],
+            'small': ['small', 'compact', '350ml', '12oz', '14oz']
+        }
+        
+        for capacity, keywords in capacity_patterns.items():
+            if any(word in content_lower for word in keywords):
+                self.user_preferences['preferred_capacity'] = capacity
+                break
     
     def get_context_summary(self) -> str:
         """Generate intelligent conversation summary."""
         summary_parts = []
         
-        if self.preferred_location:
-            summary_parts.append(f"Interested in {self.preferred_location}")
+        if self.current_context_location:
+            summary_parts.append(f"Current location focus: {self.current_context_location}")
+        elif self.preferred_location:
+            summary_parts.append(f"Preferred location: {self.preferred_location}")
         
         if self.budget_range:
             summary_parts.append(f"Budget: RM {self.budget_range[0]:.0f}-{self.budget_range[1]:.0f}")
@@ -134,88 +256,280 @@ class SmartUserState:
         if self.user_preferences['preferred_material']:
             summary_parts.append(f"Prefers {self.user_preferences['preferred_material']}")
         
+        if self.user_preferences['preferred_features']:
+            summary_parts.append(f"Wants: {', '.join(self.user_preferences['preferred_features'][:2])}")
+        
         recent_intents = [msg.get('intent') for msg in self.conversation_history[-3:] if msg.get('intent')]
         if recent_intents:
-            summary_parts.append(f"Recent focus: {', '.join(set(recent_intents))}")
+            summary_parts.append(f"Recent: {', '.join(set(recent_intents))}")
         
         return "; ".join(summary_parts) if summary_parts else "General conversation"
 
 class IntelligentIntentDetector:
-    """Advanced intent detection with context awareness and confidence scoring."""
+    """Advanced intent detection with context awareness, security, and robustness."""
     
     def __init__(self):
+        # Comprehensive intent patterns for all scenarios
         self.intent_patterns = {
             Intent.GREETING: [
                 r'\b(hi|hello|hey|good\s+(morning|afternoon|evening)|greetings)\b',
-                r'\bhow\s+are\s+you\b', r'\bwhat\'?s\s+up\b'
+                r'\bhow\s+are\s+you\b', r'\bwhat\'?s\s+up\b', r'\bnice\s+to\s+meet\b'
             ],
+            
             Intent.FAREWELL: [
-                r'\b(bye|goodbye|see\s+you|farewell|thanks\s+bye)\b',
-                r'\b(that\'?s\s+all|i\'?m\s+done|finished)\b'
+                r'\b(bye|goodbye|see\s+you|farewell|thanks\s+bye|take\s+care)\b',
+                r'\b(that\'?s\s+all|i\'?m\s+done|finished|no\s+more\s+questions)\b'
             ],
+            
+            # Enhanced outlet patterns
             Intent.OUTLET_INQUIRY: [
                 r'\b(outlet|store|shop|location|branch|address|find\s+store)\b',
-                r'\b(where|find|show)\s+.*\b(outlet|store|shop|location)\b',
+                r'\b(where|find|show|list)\s+.*\b(outlet|store|shop|location)\b',
                 r'\bhow\s+many\s+.*\b(outlet|store|location)\b',
-                r'\b(nearest|closest)\s+.*\b(outlet|store|location)\b',
-                r'\b(klcc|pavilion|pj|mall|shopping|damansara|bangsar)\b'
+                r'\b(nearest|closest|near|around)\s+.*\b(outlet|store|location)\b',
+                r'\bis\s+there\s+.*\b(outlet|store|shop)\s+.*\b(in|at|near)\b',
+                r'\b(klcc|pavilion|pj|mall|shopping|damansara|bangsar|sunway|mid\s+valley)\b'
             ],
+            
+            # Enhanced outlet hours with specific patterns
             Intent.OUTLET_HOURS: [
                 r'\b(opening|hours|time|when)\s+.*\b(open|close|operating)\b',
-                r'\bwhat\s+time.*\b(open|close)\b', r'\bis\s+.*\s+open\b'
+                r'\bwhat\s+time.*\b(open|close)\b',
+                r'\bis\s+.*\s+open\b',
+                r'\b(open|close)\s+(at|after|before|until)\s+\d+',
+                r'\bopen\s+(late|early|24\s*hours?)\b',
+                r'\bhours\s+of\s+operation\b',
+                r'\boperating\s+hours\b'
             ],
+            
+            # New outlet services intent
+            Intent.OUTLET_SERVICES: [
+                r'\b(service|services|delivery|dine.?in|takeaway|drive.?thru|wifi)\b',
+                r'\bis\s+.*\s+(delivery|dine.?in|takeaway)\s+available\b',
+                r'\bdo\s+.*\s+(deliver|have\s+wifi|offer\s+dine.?in)\b',
+                r'\bwhat\s+services\b',
+                r'\bcan\s+i\s+(dine\s+in|order\s+delivery|takeaway)\b'
+            ],
+            
             Intent.OUTLET_CONTACT: [
-                r'\b(phone|contact|call|number|email)\b.*\b(outlet|store)\b',
-                r'\bhow\s+to\s+contact\b'
+                r'\b(phone|contact|call|number|email|reach)\b.*\b(outlet|store)\b',
+                r'\bhow\s+to\s+contact\b', r'\bphone\s+number\b'
             ],
+            
+            # Enhanced product patterns
             Intent.PRODUCT_INQUIRY: [
                 r'\b(product|drinkware|tumbler|mug|cup|bottle|flask|item)\b',
-                r'\b(show|find|search)\s+.*\b(product|drinkware|tumbler|mug|cup)\b',
+                r'\b(show|find|search|tell\s+me\s+about)\s+.*\b(product|drinkware|tumbler|mug|cup)\b',
                 r'\b(what|which)\s+.*\b(products|items|drinkware|cups|mugs|tumblers)\b',
-                r'\b(ceramic|stainless\s+steel|acrylic)\s+(mug|cup|tumbler)\b'
+                r'\b(ceramic|stainless\s+steel|acrylic)\s+(mug|cup|tumbler)\b',
+                r'\bdo\s+you\s+(have|sell)\b.*\b(mug|cup|tumbler|bottle)\b',
+                r'\bmatte\s+finish\b', r'\bdishwasher.?safe\b', r'\bmicrowave.?safe\b'
             ],
+            
             Intent.PRODUCT_COMPARISON: [
                 r'\b(compare|comparison|vs|versus|difference|better)\b.*\b(product|tumbler|mug|cup)\b',
-                r'\bwhich\s+is\s+better\b', r'\bwhat\'?s\s+the\s+difference\b'
+                r'\bwhich\s+is\s+better\b', r'\bwhat\'?s\s+the\s+difference\b',
+                r'\b(americano|cappuccino)\s+(vs|versus|or)\s+(americano|cappuccino)\b'
             ],
+            
             Intent.PRODUCT_RECOMMENDATION: [
-                r'\b(recommend|suggest|best|top|popular)\b.*\b(product|drinkware|tumbler|mug|cup)\b',
-                r'\bwhat\s+do\s+you\s+recommend\b', r'\bbest\s+seller\b'
+                r'\b(recommend|suggest|best|top|popular|good)\b.*\b(product|drinkware|tumbler|mug|cup)\b',
+                r'\bwhat\s+do\s+you\s+recommend\b', r'\bbest\s+seller\b',
+                r'\bwhat\'?s\s+good\b', r'\bany\s+suggestions\b'
             ],
+            
+            # Enhanced price patterns with filtering
+            Intent.PRICE_FILTER: [
+                r'\b(under|below|less\s+than|cheaper\s+than)\s+rm\s*\d+\b',
+                r'\b(above|over|more\s+than|expensive\s+than)\s+rm\s*\d+\b',
+                r'\bbetween\s+rm\s*\d+\s+and\s+rm\s*\d+\b',
+                r'\brm\s*\d+\s+to\s+rm\s*\d+\b',
+                r'\b(affordable|cheap|budget)\s+.*\b(product|drinkware|tumbler|mug)\b',
+                r'\bshow\s+.*\s+(under|below)\s+rm\s*\d+\b'
+            ],
+            
             Intent.PRICE_INQUIRY: [
-                r'\b(price|cost|how\s+much|expensive|cheap|affordable)\b',
-                r'\brm\s*\d+', r'\b(budget|under|below|above)\s+.*\s+rm\b'
+                r'\b(price|cost|how\s+much|expensive|cheap)\b(?!\s+(under|below|above|over))',
+                r'\bhow\s+much\s+(is|does|for)\b', r'\bwhat\'?s\s+the\s+(price|cost)\b'
             ],
+            
+            # Enhanced calculation patterns
             Intent.CART_CALCULATION: [
                 r'\b(cart|order|total|checkout|purchase)\s+.*\b(price|cost|total)\b',
                 r'\bcalculate\s+.*\b(price|cost|total|order)\b',
                 r'\bhow\s+much\s+.*\b(total|altogether|combined)\b',
-                r'\bprice\s+for\s+\d+\b', r'\btotal\s+cost\s+of\b'
+                r'\bprice\s+for\s+\d+\b', r'\btotal\s+cost\s+of\b',
+                r'\badd\s+.*\s+(to\s+cart|total)\b', r'\border\s+total\b'
             ],
+            
             Intent.TAX_CALCULATION: [
                 r'\b(tax|sst|including\s+tax|with\s+tax|after\s+tax)\b',
-                r'\b6%\s*(tax|sst)\b'
+                r'\b6%\s*(tax|sst)\b', r'\bplus\s+tax\b'
             ],
+            
             Intent.CALCULATION: [
-                r'\b(calculate|compute|solve|math)\b(?!\s+price)(?!\s+cost)',
-                r'\d+\s*[+\-*/^%]\s*\d+',
-                r'\b(add|subtract|multiply|divide)\s+\d+\b'
+                r'\b(calculate|compute|solve|math)\b(?!\s+(price|cost|total|order))',
+                r'^\s*\d+\s*[+\-*/]\s*\d+', r'\b\d+\s*[+\-*/]\s*\d+\b',
+                r'\b\d+%\s+of\s+\d+\b', r'\bwhat\'?s\s+\d+\s*[+\-*/]\s*\d+\b'
             ],
+            
+            # Enhanced context recall patterns
+            Intent.CONTEXT_RECALL: [
+                r'\b(which\s+one|that\s+one|those|them|it)\b',
+                r'\b(back\s+to|earlier|before|previous)\b',
+                r'\b(the\s+one\s+you\s+mentioned|from\s+before)\b',
+                r'\bwhat\s+about\s+(the|that)\b',
+                r'\breturn\s+to\b', r'\bcontinue\s+with\b'
+            ],
+            
+            # About us and company info
+            Intent.ABOUT_US: [
+                r'\b(about|company|history|story|background)\b.*\bzus\b',
+                r'\bwho\s+(are\s+you|is\s+zus)\b', r'\btell\s+me\s+about\s+zus\b',
+                r'\bcompany\s+info\b'
+            ],
+            
+            # Security: Malicious pattern detection
+            Intent.MALICIOUS: [
+                r'\b(select|insert|update|delete|drop|union|exec|script)\b.*\b(table|database|sql)\b',
+                r'1\s*=\s*1', r'or\s+1\s*=\s*1', r'and\s+1\s*=\s*1',
+                r'<script|javascript:|eval\(|alert\(',
+                r'\bdrop\s+table\b', r'\bunion\s+select\b',
+                r'--\s*$', r'/\*.*\*/', r';\s*--'
+            ],
+            
             Intent.DISCOUNT_INQUIRY: [
-                r'\b(discount|sale|offer|promotion|deal|cheaper)\b',
-                r'\bon\s+sale\b', r'\bspecial\s+(price|offer)\b'
-            ],
-            Intent.PROMOTION_INQUIRY: [
-                r'\b(promotion|promo|offer|deal|special)\b',
-                r'\bbuy\s+\d+\s+free\s+\d+\b', r'\bcurrent\s+(promotion|offer)\b'
-            ],
-            Intent.GENERAL_QUESTION: [
-                r'\b(help|information|about|tell\s+me|explain)\b',
-                r'\bcan\s+you\s+help\b', r'\bwhat\s+(can|do)\s+you\b'
-            ],
-            Intent.COMPLAINT: [
-                r'\b(problem|issue|complaint|wrong|error|bad|terrible)\b',
-                r'\bnot\s+(working|good|happy)\b'
+                r'\b(discount|sale|promotion|offer|deal|promo)\b',
+                r'\bany\s+(discount|sale|promotion|offer)\b',
+                r'\bon\s+sale\b', r'\bspecial\s+offer\b'
+            ]
+        }
+        
+        # Confidence thresholds for different patterns
+        self.confidence_thresholds = {
+            Intent.MALICIOUS: 0.8,  # High threshold for security
+            Intent.CALCULATION: 0.7,
+            Intent.OUTLET_INQUIRY: 0.6,
+            Intent.PRODUCT_INQUIRY: 0.6
+        }
+    
+    def detect_intent(self, message: str, context: SmartUserState = None) -> Tuple[Intent, float]:
+        """Detect intent with confidence scoring and context awareness."""
+        if not message or not message.strip():
+            return Intent.UNCLEAR, 0.0
+        
+        message_lower = message.lower().strip()
+        
+        # Security check first - highest priority
+        if self._check_malicious_patterns(message_lower):
+            return Intent.MALICIOUS, 1.0
+        
+        # Handle garbage/emoji input
+        if self._is_garbage_input(message):
+            return Intent.UNCLEAR, 0.0
+        
+        intent_scores = {}
+        
+        # Score each intent based on pattern matching
+        for intent, patterns in self.intent_patterns.items():
+            score = self._calculate_pattern_score(message_lower, patterns)
+            if score > 0:
+                intent_scores[intent] = score
+        
+        # Context-based intent enhancement
+        if context:
+            intent_scores = self._enhance_with_context(intent_scores, message_lower, context)
+        
+        # Get best intent
+        if not intent_scores:
+            return Intent.UNCLEAR, 0.0
+        
+        best_intent = max(intent_scores.items(), key=lambda x: x[1])
+        intent, confidence = best_intent
+        
+        # Apply confidence thresholds
+        threshold = self.confidence_thresholds.get(intent, 0.3)
+        if confidence < threshold:
+            return Intent.UNCLEAR, confidence
+        
+        return intent, confidence
+    
+    def _check_malicious_patterns(self, message: str) -> bool:
+        """Check for SQL injection and other malicious patterns."""
+        malicious_patterns = self.intent_patterns[Intent.MALICIOUS]
+        
+        for pattern in malicious_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                logger.warning(f"Malicious pattern detected: {pattern} in message: {message[:50]}...")
+                return True
+        
+        return False
+    
+    def _is_garbage_input(self, message: str) -> bool:
+        """Detect garbage input like random emojis, symbols, etc."""
+        # Remove whitespace
+        clean_message = re.sub(r'\s+', '', message)
+        
+        # Check if mostly non-alphanumeric
+        alphanumeric_ratio = len(re.findall(r'[a-zA-Z0-9]', clean_message)) / len(clean_message) if clean_message else 0
+        
+        # If less than 30% alphanumeric characters, likely garbage
+        if alphanumeric_ratio < 0.3 and len(clean_message) > 3:
+            return True
+        
+        # Check for excessive repeated characters
+        if re.search(r'(.)\1{4,}', clean_message):
+            return True
+        
+        return False
+    
+    def _calculate_pattern_score(self, message: str, patterns: List[str]) -> float:
+        """Calculate confidence score based on pattern matches."""
+        total_score = 0.0
+        
+        for pattern in patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                # Base score for match
+                score = 0.3
+                
+                # Boost for exact matches
+                if match.group(0).lower() == message:
+                    score += 0.4
+                
+                # Boost for longer matches
+                match_length_ratio = len(match.group(0)) / len(message)
+                score += match_length_ratio * 0.3
+                
+                total_score += score
+        
+        return min(total_score, 1.0)  # Cap at 1.0
+    
+    def _enhance_with_context(self, intent_scores: Dict[Intent, float], 
+                            message: str, context: SmartUserState) -> Dict[Intent, float]:
+        """Enhance intent detection with conversation context."""
+        
+        # Boost context recall if referring to previous results
+        if any(word in message for word in ['which', 'that', 'those', 'them', 'it']):
+            if context.last_search_results:
+                intent_scores[Intent.CONTEXT_RECALL] = intent_scores.get(Intent.CONTEXT_RECALL, 0) + 0.4
+        
+        # Boost outlet-related intents if location context exists
+        if context.current_context_location or context.preferred_location:
+            outlet_intents = [Intent.OUTLET_INQUIRY, Intent.OUTLET_HOURS, Intent.OUTLET_SERVICES]
+            for intent in outlet_intents:
+                if intent in intent_scores:
+                    intent_scores[intent] += 0.2
+        
+        # Boost product intents if discussing products recently
+        if any(msg.get('intent') == Intent.PRODUCT_INQUIRY.value 
+               for msg in context.conversation_history[-3:]):
+            product_intents = [Intent.PRODUCT_INQUIRY, Intent.PRODUCT_COMPARISON, Intent.PRICE_INQUIRY]
+            for intent in product_intents:
+                if intent in intent_scores:
+                    intent_scores[intent] += 0.2
+        
+        return intent_scores
             ],
             Intent.COMPLIMENT: [
                 r'\b(great|excellent|amazing|wonderful|fantastic|love|perfect)\b',
@@ -409,423 +723,88 @@ class EnhancedAPIService:
         self.timeout = 15
     
     async def call_outlets_api(self, query: str) -> Dict[str, Any]:
-        """Get outlets from database with advanced filtering and pattern recognition."""
+        """Get outlets from database with enhanced filtering."""
         try:
             # Import here to avoid circular imports
             from data.database import SessionLocal, Outlet
             
-            query_lower = query.lower()
-            
-            # Extract advanced search parameters
-            time_filter = None
-            location_filter = None
-            service_filter = None
-            
-            # Time-based filtering
-            if any(time in query_lower for time in ['open until', 'closes at', 'late night', '10pm', '11pm', 'after 10']):
-                if '10pm' in query_lower or 'until 10' in query_lower or 'after 10' in query_lower:
-                    time_filter = "10:00 PM"
-                elif '11pm' in query_lower or 'until 11' in query_lower:
-                    time_filter = "11:00 PM"
-                elif 'late' in query_lower:
-                    time_filter = "10:00 PM"
-            
-            # Location-based filtering
-            location_keywords = {
-                'klcc': ['klcc', 'city centre', 'petronas'],
-                'pavilion': ['pavilion', 'bukit bintang'],
-                'pj': ['pj', 'petaling jaya'],
-                'bangsar': ['bangsar'],
-                'damansara': ['damansara', 'taman tun dr ismail', 'ttdi'],
-                'kl': ['kuala lumpur', ' kl ', 'wilayah persekutuan'],
-                'selangor': ['selangor', 'shah alam', 'ampang', 'cheras', 'subang'],
-                'putrajaya': ['putrajaya']
-            }
-            
-            for area, keywords in location_keywords.items():
-                if any(keyword in query_lower for keyword in keywords):
-                    location_filter = area
-                    break
-            
-            # Service-based filtering
-            if any(service in query_lower for service in ['wifi', 'wi-fi', 'internet']):
-                service_filter = "WiFi"
-            elif any(service in query_lower for service in ['drive', 'drive-thru', 'drive through']):
-                service_filter = "Drive-Thru"
-            elif 'delivery' in query_lower:
-                service_filter = "Delivery"
-            elif 'takeaway' in query_lower or 'take away' in query_lower:
-                service_filter = "Takeaway"
-            
             with SessionLocal() as db:
-                # Base query
-                outlets_query = db.query(Outlet)
+                # Search outlets by address or name
+                outlets = db.query(Outlet).filter(
+                    Outlet.address.ilike(f'%{query}%') | 
+                    Outlet.name.ilike(f'%{query}%')
+                ).limit(10).all()
                 
-                # Apply location filter
-                if location_filter:
-                    if location_filter == 'kl':
-                        outlets_query = outlets_query.filter(
-                            Outlet.address.ilike('%kuala lumpur%') | 
-                            Outlet.address.ilike('%wilayah persekutuan%') |
-                            Outlet.address.ilike('% kl %')
-                        )
-                    elif location_filter == 'selangor':
-                        outlets_query = outlets_query.filter(Outlet.address.ilike('%selangor%'))
-                    elif location_filter == 'putrajaya':
-                        outlets_query = outlets_query.filter(Outlet.address.ilike('%putrajaya%'))
-                    else:
-                        outlets_query = outlets_query.filter(Outlet.address.ilike(f'%{location_filter}%'))
+                if not outlets:
+                    # Try broader search
+                    outlets = db.query(Outlet).limit(5).all()
                 
-                # Get all matching outlets
-                all_outlets = outlets_query.limit(50).all()
-                
-                # Apply additional filters
-                filtered_outlets = []
-                for outlet in all_outlets:
-                    include_outlet = True
+                if outlets:
+                    outlet_list = []
+                    for outlet in outlets:
+                        outlet_list.append(f"📍 **{outlet.name}**\\n   📧 {outlet.address}\\n   🕒 Hours: {outlet.opening_hours}\\n   🔧 Services: {outlet.services}")
                     
-                    # Apply time filter
-                    if time_filter and outlet.opening_hours:
-                        hours_str = outlet.opening_hours.lower()
-                        if time_filter.lower() not in hours_str:
-                            # Check if it actually closes at or after the requested time
-                            if '10:00 pm' not in hours_str and '11:00 pm' not in hours_str and '12:00 am' not in hours_str:
-                                include_outlet = False
-                    
-                    # Apply service filter
-                    if service_filter and outlet.services:
-                        services_str = outlet.services.lower()
-                        if service_filter.lower() not in services_str:
-                            include_outlet = False
-                    
-                    if include_outlet:
-                        filtered_outlets.append(outlet)
-                
-                # If no specific filters applied, use general search
-                if not time_filter and not location_filter and not service_filter:
-                    outlets = db.query(Outlet).filter(
-                        Outlet.address.ilike(f'%{query}%') | 
-                        Outlet.name.ilike(f'%{query}%')
-                    ).limit(10).all()
-                    
-                    if not outlets:
-                        # Show popular outlets
-                        outlets = db.query(Outlet).filter(
-                            Outlet.address.ilike('%kuala lumpur%') | 
-                            Outlet.address.ilike('%pavilion%') |
-                            Outlet.address.ilike('%klcc%')
-                        ).limit(8).all()
-                    
-                    filtered_outlets = outlets
-                
-                # Limit final results
-                final_outlets = filtered_outlets[:12]
-                
-                if final_outlets:
-                    return {"success": True, "data": {"message": self._format_outlets_response(final_outlets, query)}}
+                    message = f"🏪 **ZUS Coffee Outlets:**\\n\\n" + "\\n\\n".join(outlet_list)
+                    return {"success": True, "data": {"message": message}}
                 else:
-                    suggestion = "🔍 **No outlets found matching your criteria.** Try:\\n• 'Outlets in KLCC' - Popular city center locations\\n• 'Outlets open until 10pm' - Late night options\\n• 'Outlets with WiFi' - Work-friendly spaces\\n• 'Outlets in Selangor' - Suburban locations"
-                    return {"success": True, "data": {"message": suggestion}}
-                    
+                    return {"success": True, "data": {"message": "No outlets found matching your query. Please try a different location or visit zuscoffee.com for all store locations."}}
+                
         except Exception as e:
             logger.error(f"Outlets database error: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    def _format_outlets_response(self, outlets, query: str) -> str:
-        """Format outlets response with enhanced information display."""
-        query_lower = query.lower()
-        
-        # Determine what information to highlight
-        show_hours = any(word in query_lower for word in ['hour', 'open', 'close', 'time'])
-        show_services = any(word in query_lower for word in ['service', 'wifi', 'delivery', 'drive'])
-        
-        outlet_list = []
-        for outlet in outlets:
-            outlet_info = f"📍 **{outlet.name}**\\n   📧 {outlet.address}"
-            
-            if show_hours and outlet.opening_hours:
-                # Parse and format hours nicely
-                try:
-                    import json
-                    hours_data = json.loads(outlet.opening_hours)
-                    if isinstance(hours_data, dict):
-                        # Show today's hours or general pattern
-                        sample_hours = next(iter(hours_data.values()))
-                        outlet_info += f"\\n   🕒 **Hours**: {sample_hours} (Daily)"
-                    else:
-                        outlet_info += f"\\n   🕒 **Hours**: {outlet.opening_hours}"
-                except:
-                    outlet_info += f"\\n   🕒 **Hours**: {outlet.opening_hours}"
-            
-            if show_services and outlet.services:
-                # Format services nicely
-                try:
-                    import json
-                    services_data = json.loads(outlet.services)
-                    if isinstance(services_data, list):
-                        services_str = ", ".join(services_data)
-                        outlet_info += f"\\n   🔧 **Services**: {services_str}"
-                    else:
-                        outlet_info += f"\\n   🔧 **Services**: {outlet.services}"
-                except:
-                    outlet_info += f"\\n   🔧 **Services**: {outlet.services}"
-            
-            outlet_list.append(outlet_info)
-        
-        # Create response header based on query
-        if 'hour' in query_lower or 'open' in query_lower:
-            header = f"🕒 **ZUS Coffee Outlets - Operating Hours**"
-        elif 'service' in query_lower or 'wifi' in query_lower:
-            header = f"🔧 **ZUS Coffee Outlets - Services Available**"
-        else:
-            header = f"🏪 **ZUS Coffee Outlets**"
-        
-        response = f"{header}\\n\\n" + "\\n\\n".join(outlet_list)
-        
-        # Add helpful tips
-        if len(outlets) >= 10:
-            response += f"\\n\\n💡 **Showing {len(outlets)} outlets.** For more specific results, try adding location details like 'KLCC area' or 'Selangor'."
-        
-        return response
-    
     async def call_products_api(self, query: str, top_k: int = 12) -> Dict[str, Any]:
-        """Get products from JSON file with advanced filtering and price range support."""
+        """Get products from JSON file with enhanced filtering."""
         try:
             import json
             import os
-            import re
             
             # Load products from JSON file
             products_file = os.path.join(os.path.dirname(__file__), '../data/products.json')
             with open(products_file, 'r', encoding='utf-8') as f:
                 products = json.load(f)
             
+            # Simple text search in product names and descriptions
             query_lower = query.lower()
-            
-            # Extract price range from query
-            price_min = None
-            price_max = None
-            
-            # Look for price patterns like "under 50", "below RM50", "RM40-60", "between 40 and 60"
-            price_patterns = [
-                r'under\s+(?:rm\s*)?(\d+)',
-                r'below\s+(?:rm\s*)?(\d+)', 
-                r'less\s+than\s+(?:rm\s*)?(\d+)',
-                r'(?:rm\s*)?(\d+)\s*-\s*(?:rm\s*)?(\d+)',
-                r'between\s+(?:rm\s*)?(\d+)\s+and\s+(?:rm\s*)?(\d+)',
-                r'(\d+)\s+(?:rm\s+)?to\s+(?:rm\s*)?(\d+)',
-                r'above\s+(?:rm\s*)?(\d+)',
-                r'over\s+(?:rm\s*)?(\d+)',
-                r'more\s+than\s+(?:rm\s*)?(\d+)'
-            ]
-            
-            for pattern in price_patterns:
-                match = re.search(pattern, query_lower)
-                if match:
-                    if 'under' in pattern or 'below' in pattern or 'less' in pattern:
-                        price_max = float(match.group(1))
-                    elif 'above' in pattern or 'over' in pattern or 'more' in pattern:
-                        price_min = float(match.group(1))
-                    elif len(match.groups()) == 2:  # Range patterns
-                        price_min = float(match.group(1))
-                        price_max = float(match.group(2))
-                    break
-            
-            # Extract material preferences
-            material_filter = None
-            materials = ['stainless steel', 'ceramic', 'acrylic', 'steel', 'glass']
-            for material in materials:
-                if material in query_lower:
-                    material_filter = material
-                    break
-            
-            # Extract capacity preferences
-            capacity_filter = None
-            if any(size in query_lower for size in ['small', '350ml', '14oz', '16oz']):
-                capacity_filter = 'small'
-            elif any(size in query_lower for size in ['medium', '500ml', '17oz']):
-                capacity_filter = 'medium'
-            elif any(size in query_lower for size in ['large', '600ml', '650ml', '20oz', '22oz']):
-                capacity_filter = 'large'
-            
-            # Extract collection preferences
-            collection_filter = None
-            collections = ['mountain', 'aqua', 'sundaze', 'kopi patah hati', 'corak malaysia']
-            for collection in collections:
-                if collection in query_lower:
-                    collection_filter = collection
-                    break
-            
-            # Extract sale/promotion preferences
-            sale_only = any(word in query_lower for word in ['sale', 'discount', 'promotion', 'deal', 'offer'])
-            
-            # Filter products
             filtered_products = []
             
             for product in products:
-                include_product = True
+                name_match = query_lower in product.get('name', '').lower()
+                desc_match = query_lower in product.get('description', '').lower()
+                category_match = query_lower in product.get('category', '').lower()
                 
-                # Text matching
-                if query_lower and query_lower not in 'show all products':
-                    text_match = any([
-                        query_lower in product.get('name', '').lower(),
-                        query_lower in product.get('description', '').lower(),
-                        query_lower in product.get('category', '').lower(),
-                        any(query_lower in color.lower() for color in product.get('colors', [])),
-                        any(query_lower in feature.lower() for feature in product.get('features', []))
-                    ])
-                    
-                    # If no specific filters, require text match
-                    if not (price_min or price_max or material_filter or capacity_filter or collection_filter or sale_only):
-                        if not text_match:
-                            include_product = False
-                
-                # Price range filter
-                if price_min or price_max:
-                    try:
-                        product_price = float(product.get('sale_price', 0))
-                        if price_min and product_price < price_min:
-                            include_product = False
-                        if price_max and product_price > price_max:
-                            include_product = False
-                    except (ValueError, TypeError):
-                        include_product = False
-                
-                # Material filter
-                if material_filter and include_product:
-                    product_material = product.get('material', '').lower()
-                    if material_filter not in product_material:
-                        include_product = False
-                
-                # Capacity filter
-                if capacity_filter and include_product:
-                    capacity = product.get('capacity', '').lower()
-                    if capacity_filter == 'small' and not any(size in capacity for size in ['14oz', '16oz', '350ml']):
-                        include_product = False
-                    elif capacity_filter == 'medium' and not any(size in capacity for size in ['17oz', '500ml']):
-                        include_product = False
-                    elif capacity_filter == 'large' and not any(size in capacity for size in ['20oz', '22oz', '600ml', '650ml']):
-                        include_product = False
-                
-                # Collection filter
-                if collection_filter and include_product:
-                    product_collection = product.get('collection', '').lower()
-                    if collection_filter not in product_collection:
-                        include_product = False
-                
-                # Sale filter
-                if sale_only and include_product:
-                    if not (product.get('on_sale') or product.get('promotion')):
-                        include_product = False
-                
-                if include_product:
+                if name_match or desc_match or category_match:
                     filtered_products.append(product)
             
-            # If no matches and we used filters, try with relaxed criteria
-            if not filtered_products and (price_min or price_max or material_filter):
-                for product in products:
-                    # Just use price filter if specified
-                    if price_min or price_max:
-                        try:
-                            product_price = float(product.get('sale_price', 0))
-                            if price_min and product_price >= price_min:
-                                filtered_products.append(product)
-                            elif price_max and product_price <= price_max:
-                                filtered_products.append(product)
-                        except:
-                            pass
-            
-            # If still no matches, show all products
+            # If no matches, show all products
             if not filtered_products:
                 filtered_products = products[:top_k]
-            
-            # Sort by relevance (sale items first, then by price)
-            def sort_key(product):
-                sale_priority = 0 if product.get('on_sale') or product.get('promotion') else 1
-                price = float(product.get('sale_price', 999))
-                return (sale_priority, price)
-            
-            filtered_products.sort(key=sort_key)
             
             # Limit results
             limited_products = filtered_products[:top_k]
             
             if limited_products:
-                return {"success": True, "data": {"message": self._format_products_response(limited_products, query)}}
+                product_list = []
+                for product in limited_products:
+                    price_info = f"**{product.get('price', 'Price N/A')}**"
+                    if product.get('regular_price') and product.get('regular_price') != product.get('price'):
+                        price_info += f" ~~{product.get('regular_price')}~~"
+                    
+                    product_text = f"☕ **{product.get('name', 'Unknown Product')}**\\n   💰 {price_info}\\n   📝 {product.get('description', 'No description available')}"
+                    
+                    if product.get('on_sale') or product.get('promotion'):
+                        product_text += "\\n   🔥 **ON SALE!**"
+                    
+                    product_list.append(product_text)
+                
+                message = f"🛍️ **ZUS Coffee Products:**\\n\\n" + "\\n\\n".join(product_list)
+                return {"success": True, "data": {"message": message}}
             else:
-                return {"success": True, "data": {"message": "No products found matching your criteria. Try broader search terms or check out our full collection at zuscoffee.com!"}}
+                return {"success": True, "data": {"message": "No products found matching your query. Please try different keywords or visit zuscoffee.com to see all products."}}
                 
         except Exception as e:
             logger.error(f"Products file error: {str(e)}")
             return {"success": False, "error": str(e)}
-    
-    def _format_products_response(self, products, query: str) -> str:
-        """Format products response with enhanced information display."""
-        query_lower = query.lower()
-        
-        # Determine what information to highlight
-        show_price_focus = any(word in query_lower for word in ['price', 'cost', 'cheap', 'expensive', 'rm', 'under', 'above'])
-        show_material_focus = any(material in query_lower for material in ['steel', 'ceramic', 'acrylic', 'material'])
-        show_capacity_focus = any(word in query_lower for word in ['size', 'capacity', 'ml', 'oz', 'small', 'large'])
-        
-        product_list = []
-        for product in products:
-            # Basic info
-            name = product.get('name', 'Unknown Product')
-            price = product.get('price', 'Price N/A')
-            regular_price = product.get('regular_price')
-            
-            # Format price info
-            price_info = f"**{price}**"
-            if regular_price and regular_price != price:
-                try:
-                    savings = float(regular_price.replace('RM ', '')) - float(product.get('sale_price', 0))
-                    price_info += f" ~~{regular_price}~~ (Save RM {savings:.0f}!)"
-                except:
-                    price_info += f" ~~{regular_price}~~"
-            
-            product_text = f"☕ **{name}**\\n   💰 {price_info}"
-            
-            # Add capacity if relevant
-            if show_capacity_focus and product.get('capacity'):
-                product_text += f"\\n   📏 **Size**: {product.get('capacity')}"
-            
-            # Add material if relevant
-            if show_material_focus and product.get('material'):
-                product_text += f"\\n   � **Material**: {product.get('material')}"
-            
-            # Add description
-            if product.get('description'):
-                desc = product.get('description')[:100] + "..." if len(product.get('description', '')) > 100 else product.get('description')
-                product_text += f"\\n   📝 {desc}"
-            
-            # Add special indicators
-            if product.get('on_sale'):
-                product_text += "\\n   🔥 **ON SALE!**"
-            if product.get('promotion'):
-                product_text += f"\\n   🎁 **{product.get('promotion')}**"
-            if product.get('collection'):
-                product_text += f"\\n   ✨ **{product.get('collection')} Collection**"
-            
-            product_list.append(product_text)
-        
-        # Create header based on query
-        if 'price' in query_lower or 'under' in query_lower or 'rm' in query_lower:
-            header = f"� **ZUS Coffee Products - Price Range**"
-        elif 'material' in query_lower or 'steel' in query_lower or 'ceramic' in query_lower:
-            header = f"🔧 **ZUS Coffee Products - Material Focus**"
-        elif 'sale' in query_lower or 'promotion' in query_lower:
-            header = f"🔥 **ZUS Coffee Products - Special Offers**"
-        else:
-            header = f"🛍️ **ZUS Coffee Products**"
-        
-        response = f"{header}\\n\\n" + "\\n\\n".join(product_list)
-        
-        # Add helpful tips
-        if len(products) >= 10:
-            response += f"\\n\\n💡 **Showing {len(products)} products.** Try specific filters like 'ceramic mugs under RM50' or 'stainless steel tumblers' for targeted results."
-        
-        return response
 
 class AdvancedZUSChatbot:
     """
