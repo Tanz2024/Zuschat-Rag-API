@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy.orm import Session
 import logging
 import asyncio
 import os
@@ -275,7 +276,7 @@ async def debug_system():
 
 # Main chat endpoint with robust error handling
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest, db=Depends(get_db)):
+async def chat_endpoint(request: ChatRequest):
     """
     Main chat endpoint with multi-layer error handling and fallback.
     Always returns a response, even if individual components fail.
