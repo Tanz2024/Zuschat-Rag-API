@@ -96,33 +96,43 @@ class EnhancedMinimalAgent:
             '24-hour': ['24 hours', '24/7', '24-hour', 'all day']
         }
         
-        # Real products data (only real ZUS Coffee products)
+        # Real products data (only real ZUS Coffee products) with enhanced structure
         self.products = [
             {
                 "name": "ZUS OG CUP 2.0 With Screw-On Lid 500ml (17oz)",
                 "price": "RM 55.00",
+                "price_numeric": 55.00,
                 "regular_price": "RM 79.00",
+                "regular_price_numeric": 79.00,
                 "capacity": "500ml (17oz)",
                 "material": "Stainless Steel",
+                "category": "Cup",
                 "colors": ["Thunder Blue", "Space Black", "Lucky Pink"],
                 "features": ["Screw-on lid", "Double-wall insulation", "Leak-proof design", "Improved grip"],
-                "on_sale": True
+                "on_sale": True,
+                "collection": "OG"
             },
             {
                 "name": "ZUS All-Can Tumbler 600ml (20oz)",
                 "price": "RM 105.00",
+                "price_numeric": 105.00,
                 "capacity": "600ml (20oz)",
                 "material": "Stainless Steel",
+                "category": "Tumbler",
                 "colors": ["Thunder Blue", "Stainless Steel"],
                 "features": ["Car cup holder friendly", "Double-wall insulation", "Temperature retention", "Ergonomic design"],
-                "promotion": "Buy 1 Free 1"
+                "promotion": "Buy 1 Free 1",
+                "collection": "All-Can"
             },
             {
                 "name": "ZUS All Day Cup 500ml (17oz) - Sundaze Collection",
                 "price": "RM 55.00",
+                "price_numeric": 55.00,
                 "regular_price": "RM 79.00",
+                "regular_price_numeric": 79.00,
                 "capacity": "500ml (17oz)",
                 "material": "Stainless Steel",
+                "category": "Cup",
                 "colors": ["Bright Yellow", "Sunset Orange", "Sky Blue"],
                 "features": ["Bright colors", "Daily use design", "Double-wall insulation"],
                 "collection": "Sundaze"
@@ -130,24 +140,32 @@ class EnhancedMinimalAgent:
             {
                 "name": "ZUS OG Ceramic Mug 16oz",
                 "price": "RM 39.00",
+                "price_numeric": 39.00,
                 "capacity": "16oz",
                 "material": "Ceramic",
+                "category": "Mug",
                 "colors": ["Classic White", "Thunder Blue"],
-                "features": ["Classic design", "Perfect for hot drinks", "Comfortable handle"]
+                "features": ["Classic design", "Perfect for hot drinks", "Comfortable handle"],
+                "collection": "OG"
             },
             {
                 "name": "ZUS Frozee Cold Cup 650ml",
                 "price": "RM 55.00",
+                "price_numeric": 55.00,
                 "capacity": "650ml",
                 "material": "Acrylic",
+                "category": "Cold Cup",
                 "colors": ["Clear", "Blue Tint"],
-                "features": ["Perfect for cold drinks", "Clear design", "Lightweight"]
+                "features": ["Perfect for cold drinks", "Clear design", "Lightweight"],
+                "collection": "Frozee"
             },
             {
                 "name": "ZUS All Day Cup - Aqua Collection 500ml",
                 "price": "RM 55.00",
+                "price_numeric": 55.00,
                 "capacity": "500ml",
                 "material": "Stainless Steel",
+                "category": "Cup",
                 "colors": ["Ocean Blue", "Sea Green", "Aqua Mint"],
                 "features": ["Water-inspired colors", "Double-wall insulation"],
                 "collection": "Aqua"
@@ -155,20 +173,24 @@ class EnhancedMinimalAgent:
             {
                 "name": "ZUS All Day Cup - Corak Malaysia Collection 500ml",
                 "price": "RM 55.00",
+                "price_numeric": 55.00,
                 "capacity": "500ml",
                 "material": "Stainless Steel",
+                "category": "Cup",
                 "colors": ["Malaysia Red", "Heritage Gold", "Unity Blue"],
                 "features": ["Malaysian-inspired patterns", "Limited edition design"],
                 "collection": "Corak Malaysia"
             }
         ]
         
-        # Real outlets data (verified ZUS Coffee locations)
+        # Real outlets data (verified ZUS Coffee locations) with enhanced structure
         self.outlets = [
             {
                 "name": "ZUS Coffee KLCC",
                 "address": "Lot G-316A, Ground Floor, Suria KLCC, Kuala Lumpur City Centre, 50088 Kuala Lumpur",
                 "location": "kuala lumpur",
+                "city": "Kuala Lumpur",
+                "state": "Kuala Lumpur",
                 "hours": "8:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
             },
@@ -176,6 +198,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee Pavilion KL", 
                 "address": "Lot 1.39.00, Level 1, Pavilion Kuala Lumpur, 168, Jalan Bukit Bintang, 55100 Kuala Lumpur",
                 "location": "kuala lumpur",
+                "city": "Kuala Lumpur",
+                "state": "Kuala Lumpur",
                 "hours": "10:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
             },
@@ -183,6 +207,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee Mid Valley",
                 "address": "Ground Floor, Mid Valley Megamall, Lingkaran Syed Putra, 59200 Kuala Lumpur",
                 "location": "kuala lumpur", 
+                "city": "Kuala Lumpur",
+                "state": "Kuala Lumpur",
                 "hours": "10:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery"]
             },
@@ -190,6 +216,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee Sunway Pyramid",
                 "address": "LG2-30A, Lower Ground 2, Sunway Pyramid, 3, Jalan PJS 11/15, 47500 Petaling Jaya, Selangor",
                 "location": "selangor",
+                "city": "Petaling Jaya",
+                "state": "Selangor",
                 "hours": "10:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
             },
@@ -197,6 +225,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee Avenue K",
                 "address": "Lot G-27A, Ground Floor, Avenue K, 156, Jalan Ampang, 50450 Kuala Lumpur",
                 "location": "kuala lumpur",
+                "city": "Kuala Lumpur",
+                "state": "Kuala Lumpur",
                 "hours": "8:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery"]
             },
@@ -204,6 +234,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee One Utama",
                 "address": "LG-329, Lower Ground Floor, 1 Utama Shopping Centre, 1, Lebuh Bandar Utama, 47800 Petaling Jaya, Selangor",
                 "location": "selangor",
+                "city": "Petaling Jaya",
+                "state": "Selangor",
                 "hours": "10:00 AM - 10:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
             },
@@ -211,6 +243,8 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee KL Sentral",
                 "address": "Level 2, KL Sentral Station, Jalan Stesen Sentral 5, 50470 Kuala Lumpur",
                 "location": "kuala lumpur",
+                "city": "Kuala Lumpur",
+                "state": "Kuala Lumpur",
                 "hours": "6:00 AM - 11:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery"]
             },
@@ -218,10 +252,20 @@ class EnhancedMinimalAgent:
                 "name": "ZUS Coffee Shah Alam",
                 "address": "No. 2, Jalan Tengku Ampuan Zabedah C 9/C, Seksyen 9, 40100 Shah Alam, Selangor",
                 "location": "selangor",
+                "city": "Shah Alam",
+                "state": "Selangor",
                 "hours": "7:00 AM - 11:00 PM",
                 "services": ["Dine-in", "Takeaway", "Delivery", "Drive-Thru"]
             }
         ]
+
+        # Tax and SST rates for Malaysia
+        self.tax_rates = {
+            "sst": 0.06,  # 6% SST (Service & Sales Tax)
+            "service_tax": 0.06,  # 6% Service Tax
+            "sales_tax": 0.10,  # 10% Sales Tax (for certain items)
+            "zero_rated": 0.00   # 0% for basic necessities
+        }
 
     def get_session_context(self, session_id: str) -> Dict[str, Any]:
         """Get or create session context with memory (Part 1: State Management)."""
@@ -349,11 +393,44 @@ class EnhancedMinimalAgent:
         return action_plan
 
     def find_matching_products(self, query: str, show_all: bool = False) -> List[Dict]:
-        """Find products with enhanced logic - show ALL if not specific (Part 1: Requirement)."""
+        """Find products with enhanced logic and filtering - show ALL if not specific (Part 1: Requirement)."""
         if show_all:
             return self.products  # Return ALL products when requested
             
         query_lower = query.lower()
+        
+        # Detect filtering intent
+        filters = self.detect_filtering_intent(query)
+        
+        # Start with all products if filtering is detected
+        if any([filters["price_range"], filters["category"], filters["material"], filters["collection"]]):
+            matching_products = list(self.products)
+            
+            # Apply price range filter
+            if filters["price_range"]:
+                matching_products = self.filter_products_by_price_range(
+                    filters.get("min_price"), 
+                    filters.get("max_price")
+                )
+            
+            # Apply category filter
+            if filters["category"]:
+                matching_products = [p for p in matching_products 
+                                   if p.get("category", "").lower() == filters["category"]]
+            
+            # Apply material filter
+            if filters["material"]:
+                matching_products = [p for p in matching_products 
+                                   if filters["material"] in p.get("material", "").lower()]
+            
+            # Apply collection filter
+            if filters["collection"]:
+                matching_products = [p for p in matching_products 
+                                   if filters["collection"] in p.get("collection", "").lower()]
+            
+            return matching_products
+        
+        # Original logic for non-filtered searches
         matching_products = []
         
         # If user asks for "products" without specifics, show all
@@ -402,11 +479,28 @@ class EnhancedMinimalAgent:
         return unique_products
 
     def find_matching_outlets(self, query: str, show_all: bool = False) -> List[Dict]:
-        """Find outlets with enhanced logic - show ALL if not specific (Part 1: Requirement)."""
+        """Find outlets with enhanced logic and city filtering - show ALL if not specific (Part 1: Requirement)."""
         if show_all:
             return self.outlets  # Return ALL outlets when requested
             
         query_lower = query.lower()
+        
+        # Detect filtering intent
+        filters = self.detect_filtering_intent(query)
+        
+        # Apply city-based filtering if detected
+        if filters["city"]:
+            matching_outlets = self.filter_outlets_by_city(filters["city"])
+            if matching_outlets:  # If city filter found results, return them
+                return matching_outlets
+        
+        # Apply service-based filtering if detected
+        if filters["service"]:
+            matching_outlets = self.filter_outlets_by_service(filters["service"])
+            if matching_outlets:  # If service filter found results, return them
+                return matching_outlets
+        
+        # Original logic for non-filtered searches
         matching_outlets = []
         
         # If user asks for "outlets" without specifics, show all
@@ -506,10 +600,14 @@ class EnhancedMinimalAgent:
             logger.error(f"Calculation error: {e}")
             return "I'm having trouble with that calculation. Please try a simpler mathematical expression like '25 + 15' or '100 / 4'."
 
-    def format_product_response(self, products: List[Dict], session_id: str) -> str:
-        """Format product response with context awareness."""
+    def format_product_response(self, products: List[Dict], session_id: str, query: str = "") -> str:
+        """Format product response with context awareness and enhanced features."""
         context = self.get_session_context(session_id)
         context["last_products"] = products
+        
+        # Detect if tax calculation is requested
+        filters = self.detect_filtering_intent(query)
+        show_tax = filters.get("tax_calculation", False)
         
         if not products:
             return "I couldn't find specific products matching your search. Our complete collection includes the ZUS OG Cup, All-Can Tumbler, Ceramic Mugs, and Frozee Cold Cups. Would you like to see all our products or search for something specific?"
@@ -524,10 +622,36 @@ class EnhancedMinimalAgent:
                 response += f" Currently on sale (regular price: {product.get('regular_price', 'N/A')})!"
             if "promotion" in product:
                 response += f" Special promotion: {product['promotion']}!"
+            
+            # Add tax calculation if requested
+            if show_tax:
+                tax_info = self.calculate_tax_and_sst(product.get("price_numeric", 0))
+                if "error" not in tax_info:
+                    response += f"\n\n💰 **Price Breakdown:**\n- Subtotal: {tax_info['formatted']['subtotal']}\n- SST (6%): {tax_info['formatted']['sst_amount']}\n- **Total with SST: {tax_info['formatted']['total_with_sst']}**"
                 
         else:
-            # Show ALL products when multiple found or when showing complete collection
-            response = f"Here are our ZUS Coffee drinkware products ({len(products)} items): "
+            # Show multiple products with filtering info
+            response = f"Here are our ZUS Coffee drinkware products ({len(products)} items"
+            
+            # Add filter information
+            if filters["price_range"]:
+                min_p, max_p = filters.get("min_price"), filters.get("max_price")
+                if min_p and max_p:
+                    response += f" in RM {min_p:.0f}-{max_p:.0f} range"
+                elif min_p:
+                    response += f" above RM {min_p:.0f}"
+                elif max_p:
+                    response += f" under RM {max_p:.0f}"
+            
+            if filters["category"]:
+                response += f" in {filters['category']} category"
+            if filters["material"]:
+                response += f" made from {filters['material']}"
+            if filters["collection"]:
+                response += f" from {filters['collection']} collection"
+            
+            response += "): "
+            
             product_details = []
             for i, product in enumerate(products, 1):
                 detail = f"{i}. **{product['name']}** - {product['price']} ({product['capacity']}, {product['material']})"
@@ -535,6 +659,13 @@ class EnhancedMinimalAgent:
                     detail += " [ON SALE]"
                 if "promotion" in product:
                     detail += f" [{product['promotion']}]"
+                
+                # Add tax calculation for each product if requested
+                if show_tax:
+                    tax_info = self.calculate_tax_and_sst(product.get("price_numeric", 0))
+                    if "error" not in tax_info:
+                        detail += f" | With SST: {tax_info['formatted']['total_with_sst']}"
+                
                 product_details.append(detail)
             
             response += " | ".join(product_details)
@@ -542,20 +673,34 @@ class EnhancedMinimalAgent:
         response += " Would you like details about any specific product, pricing calculations, or outlet locations?"
         return response
 
-    def format_outlet_response(self, outlets: List[Dict], session_id: str) -> str:
-        """Format outlet response with context awareness."""
+    def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str = "") -> str:
+        """Format outlet response with context awareness and city filtering."""
         context = self.get_session_context(session_id)
         context["last_outlets"] = outlets
         
+        # Detect filtering intent
+        filters = self.detect_filtering_intent(query)
+        
         if not outlets:
+            if filters["city"]:
+                return f"I couldn't find outlets specifically in {filters['city']}. We have locations throughout Kuala Lumpur (KLCC, Pavilion, Mid Valley, Avenue K, KL Sentral) and Selangor (Sunway Pyramid, One Utama, Shah Alam). Which area interests you?"
             return "I couldn't find outlets in that specific area. We have locations throughout Kuala Lumpur (KLCC, Pavilion, Mid Valley, Avenue K, KL Sentral) and Selangor (Sunway Pyramid, One Utama, Shah Alam). Which area interests you?"
         
         if len(outlets) == 1:
             outlet = outlets[0]
             response = f"Found it! **{outlet['name']}** is located at {outlet['address']}. Hours: {outlet['hours']}. Services: {', '.join(outlet['services'])}."
         else:
-            # Show ALL outlets when multiple found or when showing complete list
-            response = f"Here are our ZUS Coffee outlet locations ({len(outlets)} outlets): "
+            # Show multiple outlets with filtering info
+            response = f"Here are our ZUS Coffee outlet locations ({len(outlets)} outlets"
+            
+            # Add filter information
+            if filters["city"]:
+                response += f" in {filters['city'].title()}"
+            if filters["service"]:
+                response += f" with {filters['service']} service"
+            
+            response += "): "
+            
             outlet_details = []
             for i, outlet in enumerate(outlets, 1):
                 detail = f"{i}. **{outlet['name']}** - {outlet['address']}, Hours: {outlet['hours']}, Services: {', '.join(outlet['services'])}"
@@ -565,6 +710,279 @@ class EnhancedMinimalAgent:
         
         response += " Would you like directions, specific hours, or details about services at any location?"
         return response
+
+    def calculate_tax_and_sst(self, price: float, quantity: int = 1) -> Dict[str, Any]:
+        """
+        Calculate tax and SST for Malaysian pricing
+        Malaysia SST: 6% on goods, Service Tax: 6% on services
+        """
+        try:
+            subtotal = price * quantity
+            sst_rate = 0.06  # 6% SST in Malaysia
+            sst_amount = subtotal * sst_rate
+            total_with_tax = subtotal + sst_amount
+            
+            return {
+                "quantity": quantity,
+                "unit_price": price,
+                "subtotal": round(subtotal, 2),
+                "sst_rate": "6%",
+                "sst_amount": round(sst_amount, 2),
+                "total_with_sst": round(total_with_tax, 2),
+                "formatted": {
+                    "subtotal": f"RM {subtotal:.2f}",
+                    "sst_amount": f"RM {sst_amount:.2f}",
+                    "total_with_sst": f"RM {total_with_tax:.2f}"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Tax calculation error: {e}")
+            return {
+                "error": "Unable to calculate tax",
+                "quantity": quantity,
+                "unit_price": price
+            }
+
+    def filter_products_by_price_range(self, min_price=None, max_price=None):
+        """Filter products by price range"""
+        try:
+            filtered = []
+            for product in self.products:
+                price = product.get('price_numeric', 0)
+                if min_price is not None and price < min_price:
+                    continue
+                if max_price is not None and price > max_price:
+                    continue
+                filtered.append(product)
+            return filtered
+        except Exception:
+            return self.products
+
+    def filter_products_by_category(self, category):
+        """Filter products by category"""
+        try:
+            category_lower = category.lower()
+            return [p for p in self.products if category_lower in p.get('category', '').lower()]
+        except Exception:
+            return self.products
+
+    def filter_products_by_material(self, material):
+        """Filter products by material"""
+        try:
+            material_lower = material.lower()
+            return [p for p in self.products if material_lower in p.get('material', '').lower()]
+        except Exception:
+            return self.products
+
+    def filter_products_by_collection(self, collection):
+        """Filter products by collection"""
+        try:
+            collection_lower = collection.lower()
+            return [p for p in self.products if collection_lower in p.get('collection', '').lower()]
+        except Exception:
+            return self.products
+
+    def filter_outlets_by_city(self, city):
+        """Filter outlets by city"""
+        try:
+            city_lower = city.lower()
+            return [o for o in self.outlets if city_lower in o.get('city', '').lower() or city_lower in o.get('location', '').lower()]
+        except Exception:
+            return self.outlets
+
+    def filter_outlets_by_service(self, service):
+        """Filter outlets by available service"""
+        try:
+            service_lower = service.lower()
+            return [o for o in self.outlets if any(service_lower in s.lower() for s in o.get('services', []))]
+        except Exception:
+            return self.outlets
+
+    def calculate_price_with_tax(self, price, tax_type="sst"):
+        """Calculate price including tax"""
+        try:
+            if isinstance(price, str):
+                # Extract numeric value from "RM XX.XX" format
+                price_str = price.replace("RM", "").replace(",", "").strip()
+                price = float(price_str)
+            
+            tax_rate = self.tax_rates.get(tax_type, 0.06)
+            tax_amount = price * tax_rate
+            total_price = price + tax_amount
+            
+            return {
+                "original_price": f"RM {price:.2f}",
+                "tax_type": tax_type.upper(),
+                "tax_rate": f"{tax_rate * 100:.0f}%",
+                "tax_amount": f"RM {tax_amount:.2f}",
+                "total_price": f"RM {total_price:.2f}"
+            }
+        except Exception:
+            return {"error": "Unable to calculate tax"}
+
+    def get_all_products_formatted(self, filters=None):
+        """Get all products with optional filtering"""
+        try:
+            products = self.products.copy()
+            
+            if filters:
+                if 'min_price' in filters or 'max_price' in filters:
+                    products = self.filter_products_by_price_range(
+                        filters.get('min_price'), 
+                        filters.get('max_price')
+                    )
+                if 'category' in filters:
+                    products = self.filter_products_by_category(filters['category'])
+                if 'material' in filters:
+                    products = self.filter_products_by_material(filters['material'])
+                if 'collection' in filters:
+                    products = self.filter_products_by_collection(filters['collection'])
+            
+            if not products:
+                return "No products found matching your criteria."
+            
+            response = f"Here are our {len(products)} ZUS Coffee products:\n\n"
+            for product in products:
+                response += f"• {product['name']}\n"
+                response += f"  Price: {product['price']}"
+                if product.get('regular_price') and product.get('on_sale'):
+                    response += f" (was {product['regular_price']})"
+                response += f"\n  Material: {product['material']}\n"
+                response += f"  Category: {product['category']}\n"
+                if product.get('collection'):
+                    response += f"  Collection: {product['collection']}\n"
+                response += "\n"
+            
+            return response.strip()
+        except Exception:
+            return "Sorry, I couldn't retrieve the product information right now."
+
+    def get_all_outlets_formatted(self, filters=None):
+        """Get all outlets with optional filtering"""
+        try:
+            outlets = self.outlets.copy()
+            
+            if filters:
+                if 'city' in filters:
+                    outlets = self.filter_outlets_by_city(filters['city'])
+                if 'service' in filters:
+                    outlets = self.filter_outlets_by_service(filters['service'])
+            
+            if not outlets:
+                return "No outlets found matching your criteria."
+            
+            response = f"Here are our {len(outlets)} ZUS Coffee outlets:\n\n"
+            for outlet in outlets:
+                response += f"• {outlet['name']}\n"
+                response += f"  Address: {outlet['address']}\n"
+                response += f"  Hours: {outlet['hours']}\n"
+                if outlet.get('services'):
+                    response += f"  Services: {', '.join(outlet['services'])}\n"
+                response += "\n"
+            
+            return response.strip()
+        except Exception:
+            return "Sorry, I couldn't retrieve the outlet information right now."
+
+    def detect_filtering_intent(self, query: str) -> Dict[str, Any]:
+        """Detect filtering intent and extract filter parameters from user query"""
+        query_lower = query.lower()
+        
+        filters = {
+            "price_range": False,
+            "min_price": None,
+            "max_price": None,
+            "category": None,
+            "material": None,
+            "collection": None,
+            "city": None,
+            "service": None,
+            "tax_calculation": False
+        }
+        
+        # Detect price range filters
+        price_patterns = [
+            r'under\s+rm\s*(\d+)',
+            r'below\s+rm\s*(\d+)',
+            r'less\s+than\s+rm\s*(\d+)',
+            r'above\s+rm\s*(\d+)',
+            r'over\s+rm\s*(\d+)',
+            r'more\s+than\s+rm\s*(\d+)',
+            r'between\s+rm\s*(\d+)\s*and\s+rm\s*(\d+)',
+            r'rm\s*(\d+)\s*to\s*rm\s*(\d+)',
+            r'price\s+range\s+rm\s*(\d+)\s*-\s*rm\s*(\d+)'
+        ]
+        
+        for pattern in price_patterns:
+            matches = re.findall(pattern, query_lower)
+            if matches:
+                filters["price_range"] = True
+                if 'under' in pattern or 'below' in pattern or 'less' in pattern:
+                    filters["max_price"] = float(matches[0])
+                elif 'above' in pattern or 'over' in pattern or 'more' in pattern:
+                    filters["min_price"] = float(matches[0])
+                elif 'between' in pattern or 'to' in pattern or '-' in pattern:
+                    prices = matches[0] if isinstance(matches[0], tuple) else [matches[0], matches[1] if len(matches) > 1 else matches[0]]
+                    if len(prices) == 2:
+                        filters["min_price"] = float(prices[0])
+                        filters["max_price"] = float(prices[1])
+                break
+        
+        # Detect category filters
+        category_keywords = ['cup', 'tumbler', 'mug', 'cold cup']
+        for category in category_keywords:
+            if category in query_lower:
+                filters["category"] = category.title()
+                break
+        
+        # Detect material filters
+        material_keywords = ['stainless steel', 'ceramic', 'acrylic']
+        for material in material_keywords:
+            if material in query_lower:
+                filters["material"] = material
+                break
+        
+        # Detect collection filters
+        collection_keywords = ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can']
+        for collection in collection_keywords:
+            if collection in query_lower:
+                filters["collection"] = collection
+                break
+        
+        # Detect city filters
+        city_keywords = {
+            'kuala lumpur': ['kuala lumpur', 'kl', 'kl city'],
+            'petaling jaya': ['petaling jaya', 'pj'],
+            'shah alam': ['shah alam'],
+            'selangor': ['selangor']
+        }
+        
+        for city, keywords in city_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                filters["city"] = city
+                break
+        
+        # Detect service filters
+        service_keywords = ['dine-in', 'takeaway', 'delivery', 'drive-thru', 'wifi']
+        for service in service_keywords:
+            if service.replace('-', ' ') in query_lower or service.replace('-', '') in query_lower:
+                filters["service"] = service
+                break
+        
+        # Detect tax calculation intent
+        tax_keywords = ['tax', 'sst', 'with tax', 'including tax', 'total price']
+        if any(keyword in query_lower for keyword in tax_keywords):
+            filters["tax_calculation"] = True
+        
+        return filters
+
+    def extract_filters_from_message(self, message: str) -> Dict[str, Any]:
+        """Extract filtering parameters from user message"""
+        return self.detect_filtering_intent(message)
+
+    def extract_outlet_filters_from_message(self, message: str) -> Dict[str, Any]:
+        """Extract outlet filtering parameters from user message"""
+        return self.detect_filtering_intent(message)
 
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
         """
@@ -589,6 +1007,74 @@ class EnhancedMinimalAgent:
                     "intent": "security",
                     "confidence": 0.9
                 }
+            
+            # Enhanced intent detection for show all and filtering
+            if "show" in message_lower and ("all" in message_lower or "total" in message_lower):
+                if any(word in message_lower for word in ["product", "drinkware", "merchandise"]):
+                    # Show all products with optional filtering
+                    filters = self.detect_filtering_intent(message)
+                    all_products = self.get_all_products_formatted(filters if any(filters.values()) else None)
+                    total_count = len(self.products)
+                    response = f"📦 **Total ZUS Coffee Products/Drinkware: {total_count}**\n\n{all_products}"
+                    
+                    self.update_session_context(session_id, "show_all_products", {"query": message, "total": total_count})
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "show_all_products",
+                        "confidence": 0.95
+                    }
+                    
+                elif any(word in message_lower for word in ["outlet", "store", "location", "branch"]):
+                    # Show all outlets with optional city filtering
+                    filters = self.detect_filtering_intent(message)
+                    
+                    # Check for city-specific requests
+                    if filters["city"]:
+                        filtered_outlets = self.filter_outlets_by_city(filters["city"])
+                        response = f"🏪 **Total ZUS Coffee Outlets in {filters['city'].title()}: {len(filtered_outlets)}**\n\n"
+                        response += self.get_all_outlets_formatted({"city": filters["city"]})
+                    else:
+                        # Show all outlets
+                        all_outlets = self.get_all_outlets_formatted()
+                        total_count = len(self.outlets)
+                        
+                        # Break down by location
+                        kl_outlets = [o for o in self.outlets if o["state"] == "Kuala Lumpur"]
+                        selangor_outlets = [o for o in self.outlets if o["state"] == "Selangor"]
+                        
+                        response = f"🏪 **Total ZUS Coffee Outlets: {total_count}**\n"
+                        response += f"• Kuala Lumpur: {len(kl_outlets)} outlets\n"
+                        response += f"• Selangor: {len(selangor_outlets)} outlets\n\n"
+                        response += all_outlets
+                    
+                    self.update_session_context(session_id, "show_all_outlets", {"query": message, "filters": filters})
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "show_all_outlets",
+                        "confidence": 0.95
+                    }
+            
+            # City-based outlet filtering
+            if any(city in message_lower for city in ["selangor", "kuala lumpur", "kl"]) and any(word in message_lower for word in ["outlet", "store", "location"]):
+                filters = self.detect_filtering_intent(message)
+                if filters["city"]:
+                    filtered_outlets = self.filter_outlets_by_city(filters["city"])
+                    response = f"🏪 **ZUS Coffee Outlets in {filters['city'].title()}: {len(filtered_outlets)}**\n\n"
+                    for i, outlet in enumerate(filtered_outlets, 1):
+                        response += f"{i}. **{outlet['name']}**\n"
+                        response += f"   📍 {outlet['address']}\n"
+                        response += f"   🕒 Hours: {outlet['hours']}\n"
+                        response += f"   🛎️ Services: {', '.join(outlet['services'])}\n\n"
+                    
+                    self.update_session_context(session_id, "city_outlet_search", {"city": filters["city"], "results": len(filtered_outlets)})
+                    return {
+                        "message": response,
+                        "session_id": session_id,
+                        "intent": "city_outlet_search",
+                        "confidence": 0.9
+                    }
             
             # Execute action based on plan
             if action_plan["intent"] == "greeting":
@@ -617,7 +1103,7 @@ class EnhancedMinimalAgent:
                 show_all = action_plan["action"] == "show_all_products" or "all products" in message_lower or "show me products" in message_lower
                 matching_products = self.find_matching_products(message, show_all=show_all)
                 
-                response = self.format_product_response(matching_products, session_id)
+                response = self.format_product_response(matching_products, session_id, message)
                 self.update_session_context(session_id, "product_search", {"query": message, "results_count": len(matching_products)})
                 return {
                     "message": response,
@@ -631,7 +1117,7 @@ class EnhancedMinimalAgent:
                 show_all = action_plan["action"] == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower
                 matching_outlets = self.find_matching_outlets(message, show_all=show_all)
                 
-                response = self.format_outlet_response(matching_outlets, session_id)
+                response = self.format_outlet_response(matching_outlets, session_id, message)
                 self.update_session_context(session_id, "outlet_search", {"query": message, "results_count": len(matching_outlets)})
                 return {
                     "message": response,
@@ -706,7 +1192,6 @@ class EnhancedMinimalAgent:
                 "intent": "error",
                 "error": str(e)
             }
-
 
 # Singleton pattern for agent instance
 _agent_instance = None
