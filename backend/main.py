@@ -20,27 +20,33 @@ try:
     from chatbot.agent_enhanced_new import get_chatbot
     print("✅ Using NEW enhanced intelligent chatbot with advanced patterns")
     ENHANCED_CHATBOT = True
-except ImportError as e:
+except Exception as e:
     print(f"⚠️  New enhanced chatbot not available: {e}")
     try:
         from chatbot.agent_enhanced import get_chatbot
         print("✅ Using previous enhanced intelligent chatbot")
         ENHANCED_CHATBOT = True
-    except ImportError as e2:
+    except Exception as e2:
         print(f"⚠️  Enhanced chatbot not available: {e2}")
         try:
-            from agents.controller import get_agent_controller
-            ENHANCED_CHATBOT = False
-            print("📝 Using basic chatbot as fallback")
-        except ImportError as e3:
-            print(f"❌ No chatbot available: {e3}")
-            # Create a simple fallback
-            def get_agent_controller():
-                class SimpleAgent:
-                    def chat(self, message, session_id="default"):
-                        return {"response": "I'm temporarily unavailable. Please try again later."}
-                return SimpleAgent()
-            ENHANCED_CHATBOT = False
+            from chatbot.minimal_agent import get_chatbot
+            print("✅ Using minimal working chatbot")
+            ENHANCED_CHATBOT = True
+        except Exception as e3:
+            print(f"⚠️  Minimal chatbot not available: {e3}")
+            try:
+                from agents.controller import get_agent_controller
+                ENHANCED_CHATBOT = False
+                print("📝 Using basic chatbot as fallback")
+            except ImportError as e4:
+                print(f"❌ No chatbot available: {e4}")
+                # Create a simple fallback
+                def get_agent_controller():
+                    class SimpleAgent:
+                        def chat(self, message, session_id="default"):
+                            return {"response": "I'm temporarily unavailable. Please try again later."}
+                    return SimpleAgent()
+                ENHANCED_CHATBOT = False
 
 # Try to import ML-based search, fallback to simple search
 try:
