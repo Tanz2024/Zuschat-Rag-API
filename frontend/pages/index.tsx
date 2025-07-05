@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Header from '../components/Header'
-// import Sidebar from '../components/Sidebar' // TEMPORARILY DISABLED FOR VERCEL DEPLOYMENT
+import Sidebar from '../components/Sidebar'
 import ChatWindow from '../components/ChatWindow'
 
 export default function Home() {
@@ -118,19 +118,19 @@ export default function Home() {
           />
         )}
         
-        {/* Sidebar - TEMPORARILY DISABLED FOR VERCEL DEPLOYMENT */}
-        {/* <div className={`sidebar-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        {/* Sidebar */}
+        <div className={`sidebar-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
           <Sidebar onClose={closeSidebar} />
-        </div> */}
+        </div>
         
         {/* Main content - expands to full width when sidebar is closed */}
-        <div className={`main-layout main-layout-sidebar-closed`}>
+        <div className={`main-layout ${isSidebarOpen ? 'main-layout-sidebar-open' : 'main-layout-sidebar-closed'}`}>
           <div className="flex flex-col h-screen">
             <Header 
-              isSidebarOpen={false}
-              onToggleSidebar={() => {}}
+              isSidebarOpen={isSidebarOpen}
+              onToggleSidebar={toggleSidebar}
             />
-            <main className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out chat-expanded`}>
+            <main className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? 'chat-sidebar-open' : 'chat-expanded'}`}>
               <ChatWindow isSidebarOpen={isSidebarOpen} />
             </main>
           </div>

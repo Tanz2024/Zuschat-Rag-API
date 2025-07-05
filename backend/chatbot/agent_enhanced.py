@@ -371,12 +371,27 @@ class SmartCalculationEngine:
     def solve_math(self, expression: str) -> Dict[str, Any]:
         """Safely solve mathematical expressions."""
         try:
-            # Clean expression
-            clean_expr = re.sub(r'[^0-9+\\-*/.()\\s]', '', expression)
+            # Clean expression - fix regex pattern
+            clean_expr = re.sub(r'[^0-9+\-*/.()%\s]', '', expression)
             
-            if not clean_expr:
+            # Handle percentage calculations
+            if '%' in expression:
+                # Convert "15% of 100" to "15 * 100 / 100"
+                percent_match = re.search(r'(\d+(?:\.\d+)?)%\s*(?:of\s*)?(\d+(?:\.\d+)?)', expression)
+                if percent_match:
+                    percent = float(percent_match.group(1))
+                    value = float(percent_match.group(2))
+                    result = (percent / 100) * value
+                    return {
+                        "expression": f"{percent}% of {value}",
+                        "result": result,
+                        "formatted": f"{result:.2f}"
+                    }
+            
+            if not clean_expr.strip():
                 return {"error": "Invalid expression"}
             
+            # Safely evaluate the expression
             result = eval(clean_expr)
             return {
                 "expression": clean_expr,
