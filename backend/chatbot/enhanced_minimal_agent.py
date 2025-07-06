@@ -1086,6 +1086,7 @@ class ChatController:
     """Wrapper class for compatibility with existing main.py calls."""
     
     def __init__(self):
+        self.sessions = {}  # Ensure sessions attribute exists
         self.agent = get_chatbot()
     
     async def chat(self, message: str, session_id: str = "default") -> Dict[str, Any]:
