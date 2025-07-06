@@ -18,6 +18,9 @@ from backend.data.database import SessionLocal, Product, Outlet
 logger = logging.getLogger(__name__)
 
 class EnhancedMinimalAgent:
+    def __init__(self):
+        self.sessions = {}  # Ensure sessions attribute exists for all agent logic
+
     # --- Advanced: Hybrid Search (Semantic + Fuzzy + Keyword) ---
     def hybrid_search_products(self, query: str, top_k: int = 5, lang: str = "en") -> List[Dict]:
         """
