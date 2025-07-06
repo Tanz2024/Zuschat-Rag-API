@@ -1,211 +1,146 @@
 """
-Robust Database configuration for ZUS Coffee chatbot
-PostgreSQL with SQLAlchemy ORM + graceful fallback handling
+Database configuration and setup for ZUS Coffee chatbot
+PostgreSQL with SQLAlchemy ORM
 """
 import os
-import logging
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
-# Database configuration with fallback handling
+# Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
-DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "production")  # production, development, test
 
-def validate_and_setup_database():
-    """
-    Validate database configuration and set up connection with fallback handling.
-    Returns tuple: (engine, SessionLocal, Base, database_available)
-    """
-    global DATABASE_URL
-    
-    # Handle missing DATABASE_URL
-    if not DATABASE_URL:
-        if DEPLOYMENT_MODE == "production":
-            logger.error("DATABASE_URL environment variable is required in production")
-            raise ValueError(
-                "DATABASE_URL environment variable is required. "
-                "Please set it to your PostgreSQL connection string. "
-                "Example: postgresql://username:password@host:port/database"
-            )
-        else:
-            logger.warning("DATABASE_URL not set, using in-memory SQLite for development")
-            DATABASE_URL = "sqlite:///:memory:"
-    
-    # Clean up DATABASE_URL in case it has the variable name as prefix
-    if DATABASE_URL.startswith("DATABASE_URL="):
-        DATABASE_URL = DATABASE_URL.replace("DATABASE_URL=", "")
-        logger.warning("DATABASE_URL had incorrect prefix, cleaned it up")
-    
-    # Validate DATABASE_URL format for production
-    if DEPLOYMENT_MODE == "production" and not DATABASE_URL.startswith(("postgresql://", "postgres://")):
-        logger.error(f"Invalid DATABASE_URL format in production: '{DATABASE_URL[:50]}...'")
-        raise ValueError(
-            f"Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...' "
-            "Must start with 'postgresql://' or 'postgres://' in production"
-        )
-    
-    # Database configuration
-    DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
-    DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-    DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "60"))
-    DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
-    
-    try:
-        # Create engine with appropriate settings
-        if DATABASE_URL.startswith("sqlite"):
-            # SQLite configuration (development/fallback)
-            engine = create_engine(
-                DATABASE_URL,
-                echo=DB_ECHO,
-                pool_pre_ping=True,
-                connect_args={"check_same_thread": False}  # SQLite specific
-            )
-            logger.info("Using SQLite database (development mode)")
-        else:
-            # PostgreSQL configuration (production)
-            engine = create_engine(
-                DATABASE_URL,
-                pool_size=DB_POOL_SIZE,
-                max_overflow=DB_MAX_OVERFLOW,
-                pool_timeout=DB_POOL_TIMEOUT,
-                echo=DB_ECHO,
-                pool_pre_ping=True
-            )
-            logger.info("Using PostgreSQL database (production mode)")
-        
-        # Test the connection
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        Base = declarative_base()
-        
-        logger.info("Database connection established successfully")
-        return engine, SessionLocal, Base, True
-        
-    except Exception as e:
-        logger.error(f"Database connection failed: {e}")
-        
-        if DEPLOYMENT_MODE == "production":
-            # In production, we must have a working database
-            raise RuntimeError(f"Production database connection failed: {e}")
-        else:
-            # In development, create a fallback in-memory database
-            logger.warning("Falling back to in-memory SQLite database")
-            fallback_engine = create_engine("sqlite:///:memory:", echo=False)
-            FallbackSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=fallback_engine)
-            FallbackBase = declarative_base()
-            return fallback_engine, FallbackSessionLocal, FallbackBase, False
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it to your PostgreSQL connection string. "
+        "Example: postgresql://username:password@host:port/database"
+    )
 
-# Initialize database with error handling
-try:
-    engine, SessionLocal, Base, database_available = validate_and_setup_database()
-except Exception as e:
-    logger.critical(f"Critical database setup error: {e}")
-    # Last resort: create minimal fallback for basic operation
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base = declarative_base()
-    database_available = False
-    logger.warning("Using emergency fallback database - limited functionality")
+# Clean up DATABASE_URL in case it has the variable name as prefix
+if DATABASE_URL.startswith("DATABASE_URL="):
+    DATABASE_URL = DATABASE_URL.replace("DATABASE_URL=", "")
+    print("WARNING: DATABASE_URL had incorrect prefix, cleaned it up")
 
-# Database models
+# Validate DATABASE_URL format
+if not DATABASE_URL.startswith(("postgresql://", "postgres://")):
+    raise ValueError(
+        f"Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...' "
+        "Must start with 'postgresql://' or 'postgres://'"
+    )
+
+# Additional database configuration
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
+DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
+
+# SQLAlchemy setup with configurable pool settings
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=DB_POOL_SIZE,
+    max_overflow=DB_MAX_OVERFLOW,
+    pool_timeout=DB_POOL_TIMEOUT,
+    echo=DB_ECHO,  # Set to True for SQL query logging
+    pool_pre_ping=True  # Validates connections before use
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Outlet model
+class Outlet(Base):
+    __tablename__ = "outlets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    address = Column(Text, nullable=False)
+    opening_hours = Column(Text)
+    services = Column(Text)
+
+# Chat session model
 class ChatSession(Base):
-    """Chat session model for storing conversation history."""
     __tablename__ = "chat_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), unique=True, index=True)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow)
-    message_count = Column(Integer, default=0)
 
+# Chat message model
 class ChatMessage(Base):
-    """Chat message model for storing individual messages."""
     __tablename__ = "chat_messages"
     
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), index=True)
-    message = Column(Text)
-    response = Column(Text)
-    intent = Column(String(100))
-    confidence = Column(String(10))
+    session_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
-def create_tables():
-    """Create database tables with error handling."""
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
-    except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
-        if DEPLOYMENT_MODE == "production":
-            raise RuntimeError(f"Failed to create database tables in production: {e}")
+# Product model
+class Product(Base):
+    __tablename__ = "products"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)
+    price = Column(String, nullable=False)
+    sale_price = Column(Text)
+    regular_price = Column(String)
+    description = Column(Text)
+    ingredients = Column(Text)
+    capacity = Column(String)
+    material = Column(String)
+    colors = Column(Text)  # JSON string for colors array
+    features = Column(Text)  # JSON string for features array
+    collection = Column(String)
+    promotion = Column(String)
+    on_sale = Column(String)  # Boolean as string
+    discount = Column(String)
 
 def get_db():
-    """Database dependency for FastAPI with error handling."""
-    if not database_available:
-        logger.warning("Database not available, using fallback")
-        # Return a mock database session that doesn't actually persist
-        return MockDBSession()
-    
+    """Get database session"""
     db = SessionLocal()
     try:
         yield db
-    except Exception as e:
-        logger.error(f"Database session error: {e}")
-        db.rollback()
-        raise
     finally:
         db.close()
 
-class MockDBSession:
-    """Mock database session for when database is not available."""
-    
-    def add(self, obj):
-        pass
-    
-    def commit(self):
-        pass
-    
-    def rollback(self):
-        pass
-    
-    def close(self):
-        pass
-    
-    def query(self, *args):
-        return MockQuery()
+def create_tables():
+    """Create database tables"""
+    Base.metadata.create_all(bind=engine)
 
-class MockQuery:
-    """Mock query object."""
-    
-    def filter(self, *args):
-        return self
-    
-    def first(self):
-        return None
-    
-    def all(self):
-        return []
+def get_connection():
+    """Get database connection for direct queries"""
+    return engine.connect()
 
-# Health check function
-def check_database_health():
-    """Check if database is healthy and accessible."""
+def validate_database_config():
+    """Validate database configuration and connection"""
     try:
+        # Test database connection
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "healthy", "available": database_available}
+        print("✅ Database connection successful")
+        return True
     except Exception as e:
-        return {"status": "error", "error": str(e), "available": False}
+        print(f"❌ Database connection failed: {e}")
+        print("Please check your DATABASE_URL and ensure PostgreSQL is running")
+        return False
 
-# Export key components
-__all__ = [
-    'engine', 'SessionLocal', 'Base', 'database_available',
-    'ChatSession', 'ChatMessage', 'create_tables', 'get_db',
-    'check_database_health'
-]
+def get_db_info():
+    """Get database connection information (without exposing credentials)"""
+    try:
+        url_parts = DATABASE_URL.split("://")[1].split("/")
+        host_port = url_parts[0].split("@")[1] if "@" in url_parts[0] else url_parts[0]
+        database = url_parts[1] if len(url_parts) > 1 else "unknown"
+        
+        return {
+            "host": host_port.split(":")[0],
+            "port": host_port.split(":")[1] if ":" in host_port else "5432",
+            "database": database,
+            "pool_size": DB_POOL_SIZE,
+            "max_overflow": DB_MAX_OVERFLOW
+        }
+    except Exception:
+        return {"error": "Unable to parse DATABASE_URL"}
