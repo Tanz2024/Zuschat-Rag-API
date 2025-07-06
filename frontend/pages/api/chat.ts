@@ -31,12 +31,20 @@ export default async function handler(
       }),
     })
 
-    if (!response.ok) {
-      throw new Error(`Backend responded with status: ${response.status}`)
+    let data: any = null;
+    let backendError: string | null = null;
+    try {
+      data = await response.json();
+    } catch (e) {
+      backendError = `Backend returned non-JSON response: ${response.status}`;
     }
-
-    const data = await response.json()
-    
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: backendError || data?.error || `Backend responded with status: ${response.status}`,
+        details: data?.details || data?.detail || null,
+        backend_status: response.status
+      });
+    }
     // Return the response from FastAPI
     res.status(200).json({
       message: data.message || data.response || data.answer || 'No response from backend',
@@ -44,7 +52,7 @@ export default async function handler(
       intent: data.intent || null,
       confidence: data.confidence || null,
       session_id: data.session_id || req.headers['x-session-id'] || 'default-session'
-    })
+    });
   } catch (error) {
     console.error('Chat API error:', error)
     res.status(500).json({ 

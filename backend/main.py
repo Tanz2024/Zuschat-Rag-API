@@ -49,8 +49,13 @@ except Exception as e:
 # Import database with fallback handling
 database_available = False
 try:
-    from data.database_robust import get_db, create_tables, check_database_health, database_available as db_available
-    database_available = db_available
+    from data.database import get_db, create_tables, validate_database_config
+    database_available = validate_database_config()
+    def check_database_health():
+        if database_available:
+            return {"status": "available", "available": True}
+        else:
+            return {"status": "not_available", "available": False}
     logger.info(f"✅ Database system loaded (available: {database_available})")
 except Exception as e:
     logger.warning(f"⚠️  Database system not available: {e}")

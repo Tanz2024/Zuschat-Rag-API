@@ -9,26 +9,21 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
 
+DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is required. "
-        "Please set it to your PostgreSQL connection string. "
-        "Example: postgresql://username:password@host:port/database"
-    )
+    print("⚠️  DATABASE_URL environment variable is not set. Database features will be disabled.")
+    DATABASE_URL = None
 
 # Clean up DATABASE_URL in case it has the variable name as prefix
-if DATABASE_URL.startswith("DATABASE_URL="):
+if DATABASE_URL and DATABASE_URL.startswith("DATABASE_URL="):
     DATABASE_URL = DATABASE_URL.replace("DATABASE_URL=", "")
     print("WARNING: DATABASE_URL had incorrect prefix, cleaned it up")
 
 # Validate DATABASE_URL format
-if not DATABASE_URL.startswith(("postgresql://", "postgres://")):
-    raise ValueError(
-        f"Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...' "
-        "Must start with 'postgresql://' or 'postgres://'"
-    )
+if DATABASE_URL and not DATABASE_URL.startswith(("postgresql://", "postgres://")):
+    print(f"❌ Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...'. Must start with 'postgresql://' or 'postgres://'")
+    DATABASE_URL = None
 
 # Additional database configuration
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
@@ -36,17 +31,23 @@ DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
 
-# SQLAlchemy setup with configurable pool settings
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=DB_POOL_SIZE,
-    max_overflow=DB_MAX_OVERFLOW,
-    pool_timeout=DB_POOL_TIMEOUT,
-    echo=DB_ECHO,  # Set to True for SQL query logging
-    pool_pre_ping=True  # Validates connections before use
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+if DATABASE_URL:
+    # SQLAlchemy setup with configurable pool settings
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=DB_POOL_SIZE,
+        max_overflow=DB_MAX_OVERFLOW,
+        pool_timeout=DB_POOL_TIMEOUT,
+        echo=DB_ECHO,  # Set to True for SQL query logging
+        pool_pre_ping=True  # Validates connections before use
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+else:
+    engine = None
+    SessionLocal = None
+    Base = declarative_base()
 
 # Outlet model
 class Outlet(Base):
@@ -100,7 +101,11 @@ class Product(Base):
     discount = Column(String)
 
 def get_db():
-    """Get database session"""
+    """Get database session, or None if DB is not configured"""
+    if not SessionLocal:
+        print("⚠️  Database session requested but database is not configured.")
+        yield None
+        return
     db = SessionLocal()
     try:
         yield db
@@ -108,15 +113,24 @@ def get_db():
         db.close()
 
 def create_tables():
-    """Create database tables"""
+    """Create database tables if DB is configured"""
+    if not engine:
+        print("⚠️  Cannot create tables: database engine is not configured.")
+        return
     Base.metadata.create_all(bind=engine)
 
 def get_connection():
-    """Get database connection for direct queries"""
+    """Get database connection for direct queries, or None if not configured"""
+    if not engine:
+        print("⚠️  Database connection requested but engine is not configured.")
+        return None
     return engine.connect()
 
 def validate_database_config():
     """Validate database configuration and connection"""
+    if not engine:
+        print("⚠️  Database engine is not configured.")
+        return False
     try:
         # Test database connection
         with engine.connect() as conn:
