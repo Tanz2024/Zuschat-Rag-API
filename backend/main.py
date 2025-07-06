@@ -362,7 +362,9 @@ async def ping():
     """Simple ping endpoint for connectivity testing."""
     return {"status": "pong", "timestamp": "2025-07-06"}
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+"""
+This file is intended to be run with:
+    uvicorn backend.main:app --host 0.0.0.0 --port 8000
+from the project root.
+Do NOT use python main.py in production.
+"""
