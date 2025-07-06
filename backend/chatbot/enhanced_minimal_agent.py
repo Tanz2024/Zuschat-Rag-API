@@ -868,97 +868,169 @@ class EnhancedMinimalAgent:
 
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
         """
-        Main message processing with complete agentic logic.
-        Implements all requirements: State Management, Planner/Controller, Tool Integration, Error Handling.
+        Advanced agentic message processing: stateful, robust, and modular.
+        Handles intent parsing, planner/controller, tool/API calls, unhappy flows, and memory.
+        Now supports answering product, outlet, and calculation queries in a single response if all are detected.
         """
         try:
-            # Part 1: Update session context and memory
+            # --- State Management & Memory ---
             context = self.get_session_context(session_id)
-            
-            # Part 2: Parse intent and plan action using agentic planner
-            action_plan = self.parse_intent_and_plan_action(message, session_id)
-            
-            message_lower = message.lower()
-            
-            # Part 5: Security check for malicious content (Unhappy Flows)
+            message_lower = message.lower().strip()
+            self.update_session_context(session_id, "last_message", {"message": message})
+
+            # --- Security & Malicious Input Check ---
             if any(word in message_lower for word in ["drop", "delete", "script", "sql", "injection", "hack", "admin", "root"]):
                 self.update_session_context(session_id, "security_violation", {"message": message})
                 return {
                     "message": "For security reasons, I cannot process requests containing potentially harmful content. I'm here to help with ZUS Coffee products, outlets, calculations, and general inquiries. How can I assist you today?",
                     "session_id": session_id,
                     "intent": "security",
-                    "confidence": 0.9
+                    "confidence": 0.99
                 }
-            
-            # Enhanced intent detection for show all and filtering
-            if "show" in message_lower and ("all" in message_lower or "total" in message_lower):
-                if any(word in message_lower for word in ["product", "drinkware", "merchandise"]):
-                    # Show all products with optional filtering
-                    filters = self.detect_filtering_intent(message)
-                    all_products = self.get_all_products_formatted(filters if any(filters.values()) else None)
-                    total_count = len(self.products)
-                    response = f"📦 **Total ZUS Coffee Products/Drinkware: {total_count}**\n\n{all_products}"
-                    
-                    self.update_session_context(session_id, "show_all_products", {"query": message, "total": total_count})
-                    return {
-                        "message": response,
-                        "session_id": session_id,
-                        "intent": "show_all_products",
-                        "confidence": 0.95
-                    }
-                    
-                elif any(word in message_lower for word in ["outlet", "store", "location", "branch"]):
-                    # Show all outlets with optional city filtering
-                    filters = self.detect_filtering_intent(message)
-                    
-                    # Check for city-specific requests
-                    if filters["city"]:
-                        filtered_outlets = self.filter_outlets_by_city(filters["city"])
-                        response = f"🏪 **Total ZUS Coffee Outlets in {filters['city'].title()}: {len(filtered_outlets)}**\n\n"
-                        response += self.get_all_outlets_formatted({"city": filters["city"]})
+
+            # --- Empty/Short Message Handling ---
+            if not message_lower or len(message_lower) < 2:
+                self.update_session_context(session_id, "clarification", {"message": message})
+                return {
+                    "message": "I'd love to help you! I can assist with outlet locations and hours, product recommendations and details, pricing calculations, or general ZUS Coffee information. What interests you most?",
+                    "session_id": session_id,
+                    "intent": "clarification",
+                    "confidence": 0.7
+                }
+
+            # --- Intent Parsing & Planner/Controller ---
+            action_plan = self.parse_intent_and_plan_action(message, session_id)
+
+            # --- Multi-intent detection ---
+            # If the message contains product, outlet, and calculation queries, answer all in one response
+            product_intent = action_plan["intent"] == "product_search" or action_plan.get("action") == "show_all_products"
+            outlet_intent = action_plan["intent"] == "outlet_search" or action_plan.get("action") == "show_all_outlets"
+            calc_intent = action_plan["intent"] == "calculation" and action_plan.get("requires_tool")
+
+            # Heuristic: If the message contains both product and outlet keywords, or calculation and product/outlet, answer all
+            keywords = message_lower.split()
+            has_product_kw = any(kw in message_lower for kw in ["product", "tumbler", "cup", "mug", "drinkware"])
+            has_outlet_kw = any(kw in message_lower for kw in ["outlet", "location", "store", "branch", "address"])
+            has_calc_kw = any(op in message for op in ['+', '-', '*', '/', 'calculate', 'math'])
+
+            multi_intent = (has_product_kw and has_outlet_kw) or (has_product_kw and has_calc_kw) or (has_outlet_kw and has_calc_kw)
+
+            if multi_intent:
+                response_parts = []
+                # Product answer
+                if has_product_kw:
+                    matching_products = self.find_matching_products(message, show_all=True)
+                    if matching_products:
+                        response_parts.append(self.format_product_response(matching_products, session_id, message))
                     else:
-                        # Show all outlets
-                        all_outlets = self.get_all_outlets_formatted()
-                        total_count = len(self.outlets)
-                        
-                        # Break down by location
-                        kl_outlets = [o for o in self.outlets if o["state"] == "Kuala Lumpur"]
-                        selangor_outlets = [o for o in self.outlets if o["state"] == "Selangor"]
-                        
-                        response = f"🏪 **Total ZUS Coffee Outlets: {total_count}**\n"
-                        response += f"• Kuala Lumpur: {len(kl_outlets)} outlets\n"
-                        response += f"• Selangor: {len(selangor_outlets)} outlets\n\n"
-                        response += all_outlets
-                    
-                    self.update_session_context(session_id, "show_all_outlets", {"query": message, "filters": filters})
+                        response_parts.append("Sorry, I couldn't find any products matching your request.")
+                # Outlet answer
+                if has_outlet_kw:
+                    matching_outlets = self.find_matching_outlets(message, show_all=True)
+                    if matching_outlets:
+                        response_parts.append(self.format_outlet_response(matching_outlets, session_id, message))
+                    else:
+                        response_parts.append("Sorry, I couldn't find any outlets matching your request.")
+                # Calculation answer
+                if has_calc_kw:
+                    try:
+                        result = self.handle_advanced_calculation(message)
+                        response_parts.append(result)
+                    except Exception as e:
+                        response_parts.append("Sorry, I couldn't complete the calculation due to an error.")
+                self.update_session_context(session_id, "multi_intent", {"message": message})
+                return {
+                    "message": "\n\n".join(response_parts),
+                    "session_id": session_id,
+                    "intent": "multi_intent",
+                    "confidence": 0.95
+                }
+
+            # --- Tool Integration: Calculator ---
+            if calc_intent:
+                try:
+                    result = self.handle_advanced_calculation(message)
+                    self.update_session_context(session_id, "calculation", {"expression": message, "result": result})
                     return {
-                        "message": response,
+                        "message": result,
                         "session_id": session_id,
-                        "intent": "show_all_outlets",
-                        "confidence": 0.95
+                        "intent": "calculation",
+                        "confidence": action_plan["confidence"]
                     }
-            
-            # City-based outlet filtering
-            if any(city in message_lower for city in ["selangor", "kuala lumpur", "kl"]) and any(word in message_lower for word in ["outlet", "store", "location"]):
-                filters = self.detect_filtering_intent(message)
-                if filters["city"]:
-                    filtered_outlets = self.filter_outlets_by_city(filters["city"])
-                    response = f"🏪 **ZUS Coffee Outlets in {filters['city'].title()}: {len(filtered_outlets)}**\n\n"
-                    for i, outlet in enumerate(filtered_outlets, 1):
-                        response += f"{i}. **{outlet['name']}**\n"
-                        response += f"   📍 {outlet['address']}\n"
-                        response += f"   🕒 Hours: {outlet['hours']}\n"
-                        response += f"   🛎️ Services: {', '.join(outlet['services'])}\n\n"
-                    
-                    self.update_session_context(session_id, "city_outlet_search", {"city": filters["city"], "results": len(filtered_outlets)})
+                except Exception as e:
+                    self.update_session_context(session_id, "calculation_error", {"expression": message, "error": str(e)})
                     return {
-                        "message": response,
+                        "message": "Sorry, I couldn't complete the calculation due to an error. Please check your input or try again later.",
                         "session_id": session_id,
-                        "intent": "city_outlet_search",
-                        "confidence": 0.9
+                        "intent": "calculation_error",
+                        "confidence": 0.2
                     }
-            
-            # Execute action based on plan
+
+            # --- Product Search (RAG) ---
+            if product_intent:
+                show_all = action_plan.get("action") == "show_all_products" or "all products" in message_lower or "show me products" in message_lower
+                matching_products = self.find_matching_products(message, show_all=show_all)
+                if not matching_products:
+                    self.update_session_context(session_id, "no_product_results", {"query": message})
+                    return {
+                        "message": "Sorry, I couldn't find any products matching your request. Please try a different query or ask about our drinkware collection!",
+                        "session_id": session_id,
+                        "intent": "no_product_results",
+                        "confidence": 0.3
+                    }
+                response = self.format_product_response(matching_products, session_id, message)
+                self.update_session_context(session_id, "product_search", {"query": message, "results_count": len(matching_products)})
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "product_search",
+                    "confidence": action_plan["confidence"]
+                }
+
+            # --- Outlet Search (Text2SQL) ---
+            if outlet_intent:
+                show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower
+                matching_outlets = self.find_matching_outlets(message, show_all=show_all)
+                if not matching_outlets:
+                    self.update_session_context(session_id, "no_outlet_results", {"query": message})
+                    return {
+                        "message": "Sorry, I couldn't find any outlets matching your request. Please try a different location or ask about our outlets in KL or Selangor!",
+                        "session_id": session_id,
+                        "intent": "no_outlet_results",
+                        "confidence": 0.3
+                    }
+                response = self.format_outlet_response(matching_outlets, session_id, message)
+                self.update_session_context(session_id, "outlet_search", {"query": message, "results_count": len(matching_outlets)})
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "outlet_search",
+                    "confidence": action_plan["confidence"]
+                }
+
+            # --- Context-Aware Follow-up (Multi-turn) ---
+            if action_plan["intent"] == "follow_up" and action_plan.get("context_aware"):
+                if context.get("last_intent") == "product_search" and context.get("last_products"):
+                    if "more" in message_lower or "details" in message_lower:
+                        response = "I'd be happy to provide more details! Which specific product interests you? I can tell you about features, colors, pricing, or help you find outlets where you can purchase them."
+                    else:
+                        response = self.format_product_response(self.products, session_id)
+                elif context.get("last_intent") == "outlet_search" and context.get("last_outlets"):
+                    if "more" in message_lower or "details" in message_lower:
+                        response = "I can provide more outlet information! Would you like specific hours, services, directions, or contact details for any of our locations?"
+                    else:
+                        response = self.format_outlet_response(self.outlets, session_id)
+                else:
+                    response = "I want to help! I can assist with ZUS Coffee product information, outlet locations and hours, pricing calculations, or general inquiries. What would you like to know?"
+                self.update_session_context(session_id, "follow_up", {"context": context.get("last_intent")})
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "follow_up",
+                    "confidence": action_plan["confidence"]
+                }
+
+            # --- Greeting ---
             if action_plan["intent"] == "greeting":
                 response = "Hello and welcome to ZUS Coffee! I'm your AI assistant ready to help you explore our drinkware collection, find outlet locations with hours and services, calculate pricing, or answer questions about ZUS Coffee. What would you like to know today?"
                 self.update_session_context(session_id, "greeting", {"message": message})
@@ -968,71 +1040,9 @@ class EnhancedMinimalAgent:
                     "intent": "greeting",
                     "confidence": action_plan["confidence"]
                 }
-            
-            # Part 3: Tool Integration - Calculator
-            elif action_plan["intent"] == "calculation" and action_plan["requires_tool"]:
-                result = self.handle_advanced_calculation(message)
-                self.update_session_context(session_id, "calculation", {"expression": message, "result": result})
-                return {
-                    "message": result,
-                    "session_id": session_id,
-                    "intent": "calculation", 
-                    "confidence": action_plan["confidence"]
-                }
-            
-            # Product search with enhanced logic
-            elif action_plan["intent"] == "product_search" or action_plan["action"] == "show_all_products":
-                show_all = action_plan["action"] == "show_all_products" or "all products" in message_lower or "show me products" in message_lower
-                matching_products = self.find_matching_products(message, show_all=show_all)
-                
-                response = self.format_product_response(matching_products, session_id, message)
-                self.update_session_context(session_id, "product_search", {"query": message, "results_count": len(matching_products)})
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "product_search",
-                    "confidence": action_plan["confidence"]
-                }
-            
-            # Outlet search with enhanced logic  
-            elif action_plan["intent"] == "outlet_search" or action_plan["action"] == "show_all_outlets":
-                show_all = action_plan["action"] == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower
-                matching_outlets = self.find_matching_outlets(message, show_all=show_all)
-                
-                response = self.format_outlet_response(matching_outlets, session_id, message)
-                self.update_session_context(session_id, "outlet_search", {"query": message, "results_count": len(matching_outlets)})
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "outlet_search",
-                    "confidence": action_plan["confidence"]
-                }
-            
-            # Context-aware follow-up handling
-            elif action_plan["intent"] == "follow_up" and action_plan["context_aware"]:
-                if context["last_intent"] == "product_search" and context["last_products"]:
-                    if "more" in message_lower or "details" in message_lower:
-                        response = "I'd be happy to provide more details! Which specific product interests you? I can tell you about features, colors, pricing, or help you find outlets where you can purchase them."
-                    else:
-                        response = self.format_product_response(self.products, session_id)  # Show all products
-                elif context["last_intent"] == "outlet_search" and context["last_outlets"]:
-                    if "more" in message_lower or "details" in message_lower:
-                        response = "I can provide more outlet information! Would you like specific hours, services, directions, or contact details for any of our locations?"
-                    else:
-                        response = self.format_outlet_response(self.outlets, session_id)  # Show all outlets
-                else:
-                    response = "I want to help! I can assist with ZUS Coffee product information, outlet locations and hours, pricing calculations, or general inquiries. What would you like to know?"
-                
-                self.update_session_context(session_id, "follow_up", {"context": context["last_intent"]})
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "follow_up",
-                    "confidence": action_plan["confidence"]
-                }
-            
-            # Farewell
-            elif action_plan["intent"] == "farewell":
+
+            # --- Farewell ---
+            if action_plan["intent"] == "farewell":
                 response = "Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets!"
                 self.update_session_context(session_id, "farewell", {"message": message})
                 return {
@@ -1041,31 +1051,17 @@ class EnhancedMinimalAgent:
                     "intent": "farewell",
                     "confidence": action_plan["confidence"]
                 }
-            
-            # Part 5: Handle empty/short messages (Unhappy Flows)
-            elif len(message.strip()) < 2:
-                response = "I'd love to help you! I can assist with outlet locations and hours, product recommendations and details, pricing calculations, or general ZUS Coffee information. What interests you most?"
-                self.update_session_context(session_id, "clarification", {"message": message})
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "clarification",
-                    "confidence": 0.7
-                }
-            
-            # Default helpful response with suggestions
-            else:
-                response = "I want to help you! I can assist with ZUS Coffee product information (tumblers, cups, mugs), outlet locations and hours, pricing calculations, or general inquiries. For example, try asking: 'Show me all products', 'Find all outlets', or 'Calculate 25 + 15'. What would you like to know?"
-                self.update_session_context(session_id, "general", {"message": message})
-                return {
-                    "message": response,
-                    "session_id": session_id,
-                    "intent": "general",
-                    "confidence": 0.6
-                }
-                
+
+            # --- Default Fallback ---
+            self.update_session_context(session_id, "general", {"message": message})
+            return {
+                "message": "I'm here to help with ZUS Coffee product information, outlet locations, pricing calculations, or general inquiries. For example, try asking: 'Show me all products', 'Find all outlets', or 'Calculate 25 + 15'. What would you like to know?",
+                "session_id": session_id,
+                "intent": "general",
+                "confidence": 0.5
+            }
+
         except Exception as e:
-            # Part 5: Robust error handling (Unhappy Flows)
             logger.error(f"Error in enhanced agent: {e}")
             self.update_session_context(session_id, "error", {"message": message, "error": str(e)})
             return {
