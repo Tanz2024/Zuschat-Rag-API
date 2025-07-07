@@ -22,7 +22,10 @@ Product = None
 Outlet = None
 
 try:
-    from backend.data.database import SessionLocal, Product, Outlet
+    try:
+        from backend.data.database import SessionLocal, Product, Outlet
+    except ImportError:
+        from data.database import SessionLocal, Product, Outlet
     DATABASE_AVAILABLE = True
     logger.info("Database components imported successfully")
 except Exception as e:
@@ -34,7 +37,10 @@ load_products_from_file = None
 load_outlets_from_file = None
 
 try:
-    from backend.data.file_data_loader import load_products_from_file, load_outlets_from_file
+    try:
+        from backend.data.file_data_loader import load_products_from_file, load_outlets_from_file
+    except ImportError:
+        from data.file_data_loader import load_products_from_file, load_outlets_from_file
     FILE_LOADER_AVAILABLE = True
     logger.info("File data loader imported successfully")
 except Exception as e:
@@ -259,6 +265,7 @@ class EnhancedMinimalAgent:
                         result.append({
                             "name": p.name,
                             "price": p.price,
+                            "sale_price": float(p.price.replace("RM", "").replace(",", "").strip()) if p.price else 0.0,
                             "regular_price": p.regular_price,
                             "category": p.category,
                             "capacity": p.capacity,
@@ -289,6 +296,7 @@ class EnhancedMinimalAgent:
                 {
                     "name": "ZUS OG CUP 2.0 With Screw-On Lid 500ml",
                     "price": "RM 55.00",
+                    "sale_price": 55.0,
                     "regular_price": "RM 79.00",
                     "category": "Tumbler",
                     "capacity": "500ml",
@@ -304,6 +312,7 @@ class EnhancedMinimalAgent:
                 {
                     "name": "ZUS All-Can Tumbler 600ml",
                     "price": "RM 105.00",
+                    "sale_price": 105.0,
                     "regular_price": None,
                     "category": "Tumbler",
                     "capacity": "600ml",
@@ -400,7 +409,13 @@ class EnhancedMinimalAgent:
         """Update session context with current turn data."""
         context = self.get_session_context(session_id)
         context["count"] += 1
-        context["last_intent"] = intent
+        
+        # Only update last_intent for actual user intents, not status messages
+        actual_intents = ["greeting", "product_search", "outlet_search", "calculation", 
+                         "promotion_inquiry", "collection_inquiry", "eco_friendly", "farewell", "follow_up", "general"]
+        if intent in actual_intents:
+            context["last_intent"] = intent
+            
         context["conversation_flow"].append({
             "turn": context["count"],
             "intent": intent,
@@ -436,17 +451,68 @@ class EnhancedMinimalAgent:
             "general": 0.0
         }
         
+        # FIRST: Enhanced context-aware follow-up detection (highest priority)
+        if context["last_intent"] and context["count"] >= 1:
+            # Check for location-based follow-ups
+            if context["last_intent"] == "outlet_search":
+                # Handle "What about [location]?" follow-ups
+                if any(phrase in message_lower for phrase in ["what about", "how about", "what of"]):
+                    intent_scores["outlet_search"] = 0.98
+                # Handle pronoun references to outlets
+                elif any(pronoun in message_lower for pronoun in ["they", "them", "it", "those"]):
+                    if any(service in message_lower for service in ["dine-in", "takeaway", "delivery", "wifi", "parking", "hours", "services"]):
+                        intent_scores["outlet_search"] = 0.98
+                # Handle location names (SS15, areas, etc.)
+                elif any(location in message_lower for location in ["ss15", "ss2", "damansara", "bangsar", "pj", "klcc"]):
+                    intent_scores["outlet_search"] = 0.98
+            
+            # Check for product-based follow-ups
+            elif context["last_intent"] == "product_search":
+                if any(pronoun in message_lower for pronoun in ["they", "them", "it", "those"]):
+                    intent_scores["product_search"] = 0.98
+            
+            # General follow-up patterns
+            if any(word in message_lower for word in ["more", "details", "other", "else", "also"]):
+                intent_scores["follow_up"] = 0.7
+
         # Calculate intent confidence scores with better priority handling
-        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "welcome"]):
+        greeting_words = ["hello", "hi", "hey", "good morning", "good afternoon", "welcome"]
+        # Use word boundaries to avoid substring matches (e.g., "hi" in "this")
+        import re
+        has_greeting = any(re.search(r'\b' + re.escape(word) + r'\b', message_lower) for word in greeting_words)
+        if has_greeting:
             intent_scores["greeting"] = 0.9
+        
+        # Check for irrelevant queries first to avoid false positives
+        irrelevant_keywords = ['weather', 'politics', 'sports', 'news', 'movie', 'music', 'game', 'cooking', 'recipe', 'travel', 'job', 'work', 'school', 'study', 'homework', 'dating', 'relationship', 'fashion', 'clothes', 'car', 'house', 'rent', 'insurance', 'health', 'medicine', 'doctor', 'hospital']
+        if any(keyword in message_lower for keyword in irrelevant_keywords):
+            intent_scores["general"] = 0.95  # Mark as general for special handling
             
-        # Product search detection - enhanced with more keywords
-        if any(word in message_lower for word in ["product", "products", "tumbler", "tumblers", "cup", "cups", "mug", "mugs", "drinkware", "collection", "show me", "what products", "drinks", "coffee", "best-selling", "cheapest", "food", "items"]):
+        # Outlet search detection - PRIORITIZE outlet intent over product intent with better keywords
+        outlet_keywords = ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches", 
+                          "hours", "address", "where", "near", "klcc", "find", "nearest", "seating", "drive-thru",
+                          "opening hours", "open", "close", "timing", "contact", "phone", "services",
+                          "pavilion", "mid valley", "sunway", "shah alam", "kl", "kuala lumpur", "petaling jaya", "pj"]
+        outlet_exclusive_keywords = ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches",
+                                    "hours", "opening hours", "address", "where", "find outlet", "find location"]
+        
+        # Check for outlet-specific queries first
+        has_outlet_exclusive = any(word in message_lower for word in outlet_exclusive_keywords)
+        has_outlet_keyword = any(word in message_lower for word in outlet_keywords)
+        
+        if has_outlet_exclusive or (has_outlet_keyword and not any(word in message_lower for word in ["product", "tumbler", "cup", "mug", "drinkware"])):
+            intent_scores["outlet_search"] = 0.98  # Very high priority for outlet searches
+            
+        # Product search detection - enhanced with better category detection
+        product_keywords = ["product", "products", "tumbler", "tumblers", "cup", "cups", "mug", "mugs", 
+                           "drinkware", "collection", "show me", "what products", "drinks", "coffee", 
+                           "best-selling", "cheapest", "food", "items", "all products", "all tumblers",
+                           "cold cup", "cold cups", "stainless steel", "acrylic", "ceramic", "bottle", "bottles",
+                           "what kind", "buy", "purchase", "get", "available", "sell", "have"]
+        
+        # Only classify as product search if not clearly outlet-related
+        if any(word in message_lower for word in product_keywords) and intent_scores["outlet_search"] < 0.5:
             intent_scores["product_search"] = 0.85
-            
-        # Outlet search detection - enhanced with more keywords  
-        if any(word in message_lower for word in ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches", "hours", "address", "where", "near", "klcc", "find", "nearest", "seating", "drive-thru"]):
-            intent_scores["outlet_search"] = 0.85
             
         # Price/filtering related queries - should be product search, not calculation
         if any(phrase in message_lower for phrase in ["priced between", "under rm", "cost under", "price difference", "compare prices", "cheapest", "most expensive"]):
@@ -479,8 +545,17 @@ class EnhancedMinimalAgent:
         elif message_lower.startswith(("what is", "compute")) and calculation_operators and not has_product_keywords:
             intent_scores["calculation"] = 0.95  # Strong calculation intent for explicit requests
             
-        if any(word in message_lower for word in ["promotion", "sale", "discount", "offer"]):
-            intent_scores["promotion_inquiry"] = 0.8
+        # Enhanced promotion inquiry detection
+        promotion_keywords = ["promotion", "promotions", "sale", "sales", "discount", "discounts", "offer", "offers", 
+                             "deal", "deals", "special", "specials", "new", "latest", "month", "today", "available",
+                             "what's new", "whats new", "this month", "current", "ongoing"]
+        if any(word in message_lower for word in promotion_keywords):
+            # Boost score for explicit promotion queries
+            if any(explicit in message_lower for explicit in ["promotion", "promotions", "deal", "deals", "offer", "offers", "discount"]):
+                intent_scores["promotion_inquiry"] = 0.98  # Higher than product_search
+            # Medium score for implicit promotion queries
+            elif any(implicit in message_lower for implicit in ["new", "latest", "month", "today", "available", "special"]):
+                intent_scores["promotion_inquiry"] = 0.92  # Higher than product_search
             
         if any(word in message_lower for word in ["eco-friendly", "sustainable", "environment"]):
             intent_scores["eco_friendly"] = 0.8
@@ -488,11 +563,6 @@ class EnhancedMinimalAgent:
         if any(word in message_lower for word in ["thank", "thanks", "bye", "goodbye"]):
             intent_scores["farewell"] = 0.9
             
-        # Check for follow-up patterns based on conversation history
-        if context["last_intent"] and context["count"] > 1:
-            if any(word in message_lower for word in ["more", "details", "other", "else", "also"]):
-                intent_scores["follow_up"] = 0.7
-        
         # Smart fallback detection - if confidence is too low, try to detect from context
         max_confidence = max(intent_scores.values())
         if max_confidence < 0.5:
@@ -523,7 +593,8 @@ class EnhancedMinimalAgent:
         
         # Advanced planning logic
         if intent_name == "product_search":
-            if "all products" in message_lower or "show me products" in message_lower:
+            # Check if this is specifically asking for all products (not filtered queries)
+            if ("all products" in message_lower or "show me products" in message_lower) and not any(phrase in message_lower for phrase in ["under", "above", "between", "cheap", "expensive", "price", "rm"]):
                 action_plan["action"] = "show_all_products"
             elif not any(keyword in message_lower for keyword_list in self.product_keywords.values() for keyword in keyword_list):
                 action_plan["missing_info"].append("specific_product_type")
@@ -555,52 +626,121 @@ class EnhancedMinimalAgent:
         
         if show_all:
             return products
+            
         query_lower = query.lower()
         filters = self.detect_filtering_intent(query)
-        # Filtering logic
+        
+        # Start with all products
         matching_products = products
-        if any([filters["price_range"], filters["category"], filters["material"], filters["collection"]]):
+        
+        # Apply filters if specified
+        if filters["price_range"] or filters["category"] or filters["material"] or filters["collection"]:
             if filters["price_range"]:
                 min_p, max_p = filters.get("min_price"), filters.get("max_price")
-                matching_products = [p for p in matching_products if (min_p is None or (p.get("price_numeric") and p["price_numeric"] >= min_p)) and (max_p is None or (p.get("price_numeric") and p["price_numeric"] <= max_p))]
-            if filters["category"]:
-                matching_products = [p for p in matching_products if p.get("category", "").lower() == filters["category"]]
-            if filters["material"]:
-                matching_products = [p for p in matching_products if filters["material"] in p.get("material", "").lower()]
-            if filters["collection"]:
-                matching_products = [p for p in matching_products if filters["collection"] in (p.get("collection", "") or "").lower()]
-            return matching_products
-        # General queries
-        general_product_terms = ["products", "what products", "show me products", "available", "drinkware"]
-        if any(term in query_lower for term in general_product_terms) and len(query_lower.split()) <= 3:
-            return products
-        # Specific matches
-        result = []
-        for product in products:
-            product_name_lower = (product["name"] or "").lower()
-            product_words = product_name_lower.replace('-', ' ').split()
-            query_words = query_lower.replace('-', ' ').split()
+                price_filtered = []
+                for p in matching_products:
+                    price = p.get("sale_price", 0)
+                    if price > 0:  # Only consider products with valid prices
+                        if (min_p is None or price >= min_p) and (max_p is None or price <= max_p):
+                            price_filtered.append(p)
+                matching_products = price_filtered
             
-            # Check if any query word matches any product word
-            if any(query_word in product_name_lower or any(query_word in product_word for product_word in product_words) for query_word in query_words if len(query_word) > 2):
+            if filters["category"]:
+                matching_products = [p for p in matching_products 
+                                   if p.get("category", "").lower() == filters["category"]]
+            
+            if filters["material"]:
+                matching_products = [p for p in matching_products 
+                                   if filters["material"] in p.get("material", "").lower()]
+            
+            if filters["collection"]:
+                matching_products = [p for p in matching_products 
+                                   if filters["collection"] in (p.get("collection", "") or "").lower()]
+            
+            # Sort by price for better organization
+            matching_products.sort(key=lambda p: p.get("sale_price", 0))
+            return matching_products
+        
+        # Handle price-based queries (cheapest, most expensive, etc.)
+        if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
+            # Sort by price ascending and return cheapest products
+            sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
+            return sorted_products[:3]  # Return top 3 cheapest
+        
+        if any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
+            # Sort by price descending and return most expensive products
+            sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)
+            return sorted_products[:3]  # Return top 3 most expensive
+        
+        # Handle specific category searches
+        category_terms = {
+            "tumbler": "drinkware",
+            "tumblers": "drinkware", 
+            "cup": "drinkware",
+            "cups": "drinkware",
+            "mug": "drinkware",
+            "mugs": "drinkware",
+            "drinkware": "drinkware",
+            "cold cup": "drinkware",
+            "cold cups": "drinkware"
+        }
+        
+        # Check if this is a category-specific search
+        for term, category in category_terms.items():
+            if term in query_lower and len(query_lower.split()) <= 3:
+                # Return all products in this category
+                return [p for p in products if p.get("category", "").lower() == category]
+        
+        # General queries that should return all products
+        general_product_terms = ["products", "what products", "show me products", "available", "all products", "show all", "show products"]
+        if any(term in query_lower for term in general_product_terms):
+            return products
+        
+        # Handle AI-based keyword matching with fuzzy search
+        result = []
+        
+        # Smart keyword matching - look for any word that could be a product feature
+        query_words = [w for w in query_lower.split() if len(w) > 2]
+        
+        for product in products:
+            product_name_lower = (product.get("name", "") or "").lower()
+            product_description = (product.get("description", "") or "").lower()
+            product_material = (product.get("material", "") or "").lower()
+            product_collection = (product.get("collection", "") or "").lower()
+            product_colors = [c.lower() for c in product.get("colors", [])]
+            product_features = [f.lower() for f in product.get("features", [])]
+            
+            # Check if any query word matches product attributes
+            match_found = False
+            for query_word in query_words:
+                if (query_word in product_name_lower or 
+                    query_word in product_description or
+                    query_word in product_material or
+                    query_word in product_collection or
+                    any(query_word in color for color in product_colors) or
+                    any(query_word in feature for feature in product_features)):
+                    match_found = True
+                    break
+            
+            if match_found:
                 result.append(product)
-                continue
-            if (product.get("material", "").lower() in query_lower or
-                product.get("capacity", "").lower() in query_lower or
-                ("colors" in product and any((color or "").lower() in query_lower for color in product.get("colors", []))) or
-                ("collection" in product and (product.get("collection", "") or "").lower() in query_lower) or
-                any((feature or "").lower() in query_lower for feature in product.get("features", []))):
-                result.append(product)
-                continue
+        
         # Remove duplicates
         seen = set()
         unique_products = []
         for product in result:
-            if product["name"] not in seen:
-                seen.add(product["name"])
+            if product.get("name") not in seen:
+                seen.add(product.get("name"))
                 unique_products.append(product)
-        if not unique_products and any(indicator in query_lower for indicator in ["product", "cup", "tumbler", "mug", "drinkware"]):
+
+        # If no specific matches found but query contains general terms, return all products
+        if not unique_products and any(term in query_lower for term in ["show", "display", "list", "available"]):
             return products
+        
+        # STRICT: If no matches for specific product names, return empty (no hallucination)
+        if not unique_products and any(len(w) > 4 for w in query_words):
+            return []
+        
         return unique_products
 
     def find_matching_outlets(self, query: str, show_all: bool = False) -> List[Dict]:
@@ -611,39 +751,82 @@ class EnhancedMinimalAgent:
         
         if show_all:
             return outlets
+            
         query_lower = query.lower()
         filters = self.detect_filtering_intent(query)
-        matching_outlets = outlets
+        
+        # Apply location/city filtering first if specified (STRICT: only match if city is present in address, else return empty)
         if filters["city"]:
-            matching_outlets = [o for o in matching_outlets if filters["city"] in (o.get("address", "") or "").lower()]
-            if matching_outlets:
-                return matching_outlets
+            city = filters["city"]
+            # Only match if city is present as a whole word in the address (not as a substring)
+            city_filtered = []
+            for o in outlets:
+                address = (o.get("address", "") or "").lower()
+                # Strict: match city as a whole word, or as a substring with clear boundaries (space, comma, start/end)
+                if (
+                    address == city
+                    or address.startswith(city + ' ')
+                    or address.endswith(' ' + city)
+                    or f' {city} ' in address
+                    or f',{city} ' in address
+                    or f' {city},' in address
+                    or f',{city},' in address
+                    or address.endswith(',' + city)
+                    or address.startswith(city + ',')
+                    or city in [w.strip() for w in address.replace(',', ' ').replace('-', ' ').split()]
+                ):
+                    city_filtered.append(o)
+            # STRICT: If no outlets match the city, return empty
+            if not city_filtered:
+                return []
+            return city_filtered
+        
+        # Apply service filtering if specified
         if filters["service"]:
-            matching_outlets = [o for o in matching_outlets if any(filters["service"] in (s or "").lower() for s in o.get("services", []))]
-            if matching_outlets:
-                return matching_outlets
-        general_outlet_terms = ["outlets", "locations", "all outlets", "show outlets", "where", "branches"]
-        if any(term in query_lower for term in general_outlet_terms) and len(query_lower.split()) <= 3:
+            service_filtered = [o for o in outlets if any(filters["service"] in (s or "").lower() for s in o.get("services", []))]
+            if service_filtered:
+                return service_filtered
+        
+        # General outlet queries - return all outlets
+        general_outlet_terms = ["outlets", "locations", "all outlets", "show outlets", "show all outlets", 
+                               "where", "branches", "stores", "find outlets", "outlet locations"]
+        if any(term in query_lower for term in general_outlet_terms):
             return outlets
+        
+        # Hours/timing queries - return all outlets with hours info
+        timing_terms = ["hours", "open", "close", "timing", "opening hours", "what time"]
+        if any(term in query_lower for term in timing_terms):
+            return outlets
+        
+        # Specific outlet name or location matching
         result = []
         for outlet in outlets:
-            outlet_name_lower = (outlet["name"] or "").lower()
-            outlet_address_lower = (outlet["address"] or "").lower()
+            outlet_name_lower = (outlet.get("name", "") or "").lower()
+            outlet_address_lower = (outlet.get("address", "") or "").lower()
+            outlet_services = outlet.get("services", [])
+            
+            # Split names and addresses into words for better matching
             outlet_words = outlet_name_lower.replace('-', ' ').split()
             address_words = outlet_address_lower.replace(',', ' ').replace('-', ' ').split()
+            
+            # Check if query matches outlet name, address, or services
             if (any(word in query_lower for word in outlet_words if len(word) > 2) or
                 any(word in query_lower for word in address_words if len(word) > 3) or
-                any((service or "").lower() in query_lower for service in outlet.get("services", []))):
+                any((service or "").lower() in query_lower for service in outlet_services)):
                 result.append(outlet)
                 continue
+        
+        # Remove duplicates
         seen = set()
         unique_outlets = []
         for outlet in result:
-            if outlet["name"] not in seen:
-                seen.add(outlet["name"])
+            if outlet.get("name") not in seen:
+                seen.add(outlet.get("name"))
                 unique_outlets.append(outlet)
-        if not unique_outlets and any(indicator in query_lower for indicator in ["outlet", "location", "store", "branch"]):
-            return outlets
+
+        # STRICT: If no matches, return empty (no hallucination, no fallback)
+        if not unique_outlets:
+            return []
         return unique_outlets
 
     def handle_advanced_calculation(self, message: str) -> str:
@@ -653,6 +836,10 @@ class EnhancedMinimalAgent:
         Never hallucinates - only works with real mathematical expressions.
         """
         try:
+            # Check for natural language division by zero first
+            if re.search(r'(?:divided|divide)\s+by\s+(?:zero|0)', message.lower()):
+                return "Error: Cannot divide by zero. Please adjust your calculation and try again."
+            
             # Extract mathematical expressions with strict validation
             math_pattern = r'[\d\+\-\*\/\(\)\.\s%]+'
             expressions = re.findall(math_pattern, message)
@@ -702,6 +889,10 @@ class EnhancedMinimalAgent:
             expression = expression.replace('=', '').replace(' ', '')
             if not expression or not re.match(r'^[\d\+\-\*\/\(\)\.]+$', expression):
                 return "Please provide a valid mathematical expression using numbers and operators. For example: '25.5 + 18.2' or '(100 - 20) * 3'."
+            
+            # Check for division by zero before evaluation
+            if re.search(r'/\s*0(?:\s|$|\+|\-|\*|/|\))', expression + ' ') or expression.endswith('/0'):
+                return "Error: Cannot divide by zero. Please adjust your calculation and try again."
             
             # Safe evaluation with error handling
             try:
@@ -764,7 +955,8 @@ class EnhancedMinimalAgent:
         try:
             context = self.get_session_context(session_id)
             message_lower = str(message).lower().strip() if message is not None else ""
-            self.update_session_context(session_id, "last_message", {"message": message})
+            # Store message in context without overriding last_intent
+            context["last_message"] = message
         except Exception as e:
             return {
                 "message": "Sorry, I'm having trouble keeping track of your session. Please try again later.",
@@ -804,6 +996,8 @@ class EnhancedMinimalAgent:
         # Intent parsing and action planning
         try:
             action_plan = self.parse_intent_and_plan_action(message, session_id)
+            # Store the detected intent for context continuity (regardless of execution result)
+            detected_intent = action_plan["intent"]
         except Exception as e:
             self.update_session_context(session_id, "intent_parse_error", {"message": message, "error": str(e)})
             return {
@@ -887,7 +1081,7 @@ class EnhancedMinimalAgent:
         # Product search processing
         if product_intent:
             try:
-                show_all = action_plan.get("action") == "show_all_products" or "all products" in message_lower or "show me products" in message_lower or "what products" in message_lower
+                show_all = action_plan.get("action") == "show_all_products" or ("all products" in message_lower and not any(phrase in message_lower for phrase in ["under", "above", "between", "cheap", "expensive", "price", "rm"]))
                 matching_products = self.find_matching_products(message, show_all=show_all)
                 if not matching_products:
                     self.update_session_context(session_id, "no_product_results", {"query": message})
@@ -920,7 +1114,9 @@ class EnhancedMinimalAgent:
             try:
                 show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower or "show all outlet" in message_lower
                 matching_outlets = self.find_matching_outlets(message, show_all=show_all)
-                if not matching_outlets:
+                # STRICT: If a city filter is present and no outlets match, return no_outlet_results
+                filters = self.detect_filtering_intent(message)
+                if (filters.get("city") and not matching_outlets) or not matching_outlets:
                     self.update_session_context(session_id, "no_outlet_results", {"query": message})
                     return {
                         "message": "Sorry, I couldn't find any outlets matching your request. Please try a different location or ask about our outlets in KL or Selangor!",
@@ -983,16 +1179,59 @@ class EnhancedMinimalAgent:
                     "error": str(e)
                 }
 
+        # Promotion Inquiry
+        if action_plan["intent"] == "promotion_inquiry":
+            try:
+                response = "🎉 **Current ZUS Coffee Promotions & What's New:**\n\n"
+                response += "• **Featured Products:** Check out our latest drinkware collections including the ZUS All-Can Tumbler and ZUS Frozee Cold Cup series!\n"
+                response += "• **Special Bundles:** Corak Malaysia Tiga Sekawan Bundle at RM 133.90\n"
+                response += "• **Limited Edition:** Mountain Collection and Aqua Collection All Day Cups\n"
+                response += "• **Eco-Friendly Options:** Sustainable tumblers and reusable cups for environmentally conscious coffee lovers\n\n"
+                response += "For the latest promotions and seasonal offers, visit our outlets or check our official channels. I can also help you find specific products or calculate pricing including SST!"
+                
+                self.update_session_context(session_id, "promotion_inquiry", {"message": message})
+                return {
+                    "message": response,
+                    "session_id": session_id,
+                    "intent": "promotion_inquiry",
+                    "confidence": action_plan["confidence"]
+                }
+            except Exception as e:
+                return {
+                    "message": "I'd be happy to help you learn about ZUS Coffee's current promotions and new products! Please try asking again or let me know what specific products interest you.",
+                    "session_id": session_id,
+                    "intent": "promotion_inquiry",
+                    "error": str(e)
+                }
+
         # Default fallback for unmatched queries
         try:
             # Check if it's completely irrelevant (weather, politics, etc.)
-            irrelevant_keywords = ['weather', 'politics', 'sports', 'news', 'movie', 'music', 'game']
+            irrelevant_keywords = ['weather', 'politics', 'sports', 'news', 'movie', 'music', 'game', 'cooking', 'recipe', 'travel', 'job', 'work', 'school', 'study', 'homework', 'dating', 'relationship', 'fashion', 'clothes', 'car', 'house', 'rent', 'insurance', 'health', 'medicine', 'doctor', 'hospital']
             if any(keyword in message_lower for keyword in irrelevant_keywords):
                 return {
-                    "message": "I'm focused on helping with ZUS Coffee-related questions. I can assist with product information, outlet locations, pricing calculations, or general ZUS Coffee inquiries. How can I help you with ZUS Coffee today?",
+                    "message": "I'm your ZUS Coffee assistant, specialized in helping with our drinkware products, outlet locations, and pricing calculations. I can help you with:\n\n🥤 **Product Info:** 'Show all products', 'cheapest tumbler', 'stainless steel cups'\n🏪 **Outlet Locations:** 'ZUS outlets in KL', 'opening hours', 'drive-thru locations'\n🧮 **Calculations:** 'Calculate 25 + 15', 'What's 6% SST on RM100?'\n\nHow can I help you with ZUS Coffee today?",
                     "session_id": session_id,
                     "intent": "irrelevant",
                     "confidence": 0.8
+                }
+            
+            # Check if it looks like a product query that we should suggest alternatives for
+            if any(word in message_lower for word in ['product', 'item', 'buy', 'purchase', 'show', 'display', 'available']):
+                return {
+                    "message": "I can help you explore our ZUS Coffee collection! Try asking:\n\n🥤 **Show Products:** 'Show all products' (see all 11 items)\n💰 **By Price:** 'Cheapest products', 'Most expensive products', 'Products under RM50'\n🎨 **By Collection:** 'Sundaze collection', 'Aqua collection', 'Mountain collection'\n🔧 **By Material:** 'Stainless steel tumblers', 'Ceramic mugs', 'Acrylic cups'\n\nWhat would you like to explore?",
+                    "session_id": session_id,
+                    "intent": "product_suggestion",
+                    "confidence": 0.7
+                }
+            
+            # Check if it looks like an outlet query
+            if any(word in message_lower for word in ['outlet', 'location', 'store', 'branch', 'where', 'address', 'find']):
+                return {
+                    "message": "I can help you find ZUS Coffee outlets! Try asking:\n\n📍 **All Outlets:** 'Show all outlets', 'ZUS locations'\n🏙️ **By Area:** 'Outlets in KL', 'Outlets in Selangor', 'Outlets in PJ'\n🕐 **Operating Hours:** 'Opening hours', 'What time do you open?'\n🚗 **Services:** 'Drive-thru outlets', 'Outlets with parking', 'WiFi locations'\n\nWhat location information do you need?",
+                    "session_id": session_id,
+                    "intent": "outlet_suggestion",
+                    "confidence": 0.7
                 }
             
             # Check if it looks like a calculation that wasn't caught
@@ -1011,7 +1250,7 @@ class EnhancedMinimalAgent:
             
             self.update_session_context(session_id, "general", {"message": message})
             return {
-                "message": "I'm here to help with ZUS Coffee product information, outlet locations, pricing calculations including SST/tax, or general inquiries. For example, try asking: 'Show me all products', 'Find all outlets', 'Calculate 25 + 15', or 'What's 15% of 200?'. What would you like to know?",
+                "message": "I'm your ZUS Coffee assistant! I can help you with:\n\n🥤 **Products:** 'Show all products', 'Cheapest tumbler', 'Stainless steel cups'\n🏪 **Outlets:** 'Find outlets in KL', 'Opening hours', 'Drive-thru locations'\n🧮 **Calculations:** 'Calculate 25 + 15', 'What's 6% SST on RM100?'\n\nTry asking about our products, outlet locations, or any calculations you need!",
                 "session_id": session_id,
                 "intent": "general",
                 "confidence": 0.5
@@ -1041,55 +1280,91 @@ class EnhancedMinimalAgent:
             "service": None
         }
         
-        # Price range detection
+        # Enhanced price range detection with better patterns
         import re
-        price_pattern = r'(?:under|below|less than|<)\s*rm?\s*(\d+(?:\.\d+)?)|(?:above|over|more than|>)\s*rm?\s*(\d+(?:\.\d+)?)|rm?\s*(\d+(?:\.\d+)?)\s*(?:to|-)\s*rm?\s*(\d+(?:\.\d+)?)'
-        price_matches = re.findall(price_pattern, query_lower)
         
-        if price_matches:
+        # Pattern for "under RM50", "below RM100", "less than RM75"
+        under_pattern = r'(?:under|below|less than|<|cheaper than|lower than)\s*rm?\s*(\d+(?:\.\d+)?)'
+        # Pattern for "above RM50", "over RM100", "more than RM75"  
+        over_pattern = r'(?:above|over|more than|>|expensive than|higher than)\s*rm?\s*(\d+(?:\.\d+)?)'
+        # Pattern for "RM50 to RM100", "RM50-RM100", "between RM50 and RM100"
+        range_pattern = r'(?:rm?\s*(\d+(?:\.\d+)?)\s*(?:to|-|and)\s*rm?\s*(\d+(?:\.\d+)?)|between\s*rm?\s*(\d+(?:\.\d+)?)\s*and\s*rm?\s*(\d+(?:\.\d+)?))'
+        
+        # Check for price ranges
+        under_match = re.search(under_pattern, query_lower)
+        over_match = re.search(over_pattern, query_lower)
+        range_match = re.search(range_pattern, query_lower)
+        
+        if under_match:
             filters["price_range"] = True
-            for match in price_matches:
-                if match[0]:  # under/below
-                    filters["max_price"] = float(match[0])
-                elif match[1]:  # above/over
-                    filters["min_price"] = float(match[1])
-                elif match[2] and match[3]:  # range
-                    filters["min_price"] = float(match[2])
-                    filters["max_price"] = float(match[3])
+            filters["max_price"] = float(under_match.group(1))
+        elif over_match:
+            filters["price_range"] = True
+            filters["min_price"] = float(over_match.group(1))
+        elif range_match:
+            filters["price_range"] = True
+            if range_match.group(1) and range_match.group(2):
+                filters["min_price"] = float(range_match.group(1))
+                filters["max_price"] = float(range_match.group(2))
+            elif range_match.group(3) and range_match.group(4):
+                filters["min_price"] = float(range_match.group(3))
+                filters["max_price"] = float(range_match.group(4))
         
-        # Category detection - only for explicit category terms
-        categories = ['drinkware']  # Only actual categories in our system
-        for category in categories:
-            if category in query_lower and ('category' in query_lower or 'type' in query_lower):
-                filters["category"] = category
+        # Material detection with better matching
+        materials = {
+            'stainless steel': ['stainless steel', 'stainless', 'steel', 'metal'],
+            'ceramic': ['ceramic', 'porcelain'],
+            'acrylic': ['acrylic', 'plastic'],
+            'glass': ['glass']
+        }
+        
+        for material_key, material_terms in materials.items():
+            if any(term in query_lower for term in material_terms):
+                filters["material"] = material_key
                 break
         
-        # Material detection
-        materials = ['stainless steel', 'ceramic', 'acrylic', 'glass', 'steel']
-        for material in materials:
-            if material in query_lower:
-                filters["material"] = material
+        # Collection detection - updated with correct collections from products.json
+        collections = {
+            'sundaze': ['sundaze', 'sun daze'],
+            'aqua': ['aqua', 'ocean', 'blue'],
+            'mountain': ['mountain', 'forest', 'green', 'nature'],
+            'kopi patah hati': ['kopi patah hati', 'patah hati', 'sabrina', 'olivia'],
+            'corak malaysia': ['corak malaysia', 'corak', 'malaysia', 'malaysian']
+        }
+        
+        for collection_key, collection_terms in collections.items():
+            if any(term in query_lower for term in collection_terms):
+                filters["collection"] = collection_key
                 break
         
-        # Collection detection
-        collections = ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can']
-        for collection in collections:
-            if collection in query_lower:
-                filters["collection"] = collection
+        # Enhanced city detection for outlets
+        cities = {
+            'kuala lumpur': ['kl', 'kuala lumpur', 'klcc', 'pavilion', 'bukit bintang'],
+            'petaling jaya': ['petaling jaya', 'pj', 'sunway'],
+            'selangor': ['selangor', 'shah alam'],
+            'mid valley': ['mid valley'],
+            'ss2': ['ss2']
+        }
+        
+        for city_key, city_terms in cities.items():
+            if any(term in query_lower for term in city_terms):
+                filters["city"] = city_key
                 break
         
-        # City detection for outlets
-        cities = ['kl', 'kuala lumpur', 'petaling jaya', 'pj', 'selangor', 'klcc', 'pavilion', 'mid valley', 'ss2', 'shah alam', 'sunway']
-        for city in cities:
-            if city in query_lower:
-                filters["city"] = city
-                break
+        # Enhanced service detection for outlets
+        services = {
+            'drive-thru': ['drive-thru', 'drive thru', 'drive through', 'drive'],
+            'dine-in': ['dine-in', 'dine in', 'dining', 'eat in'],
+            'takeaway': ['takeaway', 'take away', 'pickup', 'take out'],
+            '24 hours': ['24 hours', '24/7', '24 hour', 'all night', 'late night'],
+            'wifi': ['wifi', 'wi-fi', 'internet', 'wireless'],
+            'parking': ['parking', 'park', 'car park'],
+            'delivery': ['delivery', 'deliver', 'food delivery']
+        }
         
-        # Service detection for outlets
-        services = ['drive-thru', 'dine-in', 'takeaway', '24 hours', '24/7', 'wifi', 'parking', 'delivery']
-        for service in services:
-            if service in query_lower:
-                filters["service"] = service
+        for service_key, service_terms in services.items():
+            if any(term in query_lower for term in service_terms):
+                filters["service"] = service_key
                 break
         
         return filters
@@ -1121,7 +1396,7 @@ class EnhancedMinimalAgent:
         """Format product search results into a user-friendly response"""
         try:
             if not products:
-                return "Sorry, I couldn't find any products matching your request. Please try a different query!"
+                return "I couldn't find any products matching your request. Try asking about our available drinkware, tumblers, cups, mugs, or ask me to 'show all products' to see our complete collection!"
             
             # Check if this is a calculation query (e.g., "Calculate total cost for 2 Cappuccino")
             query_lower = query.lower()
@@ -1141,7 +1416,7 @@ class EnhancedMinimalAgent:
                     for product in products:
                         product_name = product.get("name", "").lower()
                         if any(word in product_name for word in item_name.split()) or item_name in product_name:
-                            unit_price = self.extract_product_price(product)
+                            unit_price = product.get("sale_price", 0)
                             if unit_price > 0:  # Only include products with valid prices
                                 requested_items[product["name"]] = {
                                     "quantity": qty,
@@ -1154,15 +1429,50 @@ class EnhancedMinimalAgent:
                 if requested_items:
                     return self.format_calculation_response(requested_items, query)
             
-            # Regular product listing
-            display_products = products[:5]
+            # Check for "show all products" requests - display all 11 products
+            if any(term in query_lower for term in ["show all", "all products", "show products", "list all"]):
+                max_display = len(products)  # Show all products
+            else:
+                # Regular product listing - show more products for drinkware queries
+                max_display = 8 if any(term in query_lower for term in ["drinkware", "tumbler", "cup", "all"]) else 5
+            
+            display_products = products[:max_display]
             
             response_parts = []
-            response_parts.append(f"**Found {len(products)} product{'s' if len(products) != 1 else ''} for you:**\n")
+            
+            # Check what type of query this is
+            is_category_query = any(term in query_lower for term in ["tumbler", "tumblers", "cup", "cups", "drinkware", "mug", "mugs"])
+            is_collection_query = any(term in query_lower for term in ["sundaze", "aqua", "corak", "mountain", "kopi patah hati"])
+            is_price_query = any(term in query_lower for term in ["cheap", "expensive", "price", "cost", "rm", "under", "above", "cheapest", "most expensive"])
+            
+            # Customize header based on query type
+            if any(term in query_lower for term in ["show all", "all products", "show products", "list all"]):
+                response_parts.append(f"**Here are all {len(products)} products in our ZUS Coffee collection:**\n")
+            elif is_price_query:
+                if "cheap" in query_lower or "cheapest" in query_lower:
+                    response_parts.append(f"**Here are our most affordable products ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                elif "expensive" in query_lower or "most expensive" in query_lower:
+                    response_parts.append(f"**Here are our premium products ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                else:
+                    response_parts.append(f"**Products matching your price criteria ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+            elif is_category_query:
+                category_name = "drinkware"
+                if "tumbler" in query_lower:
+                    category_name = "tumblers"
+                elif "cup" in query_lower:
+                    category_name = "cups"
+                elif "mug" in query_lower:
+                    category_name = "mugs"
+                response_parts.append(f"**Here are our {category_name} ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+            elif is_collection_query:
+                response_parts.append(f"**Products from our collections ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+            else:
+                response_parts.append(f"**Found {len(products)} product{'s' if len(products) != 1 else ''} matching your request:**\n")
             
             for i, product in enumerate(display_products, 1):
                 name = product.get("name", "Unknown Product")
                 price = product.get("price", "Price not available")
+                sale_price = product.get("sale_price", 0)
                 category = product.get("category", "")
                 capacity = product.get("capacity", "")
                 material = product.get("material", "")
@@ -1170,38 +1480,58 @@ class EnhancedMinimalAgent:
                 features = product.get("features", [])
                 promotion = product.get("promotion")
                 on_sale = product.get("on_sale", False)
+                regular_price = product.get("regular_price")
+                collection = product.get("collection", "")
                 
+                # Format product info with better layout
                 product_info = f"**{i}. {name}**\n"
-                product_info += f"   Price: {price}"
-                if on_sale and product.get("regular_price"):
-                    product_info += f" (was {product.get('regular_price')})"
-                product_info += "\n"
                 
-                if category:
-                    product_info += f"   Category: {category}\n"
+                # Price with sale indicator
+                if on_sale and regular_price:
+                    product_info += f"💰 **Price:** {price} ~~{regular_price}~~ 🔥 **ON SALE!**\n"
+                elif promotion:
+                    product_info += f"💰 **Price:** {price} 🎁 **{promotion}**\n"
+                else:
+                    product_info += f"💰 **Price:** {price}\n"
+                
+                # Essential details
                 if capacity:
-                    product_info += f"   Capacity: {capacity}\n"
+                    product_info += f"📏 **Capacity:** {capacity}\n"
                 if material:
-                    product_info += f"   Material: {material}\n"
+                    product_info += f"🔧 **Material:** {material}\n"
+                if collection:
+                    product_info += f"🎨 **Collection:** {collection}\n"
                 if colors:
-                    product_info += f"   Colors: {', '.join(colors)}\n"
+                    colors_text = ", ".join(colors[:3])  # Show first 3 colors
+                    if len(colors) > 3:
+                        colors_text += f" (+{len(colors)-3} more)"
+                    product_info += f"� **Colors:** {colors_text}\n"
                 if features:
-                    product_info += f"   Features: {', '.join(features)}\n"
-                if promotion:
-                    product_info += f"   Promotion: {promotion}\n"
+                    features_text = ", ".join(features[:2])  # Show first 2 features
+                    if len(features) > 2:
+                        features_text += f" (+{len(features)-2} more)"
+                    product_info += f"✨ **Features:** {features_text}\n"
                 
                 response_parts.append(product_info)
             
-            if len(products) > 5:
-                response_parts.append(f"\n... and {len(products) - 5} more products available!")
+            if len(products) > max_display:
+                response_parts.append(f"\n... and {len(products) - max_display} more products available! Ask me to 'show all products' to see everything.")
             
-            response_parts.append("\nNeed more details about any product? Just ask!")
+            # Add helpful footer based on query type
+            if is_price_query:
+                response_parts.append("\n💡 **Price Tips:** Ask me about 'cheapest products', 'most expensive products', or 'products under RM50' for better filtering!")
+            elif is_category_query:
+                response_parts.append("\n💡 **Category Tips:** Try asking about specific collections like 'Sundaze', 'Aqua', 'Mountain', or 'Kopi Patah Hati'!")
+            elif any(term in query_lower for term in ["show all", "all products"]):
+                response_parts.append("\n💡 **Complete Collection:** This is our entire drinkware collection! Need help choosing? Ask about specific features, prices, or collections.")
+            else:
+                response_parts.append("\n💡 **Need more details?** Ask me about specific products, collections, price ranges, or say 'show all products' to see everything!")
             
             return "\n".join(response_parts)
             
         except Exception as e:
             logger.error(f"Error formatting product response: {e}")
-            return "I found some products but encountered an error displaying them. Please try again."
+            return "I found some products but encountered an error displaying them. Please try again or ask for specific product information."
 
     def format_calculation_response(self, requested_items: Dict, query: str) -> str:
         """Format calculation response for product orders"""
@@ -1244,16 +1574,25 @@ class EnhancedMinimalAgent:
         return "I can only calculate prices for products we have in our ZUS Coffee collection. Our current inventory includes drinkware items like tumblers, cups, and mugs. Please ask me to show you our available products first, or search for specific items we carry."
 
     def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str) -> str:
-        """Format outlet search results into a user-friendly response"""
+        """Format outlet search results into a user-friendly response with complete outlet data"""
         try:
             if not outlets:
-                return "Sorry, I couldn't find any outlets matching your request. Please try a different location!"
+                return "Sorry, I couldn't find any outlets matching your request. Please try a different location or ask about our outlets in KL, Selangor, or Petaling Jaya!"
             
-            # Limit to top 5 outlets for readability
-            display_outlets = outlets[:5]
+            # Limit to top 8 outlets for better readability
+            display_outlets = outlets[:8]
             
             response_parts = []
-            response_parts.append(f"**Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
+            
+            # Check if this is a specific query for hours/services
+            query_lower = query.lower()
+            is_hours_query = any(term in query_lower for term in ["hours", "open", "close", "timing", "what time"])
+            is_services_query = any(term in query_lower for term in ["service", "services", "drive-thru", "wifi", "parking", "delivery"])
+            
+            if len(outlets) == 1:
+                response_parts.append(f"**Here's the outlet information:**\n")
+            else:
+                response_parts.append(f"**Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
             
             for i, outlet in enumerate(display_outlets, 1):
                 name = outlet.get("name", "ZUS Coffee Outlet")
@@ -1261,24 +1600,40 @@ class EnhancedMinimalAgent:
                 hours = outlet.get("hours", "Hours not available")
                 services = outlet.get("services", [])
                 
+                # Format outlet information with complete data
                 outlet_info = f"**{i}. {name}**\n"
-                outlet_info += f"   Address: {address}\n"
-                outlet_info += f"   Hours: {hours}\n"
+                outlet_info += f"📍 **Address:** {address}\n"
+                outlet_info += f"🕐 **Operating Hours:** {hours}\n"
+                
                 if services:
-                    outlet_info += f"   Services: {', '.join(services)}\n"
+                    # Format services nicely
+                    services_text = ", ".join(services)
+                    outlet_info += f"🏪 **Services:** {services_text}\n"
+                else:
+                    outlet_info += f"🏪 **Services:** Please contact outlet for service details\n"
+                
+                # Add phone/contact if available (though not in current data structure)
+                if outlet.get("phone"):
+                    outlet_info += f"📞 **Contact:** {outlet.get('phone')}\n"
                 
                 response_parts.append(outlet_info)
             
-            if len(outlets) > 5:
-                response_parts.append(f"\n... and {len(outlets) - 5} more outlets available!")
+            if len(outlets) > 8:
+                response_parts.append(f"\n... and {len(outlets) - 8} more outlets available! Ask me for more specific locations.")
             
-            response_parts.append("\nNeed directions or more info about any outlet? Just ask!")
+            # Add helpful footer based on query type
+            if is_hours_query:
+                response_parts.append("\n💡 **Note:** Operating hours may vary during holidays and special events. Please call ahead to confirm.")
+            elif is_services_query:
+                response_parts.append("\n💡 **Tip:** Services may vary by location. Contact the outlet directly for the most up-to-date information.")
+            else:
+                response_parts.append("\n💡 **Need more info?** Ask me about operating hours, services, or directions to any outlet!")
             
             return "\n".join(response_parts)
             
         except Exception as e:
             logger.error(f"Error formatting outlet response: {e}")
-            return "I found some outlets but encountered an error displaying them. Please try again."
+            return "I found some outlets but encountered an error displaying them. Please try again or ask for specific outlet information."
 
 # Singleton pattern for agent instance
 _agent_instance = None

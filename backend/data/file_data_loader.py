@@ -38,6 +38,7 @@ class FileDataLoader:
                     processed_product = {
                         "name": product.get("name", "Unknown Product"),
                         "price": product.get("price", "RM 0.00"),
+                        "sale_price": product.get("sale_price", 0.0),  # Add sale_price field
                         "regular_price": product.get("regular_price"),
                         "category": product.get("category", "Drinkware"),
                         "capacity": product.get("capacity", ""),

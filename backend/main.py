@@ -22,9 +22,14 @@ logger = logging.getLogger(__name__)
 
 # Import models (basic Pydantic models, no database dependency)
 try:
-    from backend.models import (
-        ChatRequest, ChatResponse, ErrorResponse
-    )
+    try:
+        from backend.models import (
+            ChatRequest, ChatResponse, ErrorResponse
+        )
+    except ImportError:
+        from models import (
+            ChatRequest, ChatResponse, ErrorResponse
+        )
     logger.info("Models imported successfully")
 except Exception as e:
     logger.warning(f"Models import issue: {e}")
@@ -49,7 +54,10 @@ except Exception as e:
 # Import database with fallback handling
 database_available = False
 try:
-    from backend.data.database import get_db, create_tables, validate_database_config
+    try:
+        from backend.data.database import get_db, create_tables, validate_database_config
+    except ImportError:
+        from data.database import get_db, create_tables, validate_database_config
     database_available = validate_database_config()
     def check_database_health():
         if database_available:
@@ -72,14 +80,20 @@ chatbot_available = False
 chatbot_type = "none"
 
 try:
-    from backend.chatbot.enhanced_minimal_agent import get_chatbot
+    try:
+        from backend.chatbot.enhanced_minimal_agent import get_chatbot
+    except ImportError:
+        from chatbot.enhanced_minimal_agent import get_chatbot
     chatbot_available = True
     chatbot_type = "enhanced_minimal"
     logger.info("Using ENHANCED MINIMAL chatbot with real data keyword matching")
 except Exception as e:
     logger.warning(f"Enhanced minimal chatbot not available: {e}")
     try:
-        from backend.chatbot.minimal_agent import get_chatbot
+        try:
+            from backend.chatbot.minimal_agent import get_chatbot
+        except ImportError:
+            from chatbot.minimal_agent import get_chatbot
         chatbot_available = True
         chatbot_type = "minimal"
         logger.info("Using minimal working chatbot")

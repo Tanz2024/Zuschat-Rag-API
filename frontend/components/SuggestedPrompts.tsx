@@ -96,10 +96,10 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
     tags: ["tumbler", "drinkware", "price", "budget"]
   },
   {
-    text: "Calculate discount for bulk purchase of 10 drinks",
+    text: "Calculate 6% SST on a RM55 tumbler purchase",
     category: "Products",
     priority: 2,
-    tags: ["bulk", "discount", "calculate", "quantity", "savings"]
+    tags: ["sst", "tax", "calculate", "tumbler", "pricing"]
   },
   {
     text: "What's the total for family combo meal?",
@@ -108,10 +108,10 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
     tags: ["family", "combo", "total", "calculate", "meal"]
   },
   {
-    text: "Compare prices: Americano vs Cappuccino vs Latte",
+    text: "Compare sizes: 500ml vs 600ml vs 650ml tumblers",
     category: "Products",
     priority: 2,
-    tags: ["compare", "price", "coffee", "americano", "cappuccino", "latte"]
+    tags: ["compare", "size", "tumbler", "500ml", "600ml", "650ml"]
   },
 
   // Outlet Numbers & Locations

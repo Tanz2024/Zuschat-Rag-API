@@ -14,6 +14,13 @@ python-dotenv==1.0.0
 requests==2.31.0
 httpx==0.24.0
 
+# AI and NLP Features
+rapidfuzz==3.5.2
+sentence-transformers==2.2.2
+googletrans==4.0.0rc1
+torch==2.0.1
+numpy==1.24.3
+
 # Compatibility
 typing-extensions==4.5.0
 starlette==0.27.0
