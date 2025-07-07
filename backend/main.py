@@ -105,7 +105,7 @@ except Exception as e:
                 return {
                     "message": "Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
                     "session_id": session_id,
-                    "intent": "fallback",
+                    "intent": "general_chat",
                     "confidence": 0.5
                 }
             
@@ -113,7 +113,7 @@ except Exception as e:
                 return {
                     "response": "Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
                     "session_id": session_id,
-                    "intent": "fallback"
+                    "intent": "general_chat"
                 }
         
         def get_chatbot():
@@ -204,7 +204,7 @@ async def general_exception_handler(request, exc):
                 content=jsonable_encoder({
                     "message": "Thank you for contacting ZUS Coffee! I'm experiencing technical difficulties, but you can still ask about our products, outlets, or pricing. Please try again shortly!",
                     "session_id": session_id,
-                    "intent": "critical_error",
+                    "intent": "unknown",
                     "confidence": 0.1
                 })
             )
@@ -224,7 +224,7 @@ async def general_exception_handler(request, exc):
             content={
                 "message": "Thank you for contacting ZUS Coffee! I'm experiencing technical difficulties. Please try again later.",
                 "session_id": "unknown",
-                "intent": "critical_error",
+                "intent": "unknown",
                 "confidence": 0.1
             }
         )
@@ -296,7 +296,7 @@ async def chat_endpoint(request: ChatRequest):
             return ChatResponse(
                 message="I'd love to help you! Please send me a message about ZUS Coffee products, outlets, calculations, or any questions you have.",
                 session_id=session_id,
-                intent="validation_error",
+                intent="help",
                 confidence=0.5
             )
         
@@ -308,7 +308,7 @@ async def chat_endpoint(request: ChatRequest):
             return ChatResponse(
                 message="I'm temporarily experiencing technical difficulties. Please try again in a moment.",
                 session_id=session_id,
-                intent="error",
+                intent="unknown",
                 confidence=0.1
             )
         
@@ -337,7 +337,7 @@ async def chat_endpoint(request: ChatRequest):
                 return ChatResponse(
                     message="Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
                     session_id=session_id,
-                    intent="fallback",
+                    intent="general_chat",
                     confidence=0.3
                 )
         except Exception as e:
@@ -345,7 +345,7 @@ async def chat_endpoint(request: ChatRequest):
             return ChatResponse(
                 message="I apologize for the inconvenience. I'm experiencing some technical issues but I'm still here to help! ZUS Coffee offers premium drinkware and has outlets across KL and Selangor. Please try your question again.",
                 session_id=session_id,
-                intent="error",
+                intent="unknown",
                 confidence=0.2
             )
     except Exception as e:
@@ -353,7 +353,7 @@ async def chat_endpoint(request: ChatRequest):
         return ChatResponse(
             message="Thank you for contacting ZUS Coffee! While I'm experiencing some technical difficulties right now, I want you to know that we offer premium drinkware and have multiple outlet locations. Please try again shortly!",
             session_id="default",
-            intent="critical_error",
+            intent="unknown",
             confidence=0.1
         )
 

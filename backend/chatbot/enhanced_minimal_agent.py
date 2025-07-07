@@ -492,18 +492,29 @@ class EnhancedMinimalAgent:
             
         # Outlet search detection - PRIORITIZE outlet intent over product intent with better keywords
         outlet_keywords = ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches", 
-                          "hours", "address", "where", "near", "klcc", "find", "nearest", "seating", "drive-thru",
+                          "hours", "address", "where", "near", "klcc", "find", "nearest", "seating",
                           "opening hours", "open", "close", "timing", "contact", "phone", "services",
                           "pavilion", "mid valley", "sunway", "shah alam", "kl", "kuala lumpur", "petaling jaya", "pj"]
         outlet_exclusive_keywords = ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches",
                                     "hours", "opening hours", "address", "where", "find outlet", "find location"]
         
+        # Service-specific outlet queries (these should get high priority)
+        service_specific_patterns = [
+            "drive-thru", "drive thru", "wifi", "wi-fi", "delivery", "dine-in", "takeaway", 
+            "24 hours", "24/7", "parking", "service", "services"
+        ]
+        has_service_query = any(service in message_lower for service in service_specific_patterns)
+        
         # Check for outlet-specific queries first
         has_outlet_exclusive = any(word in message_lower for word in outlet_exclusive_keywords)
         has_outlet_keyword = any(word in message_lower for word in outlet_keywords)
         
+        # Enhanced outlet detection with service priority
         if has_outlet_exclusive or (has_outlet_keyword and not any(word in message_lower for word in ["product", "tumbler", "cup", "mug", "drinkware"])):
-            intent_scores["outlet_search"] = 0.98  # Very high priority for outlet searches
+            if has_service_query:
+                intent_scores["outlet_search"] = 0.99  # HIGHEST priority for service-specific outlet searches
+            else:
+                intent_scores["outlet_search"] = 0.98  # Very high priority for general outlet searches
             
         # Product search detection - enhanced with better category detection
         product_keywords = ["product", "products", "tumbler", "tumblers", "cup", "cups", "mug", "mugs", 
@@ -603,7 +614,9 @@ class EnhancedMinimalAgent:
                 action_plan["follow_up_needed"] = True
                 
         elif intent_name == "outlet_search":
-            if "all outlets" in message_lower or "show outlets" in message_lower:
+            # Check for specific service or location queries before deciding to show all
+            filters = self.detect_filtering_intent(message)
+            if ("all outlets" in message_lower or "show all outlets" in message_lower) and not (filters.get("city") or filters.get("service")):
                 action_plan["action"] = "show_all_outlets"
             elif not any(keyword in message_lower for keyword_list in self.outlet_keywords.values() for keyword in keyword_list):
                 action_plan["missing_info"].append("specific_location")
@@ -756,13 +769,15 @@ class EnhancedMinimalAgent:
             
         query_lower = query.lower()
         filters = self.detect_filtering_intent(query)
+          # Apply filtering in sequence: first city, then service
+        filtered_outlets = outlets
         
-        # Apply location/city filtering first if specified (STRICT: only match if city is present in address, else return empty)
+        # Apply location/city filtering first if specified
         if filters["city"]:
             city = filters["city"]
             # Only match if city is present as a whole word in the address (not as a substring)
             city_filtered = []
-            for o in outlets:
+            for o in filtered_outlets:
                 address = (o.get("address", "") or "").lower()
                 # Strict: match city as a whole word, or as a substring with clear boundaries (space, comma, start/end)
                 if (
@@ -781,18 +796,49 @@ class EnhancedMinimalAgent:
             # STRICT: If no outlets match the city, return empty
             if not city_filtered:
                 return []
-            return city_filtered
-        
-        # Apply service filtering if specified
+            filtered_outlets = city_filtered
+
+        # Apply service filtering on the already filtered results (IMPROVED: Better service matching)
         if filters["service"]:
-            service_filtered = [o for o in outlets if any(filters["service"] in (s or "").lower() for s in o.get("services", []))]
-            if service_filtered:
-                return service_filtered
+            service_to_find = filters["service"]
+            service_filtered = []
+            for o in filtered_outlets:  # Apply to already filtered results
+                outlet_services = o.get("services", [])
+                # Check if the requested service matches any of the outlet's services
+                service_match = False
+                for outlet_service in outlet_services:
+                    if outlet_service and service_to_find.lower() in outlet_service.lower():
+                        service_match = True
+                        break
+                    # Special cases for common service terms
+                    elif service_to_find == "wifi" and outlet_service and "wifi" in outlet_service.lower():
+                        service_match = True
+                        break
+                    elif service_to_find == "drive-thru" and outlet_service and ("drive" in outlet_service.lower() or "thru" in outlet_service.lower()):
+                        service_match = True
+                        break
+                
+                if service_match:
+                    service_filtered.append(o)
+            
+            # Return filtered results (could be empty if no service matches)
+            filtered_outlets = service_filtered
         
-        # General outlet queries - return all outlets
-        general_outlet_terms = ["outlets", "locations", "all outlets", "show outlets", "show all outlets", 
-                               "where", "branches", "stores", "find outlets", "outlet locations"]
-        if any(term in query_lower for term in general_outlet_terms):
+        # Return the filtered results (if any filters were applied)
+        if filters["city"] or filters["service"]:
+            return filtered_outlets
+        
+        # General outlet queries - return all outlets (BUT NOT if specific filters are present)
+        general_outlet_terms = ["all outlets", "show outlets", "show all outlets", 
+                               "outlet locations", "list outlets", "find outlets"]
+        # Check for very specific "show all" patterns that shouldn't be filtered
+        show_all_patterns = ["all outlets", "show all outlets", "list all outlets", "outlet locations"]
+        
+        # Only return all outlets if:
+        # 1. Query matches show-all patterns AND no specific filters, OR
+        # 2. Query is generic like "where" or "branches" with no filters
+        if ((any(term in query_lower for term in show_all_patterns) and not (filters["city"] or filters["service"])) or
+            (any(term in query_lower for term in ["where", "branches", "stores"]) and not (filters["city"] or filters["service"]) and len(query_lower.split()) <= 2)):
             return outlets
         
         # Hours/timing queries - return all outlets with hours info
@@ -838,12 +884,20 @@ class EnhancedMinimalAgent:
         Never hallucinates - only works with real mathematical expressions.
         """
         try:
+            # Normalize multiplication and division symbols and strip currency symbols for calculation
+            original_message = message
+            message = message.replace('×', '*').replace('÷', '/')
+            
+            # Remove RM symbols for calculation but remember if they were present
+            has_currency = 'rm' in message.lower() or 'ringgit' in message.lower()
+            message = re.sub(r'\bRM\s*', '', message, flags=re.IGNORECASE)
+            
             # Check for natural language division by zero first
             if re.search(r'(?:divided|divide)\s+by\s+(?:zero|0)', message.lower()):
                 return "Error: Cannot divide by zero. Please adjust your calculation and try again."
             
             # Extract mathematical expressions with strict validation
-            math_pattern = r'[\d\+\-\*\/\(\)\.\s%]+'
+            math_pattern = r'[\d\+\-\*\/\(\)\.\s%×÷]+'
             expressions = re.findall(math_pattern, message)
             
             # Security check - reject non-mathematical queries (NO DUMMY DATA)
@@ -856,7 +910,10 @@ class EnhancedMinimalAgent:
             if percentage_match:
                 percent, number = float(percentage_match.group(1)), float(percentage_match.group(2))
                 result = (percent / 100) * number
-                return f"Here's your percentage calculation: **{percent}% of {number} = {result:.2f}**. Need more calculations or ZUS Coffee information?"
+                if has_currency:
+                    return f"Here's your percentage calculation: **{percent}% of RM {number} = RM {result:.2f}**. Need more calculations or ZUS Coffee information?"
+                else:
+                    return f"Here's your percentage calculation: **{percent}% of {number} = {result:.2f}**. Need more calculations or ZUS Coffee information?"
             
             # Handle square root (e.g., "square root of 25")
             sqrt_match = re.search(r'square\s+root\s+of\s+(\d+(?:\.\d+)?)', message.lower())
@@ -872,9 +929,9 @@ class EnhancedMinimalAgent:
                 result = base ** exponent
                 return f"Here's your power calculation: **{base}^{exponent} = {result:.2f}**. Need more calculations?"
             
-            # Handle SST/Tax calculations
-            if any(keyword in message.lower() for keyword in self.tax_keywords):
-                return self.handle_tax_calculation(message)
+            # Handle SST/Tax calculations (check for tax keywords BEFORE general calculation)
+            if any(keyword in original_message.lower() for keyword in self.tax_keywords):
+                return self.handle_tax_calculation(original_message)
             
             if not expressions:
                 return "I couldn't find a mathematical expression in your message. Please provide numbers and operators like '25 + 15', '(100 * 2) - 50', or '200 / 4'."
@@ -882,13 +939,13 @@ class EnhancedMinimalAgent:
             # Take the longest valid expression
             expression = max(expressions, key=len).strip()
             
-            # Strict security validation - only mathematical characters
-            safe_chars = set('0123456789+-*/().,= ')
+            # Strict security validation - only mathematical characters (including × ÷)
+            safe_chars = set('0123456789+-*/().,=×÷ ')
             if not all(c in safe_chars for c in expression):
-                return "For security reasons, I can only calculate expressions with numbers and basic operators (+, -, *, /, parentheses). Please try again."
+                return "For security reasons, I can only calculate expressions with numbers and basic operators (+, -, *, /, ×, ÷, parentheses). Please try again."
             
-            # Clean and validate expression
-            expression = expression.replace('=', '').replace(' ', '')
+            # Clean and validate expression - normalize symbols
+            expression = expression.replace('=', '').replace(' ', '').replace('×', '*').replace('÷', '/')
             if not expression or not re.match(r'^[\d\+\-\*\/\(\)\.]+$', expression):
                 return "Please provide a valid mathematical expression using numbers and operators. For example: '25.5 + 18.2' or '(100 - 20) * 3'."
             
@@ -904,11 +961,26 @@ class EnhancedMinimalAgent:
                 if not isinstance(result, (int, float)) or math.isnan(result) or math.isinf(result):
                     return "That calculation resulted in an invalid number. Please check your expression and try again."
                 
-                # Format result
-                if isinstance(result, float) and result.is_integer():
-                    result = int(result)
+                # Enhanced result formatting with currency detection
+                original_expression = expression
                 
-                return f"Here's your calculation: **{expression} = {result}**. Need more calculations or ZUS Coffee information?"
+                # Check if the original message contained RM to format as currency
+                has_currency = 'rm' in message.lower() or 'ringgit' in message.lower()
+                
+                # Format result appropriately
+                if isinstance(result, float):
+                    if result.is_integer():
+                        result_display = int(result)
+                    else:
+                        result_display = f"{result:.2f}"
+                else:
+                    result_display = result
+                
+                # Add currency formatting if detected
+                if has_currency:
+                    return f"Here's your calculation: **{original_expression} = RM {result_display}**. Need more calculations or ZUS Coffee information?"
+                else:
+                    return f"Here's your calculation: **{original_expression} = {result_display}**. Need more calculations or ZUS Coffee information?"
                 
             except ZeroDivisionError:
                 return "Error: Cannot divide by zero. Please adjust your calculation and try again."
@@ -963,7 +1035,7 @@ class EnhancedMinimalAgent:
             return {
                 "message": "Sorry, I'm having trouble keeping track of your session. Please try again later.",
                 "session_id": session_id,
-                "intent": "error",
+                "intent": "unknown",
                 "error": str(e)
             }
 
@@ -976,7 +1048,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "For security reasons, I cannot process requests containing potentially harmful content. I'm here to help with ZUS Coffee products, outlets, calculations, and general inquiries. How can I assist you today?",
                     "session_id": session_id,
-                    "intent": "security",
+                    "intent": "general_chat",
                     "confidence": 0.99
                 }
         except Exception:
@@ -989,7 +1061,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "I'd love to help you! I can assist with outlet locations and hours, product recommendations and details, pricing calculations, or general ZUS Coffee information. What interests you most?",
                     "session_id": session_id,
-                    "intent": "clarification",
+                    "intent": "help",
                     "confidence": 0.7
                 }
         except Exception:
@@ -1005,7 +1077,7 @@ class EnhancedMinimalAgent:
             return {
                 "message": "Sorry, I couldn't understand your request. Please try rephrasing or ask about ZUS Coffee products, outlets, or calculations.",
                 "session_id": session_id,
-                "intent": "error",
+                "intent": "unknown",
                 "error": str(e)
             }
 
@@ -1017,7 +1089,9 @@ class EnhancedMinimalAgent:
 
             has_product_kw = any(kw in message_lower for kw in ["product", "tumbler", "cup", "mug", "drinkware"])
             has_outlet_kw = any(kw in message_lower for kw in ["outlet", "location", "store", "branch", "address"])
-            has_calc_kw = any(op in message for op in ['+', '-', '*', '/', 'calculate', 'math']) or any(kw in message_lower for kw in self.math_keywords)
+            # Improved calculation detection to avoid false positives from hyphens in words
+            has_calc_operators = any(op in message for op in ['+', '*', '/', '=']) or any(f' {op} ' in message for op in ['-']) or any(kw in message_lower for kw in ['calculate', 'math'])
+            has_calc_kw = has_calc_operators or any(kw in message_lower for kw in self.math_keywords)
             multi_intent = (has_product_kw and has_outlet_kw) or (has_product_kw and has_calc_kw) or (has_outlet_kw and has_calc_kw)
 
             if multi_intent:
@@ -1054,7 +1128,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "\n\n".join(response_parts),
                     "session_id": session_id,
-                    "intent": "multi_intent",
+                    "intent": "general_chat",
                     "confidence": 0.95
                 }
         except Exception:
@@ -1076,7 +1150,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "Sorry, I couldn't complete the calculation due to an error. Please check your input or try again later.",
                     "session_id": session_id,
-                    "intent": "calculation_error",
+                    "intent": "calculation",
                     "confidence": 0.2
                 }
 
@@ -1090,7 +1164,7 @@ class EnhancedMinimalAgent:
                     return {
                         "message": "Sorry, I couldn't find any products matching your request. Please try a different query or ask about our drinkware collection!",
                         "session_id": session_id,
-                        "intent": "no_product_results",
+                        "intent": "product_search",
                         "confidence": 0.3
                     }
                 response = self.format_product_response(matching_products, session_id, message)
@@ -1106,7 +1180,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "Sorry, there was an error fetching product information. Please try again later.",
                     "session_id": session_id,
-                    "intent": "error",
+                    "intent": "product_search",
                     "confidence": 0.1,
                     "error": str(e)
                 }
@@ -1114,16 +1188,17 @@ class EnhancedMinimalAgent:
         # Outlet search processing
         if outlet_intent:
             try:
-                show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower or "show all outlet" in message_lower
-                matching_outlets = self.find_matching_outlets(message, show_all=show_all)
-                # STRICT: If a city filter is present and no outlets match, return no_outlet_results
+                # Check if this should show all outlets (only if no specific filters)
                 filters = self.detect_filtering_intent(message)
+                show_all = (action_plan.get("action") == "show_all_outlets" or 
+                           ("all outlets" in message_lower or "show all outlet" in message_lower)) and not (filters.get("city") or filters.get("service"))
+                matching_outlets = self.find_matching_outlets(message, show_all=show_all)
                 if (filters.get("city") and not matching_outlets) or not matching_outlets:
                     self.update_session_context(session_id, "no_outlet_results", {"query": message})
                     return {
                         "message": "Sorry, I couldn't find any outlets matching your request. Please try a different location or ask about our outlets in KL or Selangor!",
                         "session_id": session_id,
-                        "intent": "no_outlet_results",
+                        "intent": "outlet_search",
                         "confidence": 0.3
                     }
                 response = self.format_outlet_response(matching_outlets, session_id, message)
@@ -1139,7 +1214,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "Sorry, there was an error fetching outlet information. Please try again later.",
                     "session_id": session_id,
-                    "intent": "error",
+                    "intent": "outlet_search",
                     "error": str(e)
                 }
 
@@ -1170,14 +1245,14 @@ class EnhancedMinimalAgent:
                 return {
                     "message": response,
                     "session_id": session_id,
-                    "intent": "farewell",
+                    "intent": "goodbye",
                     "confidence": action_plan["confidence"]
                 }
             except Exception as e:
                 return {
                     "message": "Thank you for choosing ZUS Coffee!",
                     "session_id": session_id,
-                    "intent": "farewell",
+                    "intent": "goodbye",
                     "error": str(e)
                 }
 
@@ -1195,14 +1270,14 @@ class EnhancedMinimalAgent:
                 return {
                     "message": response,
                     "session_id": session_id,
-                    "intent": "promotion_inquiry",
+                    "intent": "general_chat",
                     "confidence": action_plan["confidence"]
                 }
             except Exception as e:
                 return {
                     "message": "I'd be happy to help you learn about ZUS Coffee's current promotions and new products! Please try asking again or let me know what specific products interest you.",
                     "session_id": session_id,
-                    "intent": "promotion_inquiry",
+                    "intent": "general_chat",
                     "error": str(e)
                 }
 
@@ -1214,7 +1289,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "I'm your ZUS Coffee assistant, specialized in helping with our drinkware products, outlet locations, and pricing calculations. I can help you with:\n\n🥤 **Product Info:** 'Show all products', 'cheapest tumbler', 'stainless steel cups'\n🏪 **Outlet Locations:** 'ZUS outlets in KL', 'opening hours', 'drive-thru locations'\n🧮 **Calculations:** 'Calculate 25 + 15', 'What's 6% SST on RM100?'\n\nHow can I help you with ZUS Coffee today?",
                     "session_id": session_id,
-                    "intent": "irrelevant",
+                    "intent": "general_chat",
                     "confidence": 0.8
                 }
             
@@ -1223,7 +1298,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "I can help you explore our ZUS Coffee collection! Try asking:\n\n🥤 **Show Products:** 'Show all products' (see all 11 items)\n💰 **By Price:** 'Cheapest products', 'Most expensive products', 'Products under RM50'\n🎨 **By Collection:** 'Sundaze collection', 'Aqua collection', 'Mountain collection'\n🔧 **By Material:** 'Stainless steel tumblers', 'Ceramic mugs', 'Acrylic cups'\n\nWhat would you like to explore?",
                     "session_id": session_id,
-                    "intent": "product_suggestion",
+                    "intent": "product_search",
                     "confidence": 0.7
                 }
             
@@ -1232,7 +1307,7 @@ class EnhancedMinimalAgent:
                 return {
                     "message": "I can help you find ZUS Coffee outlets! Try asking:\n\n📍 **All Outlets:** 'Show all outlets', 'ZUS locations'\n🏙️ **By Area:** 'Outlets in KL', 'Outlets in Selangor', 'Outlets in PJ'\n🕐 **Operating Hours:** 'Opening hours', 'What time do you open?'\n🚗 **Services:** 'Drive-thru outlets', 'Outlets with parking', 'WiFi locations'\n\nWhat location information do you need?",
                     "session_id": session_id,
-                    "intent": "outlet_suggestion",
+                    "intent": "outlet_search",
                     "confidence": 0.7
                 }
             
@@ -1254,14 +1329,14 @@ class EnhancedMinimalAgent:
             return {
                 "message": "I'm your ZUS Coffee assistant! I can help you with:\n\n🥤 **Products:** 'Show all products', 'Cheapest tumbler', 'Stainless steel cups'\n🏪 **Outlets:** 'Find outlets in KL', 'Opening hours', 'Drive-thru locations'\n🧮 **Calculations:** 'Calculate 25 + 15', 'What's 6% SST on RM100?'\n\nTry asking about our products, outlet locations, or any calculations you need!",
                 "session_id": session_id,
-                "intent": "general",
+                "intent": "general_chat",
                 "confidence": 0.5
             }
         except Exception as e:
             return {
                 "message": "Sorry, I'm having technical difficulties. Please try again later.",
                 "session_id": session_id,
-                "intent": "error",
+                "intent": "unknown",
                 "error": str(e)
             }
     
@@ -1339,13 +1414,16 @@ class EnhancedMinimalAgent:
                 filters["collection"] = collection_key
                 break
         
-        # Enhanced city detection for outlets
+        # Enhanced city detection for outlets (more specific matching)
         cities = {
-            'kuala lumpur': ['kl', 'kuala lumpur', 'klcc', 'pavilion', 'bukit bintang'],
-            'petaling jaya': ['petaling jaya', 'pj', 'sunway'],
+            'kuala lumpur': ['kuala lumpur', 'kl '],  # More specific to avoid false matches
+            'petaling jaya': ['petaling jaya', 'pj '],
             'selangor': ['selangor', 'shah alam'],
-            'mid valley': ['mid valley'],
-            'ss2': ['ss2']
+            'cheras': ['cheras'],  # Added Cheras as it appears in outlet data
+            'ampang': ['ampang'],  # Added Ampang 
+            'sentul': ['sentul'],  # Added Sentul
+            'wangsa maju': ['wangsa maju'],  # Added Wangsa Maju
+            'putrajaya': ['putrajaya']  # Added Putrajaya
         }
         
         for city_key, city_terms in cities.items():
@@ -1521,13 +1599,13 @@ class EnhancedMinimalAgent:
             
             # Add helpful footer based on query type
             if is_price_query:
-                response_parts.append("\n💡 **Price Tips:** Ask me about 'cheapest products', 'most expensive products', or 'products under RM50' for better filtering!")
+                response_parts.append("\n **Price Tips:** Ask me about 'cheapest products', 'most expensive products', or 'products under RM50' for better filtering!")
             elif is_category_query:
-                response_parts.append("\n💡 **Category Tips:** Try asking about specific collections like 'Sundaze', 'Aqua', 'Mountain', or 'Kopi Patah Hati'!")
+                response_parts.append("\n **Category Tips:** Try asking about specific collections like 'Sundaze', 'Aqua', 'Mountain', or 'Kopi Patah Hati'!")
             elif any(term in query_lower for term in ["show all", "all products"]):
-                response_parts.append("\n💡 **Complete Collection:** This is our entire drinkware collection! Need help choosing? Ask about specific features, prices, or collections.")
+                response_parts.append("\n **Complete Collection:** This is our entire drinkware collection! Need help choosing? Ask about specific features, prices, or collections.")
             else:
-                response_parts.append("\n💡 **Need more details?** Ask me about specific products, collections, price ranges, or say 'show all products' to see everything!")
+                response_parts.append("\n **Need more details?** Ask me about specific products, collections, price ranges, or say 'show all products' to see everything!")
             
             return "\n".join(response_parts)
             

@@ -1,6 +1,8 @@
 import React from 'react'
 
-// EMBEDDED PROMPTS DATA - NO EXTERNAL IMPORTS TO AVOID VERCEL CACHE ISSUES
+// PRACTICAL ZUS COFFEE SUGGESTIONS - REAL DATA DRIVEN
+// Focus on actual products, outlets, and useful calculations
+// All suggestions are validated to work with the chatbot's real capabilities
 interface SuggestedPrompt {
   text: string
   category: string
@@ -10,148 +12,159 @@ interface SuggestedPrompt {
 }
 
 const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  // Popular & General
+  // Product Discovery - Real ZUS Products (Based on actual product data)
   {
-    text: "What's new at ZUS Coffee this month?",
-    category: "Popular",
+    text: "Show me ZUS OG Cup 2.0 with screw-on lid",
+    category: "Products",
     priority: 1,
-    tags: ["new", "latest", "updates", "promotion"]
+    tags: ["og cup", "screw-on", "lid", "500ml"]
   },
   {
-    text: "Find ZUS Coffee outlets near KLCC",
-    category: "Popular", 
+    text: "What's the cheapest ceramic mug available?",
+    category: "Products",
     priority: 1,
-    tags: ["location", "klcc", "outlets", "nearby"]
+    tags: ["ceramic", "mug", "budget", "rm39", "cheapest"]
   },
   {
-    text: "Show me your best-selling drinks",
-    category: "Popular",
+    text: "Find all products under RM60",
+    category: "Products",
     priority: 1,
-    tags: ["drinks", "popular", "coffee", "bestseller"]
+    tags: ["under", "rm60", "budget", "affordable"]
   },
   {
-    text: "What promotions are available today?",
-    category: "Popular",
+    text: "Show me ZUS All-Can Tumbler 600ml details",
+    category: "Products",
     priority: 1,
-    tags: ["promotion", "deals", "discount", "offers"]
+    tags: ["all-can", "tumbler", "600ml", "car", "cup holder"]
   },
 
-  // Calculation & Pricing
+  // Outlet Search - Real Locations (Based on actual outlet data)
   {
-    text: "Calculate total cost for 2 Cappuccino and 1 Croissant",
-    category: "Calculations",
-    priority: 1,
-    tags: ["calculate", "cost", "total", "price", "cart"]
-  },
-  {
-    text: "How much tax is included in a RM15.90 drink?",
-    category: "Calculations",
-    priority: 1,
-    tags: ["tax", "gst", "sst", "calculation", "breakdown"]
-  },
-  {
-    text: "What's the price difference between sizes?",
-    category: "Calculations",
-    priority: 2,
-    tags: ["price", "size", "difference", "comparison", "calculate"]
-  },
-  {
-    text: "Show me drinks priced between RM8-RM12",
-    category: "Calculations",
-    priority: 2,
-    tags: ["price", "range", "budget", "filter", "drinks"]
-  },
-
-  // Numbers & Statistics
-  {
-    text: "How many ZUS Coffee outlets are in Kuala Lumpur?",
-    category: "Numbers & Stats",
-    priority: 1,
-    tags: ["count", "outlets", "number", "kuala lumpur", "statistics"]
-  },
-  {
-    text: "What are the top 5 most expensive drinks?",
-    category: "Numbers & Stats",
-    priority: 2,
-    tags: ["top", "expensive", "ranking", "price", "list"]
-  },
-  {
-    text: "How many products cost under RM10?",
-    category: "Numbers & Stats",
-    priority: 2,
-    tags: ["count", "products", "price", "budget", "affordable"]
-  },
-  {
-    text: "Show me 3 cheapest food items",
-    category: "Numbers & Stats",
-    priority: 2,
-    tags: ["cheapest", "food", "budget", "ranking", "affordable"]
-  },
-
-  // Products & Pricing
-  {
-    text: "Show me coffee tumblers under RM40",
-    category: "Products",
-    priority: 2,
-    tags: ["tumbler", "drinkware", "price", "budget"]
-  },
-  {
-    text: "Calculate 6% SST on a RM55 tumbler purchase",
-    category: "Products",
-    priority: 2,
-    tags: ["sst", "tax", "calculate", "tumbler", "pricing"]
-  },
-  {
-    text: "What's the total for family combo meal?",
-    category: "Products",
-    priority: 2,
-    tags: ["family", "combo", "total", "calculate", "meal"]
-  },
-  {
-    text: "Compare sizes: 500ml vs 600ml vs 650ml tumblers",
-    category: "Products",
-    priority: 2,
-    tags: ["compare", "size", "tumbler", "500ml", "600ml", "650ml"]
-  },
-
-  // Outlet Numbers & Locations
-  {
-    text: "How many outlets are open 24 hours?",
+    text: "Find ZUS Coffee outlets in Kuala Lumpur",
     category: "Outlets",
-    priority: 2,
-    tags: ["count", "24hours", "outlets", "operating hours"]
+    priority: 1,
+    tags: ["kuala lumpur", "kl", "outlets", "location"]
   },
   {
-    text: "Find 5 nearest outlets to my location",
-    category: "Outlets", 
-    priority: 2,
-    tags: ["nearest", "location", "outlets", "proximity", "number"]
-  },
-  {
-    text: "Which outlet has the largest seating capacity?",
+    text: "Show outlets with WiFi in Selangor",
     category: "Outlets",
-    priority: 2,
-    tags: ["seating", "capacity", "largest", "space", "number"]
+    priority: 1,
+    tags: ["wifi", "selangor", "internet", "work"]
   },
   {
-    text: "Show outlets with drive-thru service count",
+    text: "Find outlets near Cheras",
     category: "Outlets",
+    priority: 1,
+    tags: ["cheras", "near", "location", "outlets"]
+  },
+  {
+    text: "What outlets have drive-thru service?",
+    category: "Outlets",
+    priority: 1,
+    tags: ["drive-thru", "service", "convenient", "car"]
+  },
+
+  // Practical Calculations - Real Scenarios (Customer-focused)
+  {
+    text: "Calculate 6% SST on RM55",
+    category: "Calculator",
+    priority: 1,
+    tags: ["sst", "tax", "rm55", "og cup", "realistic"]
+  },
+  {
+    text: "What's the total for 2 × RM39?",
+    category: "Calculator",
+    priority: 1,
+    tags: ["multiply", "rm39", "ceramic", "mug", "buy1free1"]
+  },
+  {
+    text: "Calculate RM105 + RM55 + RM39",
+    category: "Calculator",
+    priority: 1,
+    tags: ["add", "total", "shopping", "cart", "real prices"]
+  },
+  {
+    text: "What's 20% discount on RM79?",
+    category: "Calculator",
+    priority: 1,
+    tags: ["discount", "20%", "rm79", "promotion", "sale"]
+  },
+
+  // Product Comparisons - Value-driven (Based on real products)
+  {
+    text: "Compare ZUS OG Cup vs All-Can Tumbler",
+    category: "Compare",
     priority: 2,
-    tags: ["drive-thru", "count", "service", "outlets", "convenience"]
+    tags: ["og cup", "all-can", "compare", "500ml", "600ml"]
+  },
+  {
+    text: "Show me products in Sundaze collection",
+    category: "Collections",
+    priority: 2,
+    tags: ["sundaze", "collection", "seashell", "sand castle"]
+  },
+  {
+    text: "Ceramic mug vs stainless steel tumbler?",
+    category: "Compare",
+    priority: 2,
+    tags: ["ceramic", "stainless", "material", "comparison"]
+  },
+  {
+    text: "Which products have Buy 1 Free 1 offer?",
+    category: "Promotions",
+    priority: 2,
+    tags: ["buy1free1", "promotion", "deals", "offers"]
+  },
+
+  // Real Business Scenarios (Customer journey focused)
+  {
+    text: "Calculate total cost for 3 tumblers with tax",
+    category: "Shopping",
+    priority: 2,
+    tags: ["bulk", "calculate", "tax", "business", "gift"]
+  },
+  {
+    text: "Find outlets open 24 hours",
+    category: "Timing",
+    priority: 2,
+    tags: ["24 hours", "late night", "always open"]
+  },
+  {
+    text: "What's the most premium tumbler?",
+    category: "Premium",
+    priority: 2,
+    tags: ["premium", "mountain collection", "rm79", "luxury"]
+  },
+  {
+    text: "Show leak-proof tumblers with screw lids",
+    category: "Features",
+    priority: 2,
+    tags: ["leak-proof", "screw", "lid", "secure", "travel"]
   }
 ]
 
 const getHighPriorityPrompts = (): SuggestedPrompt[] => {
-  // Get priority 1 prompts first (most important)
+  // Get priority 1 prompts first (most practical and useful)
   const priority1 = SUGGESTED_PROMPTS.filter(prompt => prompt.priority === 1)
   
-  // Get some priority 2 prompts to fill remaining slots
+  // Get priority 2 prompts for variety
   const priority2 = SUGGESTED_PROMPTS.filter(prompt => prompt.priority === 2)
   
-  // Mix categories for better variety - take top priority 1s and some priority 2s
-  const mixed = [...priority1.slice(0, 6), ...priority2.slice(0, 6)]
+  // Ensure we get a good mix of categories for priority 1
+  const categories = ['Products', 'Outlets', 'Calculator']
+  const categorizedPriority1: SuggestedPrompt[] = []
   
-  return mixed.slice(0, 12) // Return up to 12 prompts
+  // Get 4 from each main category (Products, Outlets, Calculator)
+  categories.forEach(category => {
+    const categoryPrompts = priority1.filter(p => p.category === category)
+    categorizedPriority1.push(...categoryPrompts.slice(0, 4))
+  })
+  
+  // Fill remaining slots with priority 2 prompts for variety (Compare, Collections, Shopping, etc.)
+  const remaining = 12 - categorizedPriority1.length
+  const selectedPriority2 = priority2.slice(0, remaining)
+  
+  return [...categorizedPriority1, ...selectedPriority2].slice(0, 12)
 }
 
 interface SuggestedPromptsProps {
