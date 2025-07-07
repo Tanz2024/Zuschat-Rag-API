@@ -1,18 +1,18 @@
 # CLEAN REQUIREMENTS FOR PRODUCTION ZUS CHATBOT
-# Core FastAPI dependencies - conservative versions with guaranteed pre-compiled wheels
-fastapi==0.100.0
+# Core FastAPI dependencies - Python 3.11 compatible versions
+fastapi==0.103.2
 uvicorn[standard]==0.23.2
-pydantic==1.10.12
+pydantic==2.4.2
 python-multipart==0.0.6
 
 # Database
-sqlalchemy==1.4.46
-psycopg2-binary==2.9.9
+sqlalchemy==2.0.21
+psycopg2-binary==2.9.7
 python-dotenv==1.0.0
 
 # Essential utilities
 requests==2.31.0
-httpx==0.24.1
+httpx==0.25.0
 
 # Additional dependencies for stability
 typing-extensions==4.8.0

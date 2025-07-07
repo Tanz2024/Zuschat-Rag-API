@@ -88,27 +88,17 @@ class ChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional context")
 
     class Config:
-        json_schema_extra = {
+        # Pydantic v1/v2 compatible configuration
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+        }
+        schema_extra = {
             "example": {
                 "message": "What coffee drinks do you have?",
                 "session_id": "user123",
                 "context": {"location": "KL"}
             }
         }
-    
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate_to_json
-
-    @classmethod
-    def validate_to_json(cls, v):
-        try:
-            if isinstance(v, str):
-                return cls.parse_raw(v)
-            return v
-        except Exception:
-            # Return a safe fallback if parsing fails
-            return cls(message="Hello", session_id="default")
 
 
 class ProductSearchRequest(BaseModel):
