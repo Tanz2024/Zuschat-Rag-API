@@ -88,10 +88,6 @@ class ChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional context")
 
     class Config:
-        # Pydantic v1/v2 compatible configuration
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }
         schema_extra = {
             "example": {
                 "message": "What coffee drinks do you have?",
