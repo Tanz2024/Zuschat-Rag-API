@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Enhanced ZUS Coffee Chatbot Agent - PRODUCTION READY
-Fully integrated agentic system with state management, planning, tool integration, and robust error handling
-Meets all requirements for Part 1-5: Sequential Conversation, Agentic Planning, Tool Calling, Custom API & RAG Integration, Unhappy Flows
+ZUS Coffee Chatbot Agent - Production Implementation
+Integrated chatbot system with conversation state management, intent planning, 
+math calculations, and database integration for product/outlet queries.
 """
 
 import logging
@@ -15,7 +15,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Try to import database components
+# Database components import with fallback handling
 DATABASE_AVAILABLE = False
 SessionLocal = None
 Product = None
@@ -28,7 +28,7 @@ try:
 except Exception as e:
     logger.warning(f"Database not available, using file-based data: {e}")
 
-# Import file data loader for fallback
+# File data loader for fallback when database is unavailable
 FILE_LOADER_AVAILABLE = False
 load_products_from_file = None
 load_outlets_from_file = None
@@ -42,9 +42,9 @@ except Exception as e:
 
 class EnhancedMinimalAgent:
     def __init__(self):
-        self.sessions = {}  # Part 1: Memory and conversation state
+        self.sessions = {}  # Conversation state storage
         
-        # Advanced agentic planning keywords and patterns (Part 2)
+        # Intent planning keywords and patterns
         self.product_keywords = {
             'categories': ['tumbler', 'cup', 'mug', 'cold cup', 'drinkware'],
             'materials': ['stainless steel', 'ceramic', 'acrylic', 'glass'],
@@ -69,7 +69,7 @@ class EnhancedMinimalAgent:
             'service': 0.10  # 10% service charge
         }
         
-        # Math calculation patterns (Part 3: Tool Integration)
+        # Math calculation patterns
         self.math_operators = ['+', '-', '*', '/', 'x', '×', '÷', '^', '**', 'sqrt', '%', 'of']
         self.math_keywords = ['calculate', 'math', 'compute', 'what is', 'plus', 'minus', 'times', 'divided by', 'power', 'square root', 'percent']
 
@@ -225,12 +225,12 @@ class EnhancedMinimalAgent:
             logger.warning(f"Semantic search unavailable, falling back to keyword search: {e}")
             return self.find_matching_outlets(query)
     """
-    Production-ready ZUS Coffee chatbot with comprehensive agentic features:
-    - State Management & Memory (tracking slots/variables across turns)
-    - Planner/Controller Logic (intent parsing, action selection, follow-up questions)
-    - Tool Integration (calculator API, error handling)
-    - Custom API Consumption (FastAPI endpoints for products, outlets)
-    - Robust Error Handling (graceful degradation, security)
+    ZUS Coffee chatbot implementation with the following features:
+    - Conversation state management and memory tracking
+    - Intent detection and response planning
+    - Mathematical calculations with error handling
+    - Product and outlet database integration
+    - Robust error handling and fallback mechanisms
     """
     
 
@@ -382,7 +382,7 @@ class EnhancedMinimalAgent:
             ]
 
     def get_session_context(self, session_id: str) -> Dict[str, Any]:
-        """Get or create session context with memory (Part 1: State Management)."""
+        """Get or create session context with memory storage."""
         if session_id not in self.sessions:
             self.sessions[session_id] = {
                 "count": 0,
@@ -397,7 +397,7 @@ class EnhancedMinimalAgent:
         return self.sessions[session_id]
 
     def update_session_context(self, session_id: str, intent: str, data: Dict[str, Any]) -> None:
-        """Update session context with current turn data (Part 1: State Management)."""
+        """Update session context with current turn data."""
         context = self.get_session_context(session_id)
         context["count"] += 1
         context["last_intent"] = intent
@@ -414,12 +414,10 @@ class EnhancedMinimalAgent:
 
     def parse_intent_and_plan_action(self, message: str, session_id: str) -> Dict[str, Any]:
         """
-        Part 2: Agentic Planning - Parse intent, identify missing information, and plan next action.
+        Intent parsing and action planning system.
         
-        This implements the planner/controller loop:
-        1. Parse intent and missing information
-        2. Choose an action (ask follow-up, invoke tool, call API, or finish)
-        3. Execute action and return result
+        Analyzes user input to determine intent and plan appropriate response actions.
+        Handles multiple intents and determines missing information for follow-up questions.
         """
         message_lower = message.lower()
         context = self.get_session_context(session_id)
@@ -438,24 +436,48 @@ class EnhancedMinimalAgent:
             "general": 0.0
         }
         
-        # Calculate intent confidence scores
+        # Calculate intent confidence scores with better priority handling
         if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "welcome"]):
             intent_scores["greeting"] = 0.9
             
-        if any(word in message_lower for word in ["product", "tumbler", "cup", "mug", "drinkware", "collection", "show me", "what products"]):
-            intent_scores["product_search"] = 0.8
+        # Product search detection - enhanced with more keywords
+        if any(word in message_lower for word in ["product", "products", "tumbler", "tumblers", "cup", "cups", "mug", "mugs", "drinkware", "collection", "show me", "what products", "drinks", "coffee", "best-selling", "cheapest", "food", "items"]):
+            intent_scores["product_search"] = 0.85
             
-        if any(word in message_lower for word in ["outlet", "location", "store", "branch", "hours", "address", "where"]):
-            intent_scores["outlet_search"] = 0.8
+        # Outlet search detection - enhanced with more keywords  
+        if any(word in message_lower for word in ["outlet", "outlets", "location", "locations", "store", "stores", "branch", "branches", "hours", "address", "where", "near", "klcc", "find", "nearest", "seating", "drive-thru"]):
+            intent_scores["outlet_search"] = 0.85
             
-        # Enhanced calculation detection
-        if (any(op in message for op in ['+', '-', '*', '/', '×', '÷', '=']) or 
-            any(word in message_lower for word in ["calculate", "math", "compute", "what is", "plus", "minus", "times", "divided by", "power", "square root", "percent", "percentage", "of", "sst", "tax"]) or
-            re.search(r'\d+\s*[\+\-\*\/\×\÷\^]\s*\d+', message) or
-            re.search(r'\d+\s*(?:to\s+the\s+power\s+of|[\^\*]{2}|\^)\s*\d+', message_lower) or
-            re.search(r'(?:square\s+root|sqrt)\s+of\s+\d+', message_lower) or
-            re.search(r'\d+\s*%\s*of\s*\d+', message_lower)):
-            intent_scores["calculation"] = 0.9
+        # Price/filtering related queries - should be product search, not calculation
+        if any(phrase in message_lower for phrase in ["priced between", "under rm", "cost under", "price difference", "compare prices", "cheapest", "most expensive"]):
+            intent_scores["product_search"] = 0.9
+            
+        # Enhanced calculation detection - distinguish between pure math and product calculations
+        calculation_keywords = ["math", "compute", "plus", "minus", "times", "divided by", "power", "square root", "percent", "percentage"]
+        calculation_operators = any(op in message for op in ['+', '-', '*', '/', '×', '÷', '='])
+        calculation_patterns = (re.search(r'\d+\s*[\+\-\*\/\×\÷\^]\s*\d+', message) or
+                              re.search(r'\d+\s*(?:to\s+the\s+power\s+of|[\^\*]{2}|\^)\s*\d+', message_lower) or
+                              re.search(r'(?:square\s+root|sqrt)\s+of\s+\d+', message_lower) or
+                              re.search(r'\d+\s*%\s*of\s*\d+', message_lower))
+        
+        # Tax/SST calculations - pure calculation intent
+        if any(keyword in message_lower for keyword in ["sst", "tax", "service charge"]) and re.search(r'\d+', message):
+            intent_scores["calculation"] = 0.95
+        
+        # Product-related calculations (cost, total, pricing) - should be product search, not calculation
+        has_product_calc_keywords = any(word in message_lower for word in ["cost", "total", "price", "calculate total", "calculate cost", "calculate price"])
+        has_product_keywords = any(word in message_lower for word in ["product", "tumbler", "cup", "drink", "coffee", "cappuccino", "latte", "americano", "croissant", "meal", "combo"])
+        
+        # Only classify as pure calculation if it's clearly mathematical and doesn't involve products
+        if has_product_calc_keywords and has_product_keywords:
+            intent_scores["product_search"] = 0.9  # Product calculation queries go to product search
+        elif (calculation_operators or any(word in message_lower for word in calculation_keywords) or calculation_patterns):
+            # Check if it's a pure math query without product context
+            has_non_math_keywords = any(word in message_lower for word in ["product", "outlet", "tumbler", "cup", "drink", "location", "store", "find", "show", "cheapest", "expensive"])
+            if not has_non_math_keywords:
+                intent_scores["calculation"] = 0.9
+        elif message_lower.startswith(("what is", "compute")) and calculation_operators and not has_product_keywords:
+            intent_scores["calculation"] = 0.95  # Strong calculation intent for explicit requests
             
         if any(word in message_lower for word in ["promotion", "sale", "discount", "offer"]):
             intent_scores["promotion_inquiry"] = 0.8
@@ -470,6 +492,19 @@ class EnhancedMinimalAgent:
         if context["last_intent"] and context["count"] > 1:
             if any(word in message_lower for word in ["more", "details", "other", "else", "also"]):
                 intent_scores["follow_up"] = 0.7
+        
+        # Smart fallback detection - if confidence is too low, try to detect from context
+        max_confidence = max(intent_scores.values())
+        if max_confidence < 0.5:
+            # Check for implicit product queries
+            if any(word in message_lower for word in ["new", "best", "top", "expensive", "cheap", "size", "combo", "meal", "family"]):
+                intent_scores["product_search"] = 0.6
+            # Check for implicit outlet queries  
+            elif any(word in message_lower for word in ["capacity", "seating", "largest", "count", "how many"]) and ("outlet" in message_lower or "coffee" in message_lower):
+                intent_scores["outlet_search"] = 0.6
+            # Check for promotions/general ZUS queries
+            elif any(word in message_lower for word in ["promotion", "new", "month", "today", "available"]):
+                intent_scores["promotion_inquiry"] = 0.6
         
         # Determine primary intent
         primary_intent = max(intent_scores.items(), key=lambda x: x[1])
@@ -515,6 +550,9 @@ class EnhancedMinimalAgent:
     def find_matching_products(self, query: str, show_all: bool = False) -> List[Dict]:
         """Find products with enhanced logic and filtering using real DB data."""
         products = self.get_products()
+        if not products:  # Handle case where products is None or empty
+            return []
+        
         if show_all:
             return products
         query_lower = query.lower()
@@ -541,7 +579,10 @@ class EnhancedMinimalAgent:
         for product in products:
             product_name_lower = (product["name"] or "").lower()
             product_words = product_name_lower.replace('-', ' ').split()
-            if any(word in query_lower for word in product_words if len(word) > 2):
+            query_words = query_lower.replace('-', ' ').split()
+            
+            # Check if any query word matches any product word
+            if any(query_word in product_name_lower or any(query_word in product_word for product_word in product_words) for query_word in query_words if len(query_word) > 2):
                 result.append(product)
                 continue
             if (product.get("material", "").lower() in query_lower or
@@ -565,6 +606,9 @@ class EnhancedMinimalAgent:
     def find_matching_outlets(self, query: str, show_all: bool = False) -> List[Dict]:
         """Find outlets with enhanced logic and city filtering using real DB data."""
         outlets = self.get_outlets()
+        if not outlets:  # Handle case where outlets is None or empty
+            return []
+        
         if show_all:
             return outlets
         query_lower = query.lower()
@@ -604,19 +648,19 @@ class EnhancedMinimalAgent:
 
     def handle_advanced_calculation(self, message: str) -> str:
         """
-        Part 3: Tool Integration - Advanced calculator with error handling and SST/Tax support.
+        Advanced calculator with error handling and SST/Tax support.
         Handles: basic math, percentages, square roots, powers, tax calculations
-        Never hallucinates (e.g., won't answer "banana+apple" as calculation).
+        Never hallucinates - only works with real mathematical expressions.
         """
         try:
             # Extract mathematical expressions with strict validation
             math_pattern = r'[\d\+\-\*\/\(\)\.\s%]+'
             expressions = re.findall(math_pattern, message)
             
-            # Security check - reject non-mathematical queries (Part 5: Error handling)
-            non_math_terms = ["banana", "apple", "fruit", "product", "outlet", "coffee", "zus"]
+            # Security check - reject non-mathematical queries (NO DUMMY DATA)
+            non_math_terms = ["banana", "apple", "fruit", "product", "outlet", "coffee", "zus", "cappuccino", "latte", "americano", "croissant", "muffin", "sandwich", "cookie", "cake", "tumbler", "cup", "mug", "drinkware"]
             if any(term in message.lower() for term in non_math_terms):
-                return "I can only calculate mathematical expressions with numbers and operators (+, -, *, /). I won't calculate combinations of products or non-mathematical items. Please provide a math expression like '25 + 15'."
+                return "I can only calculate mathematical expressions with numbers and operators (+, -, *, /). I don't calculate combinations of products or non-mathematical items. For product information, please ask me to show you our available products."
             
             # Handle percentage calculations (e.g., "15% of 200")
             percentage_match = re.search(r'(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)', message.lower())
@@ -706,17 +750,17 @@ class EnhancedMinimalAgent:
             tax_amount = price * tax_rate
             total = price + tax_amount
             
-            return f"💰 **Tax Calculation:** Subtotal: RM {price:.2f} | {tax_name} ({tax_rate*100:.0f}%): RM {tax_amount:.2f} | **Total: RM {total:.2f}**. Malaysia's current SST is 6% on goods and services."
+            return f"**Tax Calculation:** Subtotal: RM {price:.2f} | {tax_name} ({tax_rate*100:.0f}%): RM {tax_amount:.2f} | **Total: RM {total:.2f}**. Malaysia's current SST is 6% on goods and services."
             
         except Exception as e:
             return "I couldn't calculate the tax. Please try: 'Calculate SST for RM 100' or 'What's the tax on 50?'"
     
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
         """
-        Advanced agentic message processing: stateful, robust, and modular.
-        Implements all 5 requirements: Memory, Planning, Tools, APIs, Error Handling
+        Message processing with state management and error handling.
+        Implements conversation memory, intent detection, tool integration, and API calls.
         """
-        # Part 1: Memory and Conversation - Get session context
+        # Initialize session context
         try:
             context = self.get_session_context(session_id)
             message_lower = str(message).lower().strip() if message is not None else ""
@@ -729,7 +773,7 @@ class EnhancedMinimalAgent:
                 "error": str(e)
             }
 
-        # Part 5: Error Handling - Security & Malicious Input Check
+        # Security and malicious input filtering
         try:
             dangerous_words = ["drop", "delete", "script", "sql", "injection", "hack", "admin"]
             # Don't flag "root" as it might be in "square root"
@@ -744,7 +788,7 @@ class EnhancedMinimalAgent:
         except Exception:
             pass
 
-        # Part 5: Error Handling - Empty/Short Message
+        # Handle empty or short messages
         try:
             if not message_lower or len(message_lower) < 2:
                 self.update_session_context(session_id, "clarification", {"message": message})
@@ -757,7 +801,7 @@ class EnhancedMinimalAgent:
         except Exception:
             pass
 
-        # Part 2: Agentic Planning - Intent Parsing & Action Planning
+        # Intent parsing and action planning
         try:
             action_plan = self.parse_intent_and_plan_action(message, session_id)
         except Exception as e:
@@ -820,7 +864,7 @@ class EnhancedMinimalAgent:
         except Exception:
             pass
 
-        # Part 3: Tool Integration - Calculator
+        # Calculator integration
         if calc_intent:
             try:
                 result = self.handle_advanced_calculation(message)
@@ -840,7 +884,7 @@ class EnhancedMinimalAgent:
                     "confidence": 0.2
                 }
 
-        # Part 4: APIs - Product Search (Vector DB simulation)
+        # Product search processing
         if product_intent:
             try:
                 show_all = action_plan.get("action") == "show_all_products" or "all products" in message_lower or "show me products" in message_lower or "what products" in message_lower
@@ -867,10 +911,11 @@ class EnhancedMinimalAgent:
                     "message": "Sorry, there was an error fetching product information. Please try again later.",
                     "session_id": session_id,
                     "intent": "error",
+                    "confidence": 0.1,
                     "error": str(e)
                 }
 
-        # Part 4: APIs - Outlet Search (Text2SQL simulation)
+        # Outlet search processing
         if outlet_intent:
             try:
                 show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower or "show all outlet" in message_lower
@@ -938,7 +983,7 @@ class EnhancedMinimalAgent:
                     "error": str(e)
                 }
 
-        # Part 5: Error Handling - Default Fallback for unmatched queries
+        # Default fallback for unmatched queries
         try:
             # Check if it's completely irrelevant (weather, politics, etc.)
             irrelevant_keywords = ['weather', 'politics', 'sports', 'news', 'movie', 'music', 'game']
@@ -1012,10 +1057,10 @@ class EnhancedMinimalAgent:
                     filters["min_price"] = float(match[2])
                     filters["max_price"] = float(match[3])
         
-        # Category detection
-        categories = ['tumbler', 'cup', 'mug', 'cold cup', 'drinkware']
+        # Category detection - only for explicit category terms
+        categories = ['drinkware']  # Only actual categories in our system
         for category in categories:
-            if category in query_lower:
+            if category in query_lower and ('category' in query_lower or 'type' in query_lower):
                 filters["category"] = category
                 break
         
@@ -1048,6 +1093,29 @@ class EnhancedMinimalAgent:
                 break
         
         return filters
+        
+    def extract_product_price(self, product: Dict) -> float:
+        """Extract price from product data with fallback logic"""
+        try:
+            # Try sale_price first
+            if "sale_price" in product and product["sale_price"]:
+                return float(product["sale_price"])
+            
+            # Try to parse price string
+            if "price" in product and product["price"]:
+                price_str = product["price"]
+                if isinstance(price_str, str):
+                    # Remove "RM " and convert to float
+                    price_clean = price_str.replace("RM ", "").replace(",", "").strip()
+                    return float(price_clean)
+                elif isinstance(price_str, (int, float)):
+                    return float(price_str)
+            
+            # If no price found, return 0
+            return 0.0
+            
+        except (ValueError, TypeError):
+            return 0.0
 
     def format_product_response(self, products: List[Dict], session_id: str, query: str) -> str:
         """Format product search results into a user-friendly response"""
@@ -1055,11 +1123,42 @@ class EnhancedMinimalAgent:
             if not products:
                 return "Sorry, I couldn't find any products matching your request. Please try a different query!"
             
-            # Limit to top 5 products for readability
+            # Check if this is a calculation query (e.g., "Calculate total cost for 2 Cappuccino")
+            query_lower = query.lower()
+            is_calculation_query = any(keyword in query_lower for keyword in ["calculate", "total", "cost", "price", "how much"])
+            
+            # Extract quantities from calculation queries
+            quantity_matches = re.findall(r'(\d+)\s*([a-zA-Z\s]+)', query)
+            requested_items = {}
+            
+            if is_calculation_query and quantity_matches:
+                # Try to match quantities with product names
+                for qty_str, item_name in quantity_matches:
+                    qty = int(qty_str)
+                    item_name = item_name.strip().lower()
+                    
+                    # Find matching products
+                    for product in products:
+                        product_name = product.get("name", "").lower()
+                        if any(word in product_name for word in item_name.split()) or item_name in product_name:
+                            unit_price = self.extract_product_price(product)
+                            if unit_price > 0:  # Only include products with valid prices
+                                requested_items[product["name"]] = {
+                                    "quantity": qty,
+                                    "product": product,
+                                    "unit_price": unit_price
+                                }
+                            break
+                
+                # If we found matching items, provide calculation
+                if requested_items:
+                    return self.format_calculation_response(requested_items, query)
+            
+            # Regular product listing
             display_products = products[:5]
             
             response_parts = []
-            response_parts.append(f"🛍️ **Found {len(products)} product{'s' if len(products) != 1 else ''} for you:**\n")
+            response_parts.append(f"**Found {len(products)} product{'s' if len(products) != 1 else ''} for you:**\n")
             
             for i, product in enumerate(display_products, 1):
                 name = product.get("name", "Unknown Product")
@@ -1073,36 +1172,76 @@ class EnhancedMinimalAgent:
                 on_sale = product.get("on_sale", False)
                 
                 product_info = f"**{i}. {name}**\n"
-                product_info += f"   💰 Price: {price}"
+                product_info += f"   Price: {price}"
                 if on_sale and product.get("regular_price"):
                     product_info += f" (was {product.get('regular_price')})"
                 product_info += "\n"
                 
                 if category:
-                    product_info += f"   📂 Category: {category}\n"
+                    product_info += f"   Category: {category}\n"
                 if capacity:
-                    product_info += f"   📏 Capacity: {capacity}\n"
+                    product_info += f"   Capacity: {capacity}\n"
                 if material:
-                    product_info += f"   🔧 Material: {material}\n"
+                    product_info += f"   Material: {material}\n"
                 if colors:
-                    product_info += f"   🎨 Colors: {', '.join(colors)}\n"
+                    product_info += f"   Colors: {', '.join(colors)}\n"
                 if features:
-                    product_info += f"   ✨ Features: {', '.join(features)}\n"
+                    product_info += f"   Features: {', '.join(features)}\n"
                 if promotion:
-                    product_info += f"   🎁 Promotion: {promotion}\n"
+                    product_info += f"   Promotion: {promotion}\n"
                 
                 response_parts.append(product_info)
             
             if len(products) > 5:
                 response_parts.append(f"\n... and {len(products) - 5} more products available!")
             
-            response_parts.append("\n💡 Need more details about any product? Just ask!")
+            response_parts.append("\nNeed more details about any product? Just ask!")
             
             return "\n".join(response_parts)
             
         except Exception as e:
             logger.error(f"Error formatting product response: {e}")
             return "I found some products but encountered an error displaying them. Please try again."
+
+    def format_calculation_response(self, requested_items: Dict, query: str) -> str:
+        """Format calculation response for product orders"""
+        try:
+            if not requested_items:
+                # If no specific products found in our database, don't provide dummy data
+                return "I can only calculate prices for products we have in our ZUS Coffee collection. Please ask me to show you our available products first, or try searching for specific items like 'tumbler', 'cup', or 'mug'."
+            
+            response_parts = []
+            response_parts.append("**Order Calculation:**\n")
+            
+            subtotal = 0
+            for product_name, item_info in requested_items.items():
+                qty = item_info["quantity"]
+                price = item_info["unit_price"]
+                line_total = qty * price
+                subtotal += line_total
+                
+                response_parts.append(f"• {qty}x {product_name} @ RM {price:.2f} = RM {line_total:.2f}")
+            
+            # Add tax calculation (6% SST)
+            tax_rate = 0.06
+            tax_amount = subtotal * tax_rate
+            total = subtotal + tax_amount
+            
+            response_parts.append(f"\n**Subtotal:** RM {subtotal:.2f}")
+            response_parts.append(f"**SST (6%):** RM {tax_amount:.2f}")
+            response_parts.append(f"**Total:** RM {total:.2f}")
+            
+            response_parts.append("\nPrices may vary by location. Visit your nearest ZUS Coffee outlet for the most accurate pricing!")
+            
+            return "\n".join(response_parts)
+            
+        except Exception as e:
+            logger.error(f"Error formatting calculation response: {e}")
+            return "I found the products but encountered an error calculating the total. Please try again."
+
+    def handle_product_calculation_fallback(self, query: str) -> str:
+        """Handle calculation queries for products not in our database - NO DUMMY DATA"""
+        return "I can only calculate prices for products we have in our ZUS Coffee collection. Our current inventory includes drinkware items like tumblers, cups, and mugs. Please ask me to show you our available products first, or search for specific items we carry."
 
     def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str) -> str:
         """Format outlet search results into a user-friendly response"""
@@ -1114,7 +1253,7 @@ class EnhancedMinimalAgent:
             display_outlets = outlets[:5]
             
             response_parts = []
-            response_parts.append(f"📍 **Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
+            response_parts.append(f"**Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
             
             for i, outlet in enumerate(display_outlets, 1):
                 name = outlet.get("name", "ZUS Coffee Outlet")
@@ -1123,17 +1262,17 @@ class EnhancedMinimalAgent:
                 services = outlet.get("services", [])
                 
                 outlet_info = f"**{i}. {name}**\n"
-                outlet_info += f"   📍 Address: {address}\n"
-                outlet_info += f"   🕐 Hours: {hours}\n"
+                outlet_info += f"   Address: {address}\n"
+                outlet_info += f"   Hours: {hours}\n"
                 if services:
-                    outlet_info += f"   🏪 Services: {', '.join(services)}\n"
+                    outlet_info += f"   Services: {', '.join(services)}\n"
                 
                 response_parts.append(outlet_info)
             
             if len(outlets) > 5:
                 response_parts.append(f"\n... and {len(outlets) - 5} more outlets available!")
             
-            response_parts.append("\n💡 Need directions or more info about any outlet? Just ask!")
+            response_parts.append("\nNeed directions or more info about any outlet? Just ask!")
             
             return "\n".join(response_parts)
             

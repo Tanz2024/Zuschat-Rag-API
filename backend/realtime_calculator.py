@@ -14,11 +14,11 @@ class ProductInfo:
     """Product information for calculations"""
     id: int
     name: str
-    price: str  # "RM 55.00"
-    sale_price: float  # 55.0
-    regular_price: Optional[str] = None  # "RM 79.00"
-    discount: Optional[str] = None  # "30%"
-    promotion: Optional[str] = None  # "Buy 1 Free 1"
+    price: str 
+    sale_price: float  
+    regular_price: Optional[str] = None  
+    discount: Optional[str] = None  
+    promotion: Optional[str] = None  
     on_sale: Optional[bool] = None
 
 class RealTimePriceCalculator:
@@ -262,58 +262,3 @@ class ChatbotPricingHelper:
         response += f"Total: {cart_totals['final_total_display']}"
         
         return response
-
-# Example usage functions
-def demo_real_time_calculations():
-    """Demonstrate real-time calculations with your actual product data"""
-    
-    # Sample product from your data
-    sample_product = {
-        'id': 1,
-        'name': 'ZUS OG CUP 2.0 With Screw-On Lid 500ml (17oz)',
-        'price': 'RM 55.00',
-        'sale_price': 55.0,
-        'regular_price': 'RM 79.00',
-        'on_sale': True
-    }
-    
-    # Initialize calculator
-    chatbot_helper = ChatbotPricingHelper()
-    cart_calculator = RealTimeCartCalculator()
-    
-    # Get product pricing response
-    product_response = chatbot_helper.get_product_response(sample_product)
-    print("🤖 Chatbot Product Response:")
-    print(f"   {product_response}")
-    
-    # Calculate cart with multiple items
-    cart_items = [
-        {
-            'product': ProductInfo(**sample_product),
-            'quantity': 2
-        }
-    ]
-    
-    cart_totals = cart_calculator.calculate_cart_totals(cart_items)
-    cart_response = chatbot_helper.get_cart_summary_response(cart_totals)
-    
-    print(f"\n🛒 Cart Calculation (Real-time):")
-    print(f"   {cart_response}")
-    
-    # Apply promo code
-    cart_with_promo = cart_calculator.apply_promo_code(cart_totals, 'WELCOME10')
-    
-    print(f"\n🎫 With Promo Code 'WELCOME10':")
-    print(f"   Promo Discount: {cart_with_promo['promo_discount_display']}")
-    print(f"   New Total: {cart_with_promo['final_total_display']}")
-
-if __name__ == "__main__":
-    print("🚀 REAL-TIME CALCULATION SERVICE FOR ZUS COFFEE CHATBOT")
-    print("=" * 60)
-    print("✅ No database storage needed")
-    print("✅ All calculations done on-the-fly") 
-    print("✅ Always accurate and up-to-date")
-    print("✅ Flexible for promotions and discounts")
-    print()
-    
-    demo_real_time_calculations()

@@ -13,25 +13,25 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // Popular & General
   {
     text: "What's new at ZUS Coffee this month?",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["new", "latest", "updates", "promotion"]
   },
   {
     text: "Find ZUS Coffee outlets near KLCC",
-    category: "🌟 Popular", 
+    category: "Popular", 
     priority: 1,
     tags: ["location", "klcc", "outlets", "nearby"]
   },
   {
     text: "Show me your best-selling drinks",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["drinks", "popular", "coffee", "bestseller"]
   },
   {
     text: "What promotions are available today?",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["promotion", "deals", "discount", "offers"]
   },
@@ -39,25 +39,25 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // Calculation & Pricing
   {
     text: "Calculate total cost for 2 Cappuccino and 1 Croissant",
-    category: "🧮 Calculations",
+    category: "Calculations",
     priority: 1,
     tags: ["calculate", "cost", "total", "price", "cart"]
   },
   {
     text: "How much tax is included in a RM15.90 drink?",
-    category: "🧮 Calculations",
+    category: "Calculations",
     priority: 1,
     tags: ["tax", "gst", "sst", "calculation", "breakdown"]
   },
   {
     text: "What's the price difference between sizes?",
-    category: "🧮 Calculations",
+    category: "Calculations",
     priority: 2,
     tags: ["price", "size", "difference", "comparison", "calculate"]
   },
   {
     text: "Show me drinks priced between RM8-RM12",
-    category: "🧮 Calculations",
+    category: "Calculations",
     priority: 2,
     tags: ["price", "range", "budget", "filter", "drinks"]
   },
@@ -65,25 +65,25 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // Numbers & Statistics
   {
     text: "How many ZUS Coffee outlets are in Kuala Lumpur?",
-    category: "📊 Numbers & Stats",
+    category: "Numbers & Stats",
     priority: 1,
     tags: ["count", "outlets", "number", "kuala lumpur", "statistics"]
   },
   {
     text: "What are the top 5 most expensive drinks?",
-    category: "📊 Numbers & Stats",
+    category: "Numbers & Stats",
     priority: 2,
     tags: ["top", "expensive", "ranking", "price", "list"]
   },
   {
     text: "How many products cost under RM10?",
-    category: "📊 Numbers & Stats",
+    category: "Numbers & Stats",
     priority: 2,
     tags: ["count", "products", "price", "budget", "affordable"]
   },
   {
     text: "Show me 3 cheapest food items",
-    category: "📊 Numbers & Stats",
+    category: "Numbers & Stats",
     priority: 2,
     tags: ["cheapest", "food", "budget", "ranking", "affordable"]
   },
@@ -91,25 +91,25 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // Products & Pricing
   {
     text: "Show me coffee tumblers under RM40",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["tumbler", "drinkware", "price", "budget"]
   },
   {
     text: "Calculate discount for bulk purchase of 10 drinks",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["bulk", "discount", "calculate", "quantity", "savings"]
   },
   {
     text: "What's the total for family combo meal?",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["family", "combo", "total", "calculate", "meal"]
   },
   {
     text: "Compare prices: Americano vs Cappuccino vs Latte",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["compare", "price", "coffee", "americano", "cappuccino", "latte"]
   },
@@ -117,25 +117,25 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // Outlet Numbers & Locations
   {
     text: "How many outlets are open 24 hours?",
-    category: "🏪 Outlets",
+    category: "Outlets",
     priority: 2,
     tags: ["count", "24hours", "outlets", "operating hours"]
   },
   {
     text: "Find 5 nearest outlets to my location",
-    category: "🏪 Outlets", 
+    category: "Outlets", 
     priority: 2,
     tags: ["nearest", "location", "outlets", "proximity", "number"]
   },
   {
     text: "Which outlet has the largest seating capacity?",
-    category: "🏪 Outlets",
+    category: "Outlets",
     priority: 2,
     tags: ["seating", "capacity", "largest", "space", "number"]
   },
   {
     text: "Show outlets with drive-thru service count",
-    category: "🏪 Outlets",
+    category: "Outlets",
     priority: 2,
     tags: ["drive-thru", "count", "service", "outlets", "convenience"]
   }

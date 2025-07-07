@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Professional Response Formatter for ZUS Coffee Chatbot
-Enhances responses to be more production-ready, professional, and conversational
-without line breaks while maintaining friendliness and emoji usage.
+Enhances responses to be production-ready, professional, and conversational
+without line breaks while maintaining friendliness.
 """
 
 import re
@@ -18,45 +18,45 @@ class ProfessionalResponseFormatter:
     def format_greeting(is_returning_user: bool = False) -> str:
         """Format greeting message."""
         if is_returning_user:
-            return "👋 Welcome back to ZUS Coffee! How can I assist you today? I'm here to help with product recommendations, outlet locations, pricing calculations, and any questions about our services."
+            return "Welcome back to ZUS Coffee! How can I assist you today? I'm here to help with product recommendations, outlet locations, pricing calculations, and any questions about our services."
         else:
-            return "🎉 Hello and welcome to ZUS Coffee! I'm your friendly AI assistant, ready to help you explore our premium drinkware collection, find nearby outlets with their hours and services, calculate pricing and taxes, or answer any questions about ZUS Coffee. What would you like to know today?"
+            return "Hello and welcome to ZUS Coffee! I'm your AI assistant, ready to help you explore our premium drinkware collection, find nearby outlets with their hours and services, calculate pricing and taxes, or answer any questions about ZUS Coffee. What would you like to know today?"
     
     @staticmethod
     def format_farewell() -> str:
         """Format farewell message."""
-        return "☕ Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets for the best coffee experience! 🌟"
+        return "Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets for the best coffee experience!"
     
     @staticmethod
     def format_outlet_list(outlets: List[Dict], location: str = "") -> str:
         """Format outlet list in a conversational way."""
         if not outlets:
-            return "🔍 I couldn't find any ZUS Coffee outlets matching your search criteria. Could you try specifying a more specific location like KLCC, Pavilion KL, Sunway Pyramid, or mention your preferred area? I'll help you find the perfect outlet nearby!"
+            return "I couldn't find any ZUS Coffee outlets matching your search criteria. Could you try specifying a more specific location like KLCC, Pavilion KL, Sunway Pyramid, or mention your preferred area? I'll help you find the perfect outlet nearby!"
         
         location_text = f" in {location}" if location else ""
-        response = f"🏪 Great! I found {len(outlets)} ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}{location_text} for you: "
+        response = f"Great! I found {len(outlets)} ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}{location_text} for you: "
         
         outlet_details = []
         for i, outlet in enumerate(outlets, 1):
-            details = f"{i}. **{outlet['name']}** 📍 {outlet['address']}"
+            details = f"{i}. **{outlet['name']}** - {outlet['address']}"
             
             # Add hours if available
             hours = outlet.get('opening_hours', {})
             if hours and isinstance(hours, dict):
                 today = ProfessionalResponseFormatter._get_today_hours(hours)
                 if today:
-                    details += f" 🕒 {today}"
+                    details += f" | {today}"
             
             # Add services if available
             services = outlet.get('services', [])
             if services:
                 if isinstance(services, list) and services:
-                    details += f" 🔧 Services: {', '.join(services[:3])}"
+                    details += f" Services: {', '.join(services[:3])}"
             
             outlet_details.append(details)
         
         response += " | ".join(outlet_details)
-        response += " 💡 Would you like more details about any of these outlets, such as contact information or specific services?"
+        response += " Would you like more details about any of these outlets, such as contact information or specific services?"
         
         return response
     
@@ -64,9 +64,9 @@ class ProfessionalResponseFormatter:
     def format_outlet_hours(outlets: List[Dict]) -> str:
         """Format outlet hours in a conversational way."""
         if not outlets:
-            return "⏰ I don't have specific hour information available right now. Could you specify which outlet you're interested in? I'll help you find their exact operating hours!"
+            return "I don't have specific hour information available right now. Could you specify which outlet you're interested in? I'll help you find their exact operating hours!"
         
-        response = f"🕒 Here are the operating hours for our ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}: "
+        response = f"Here are the operating hours for our ZUS Coffee outlet{'s' if len(outlets) > 1 else ''}: "
         
         hour_details = []
         for outlet in outlets:
@@ -79,7 +79,7 @@ class ProfessionalResponseFormatter:
             hour_details.append(detail)
         
         response += " | ".join(hour_details)
-        response += " 📞 For the most up-to-date hours or holiday schedules, feel free to call the outlet directly or ask me about specific days!"
+        response += " For the most up-to-date hours or holiday schedules, feel free to call the outlet directly or ask me about specific days!"
         
         return response
     
@@ -88,9 +88,9 @@ class ProfessionalResponseFormatter:
         """Format product list in a conversational way."""
         try:
             if not products:
-                return "🔍 I couldn't find products matching your criteria right now. Try asking about our popular items like 'tumblers', 'coffee mugs', 'travel cups', or specific features like 'dishwasher safe' or 'double wall insulation'. I'm here to help you find the perfect ZUS drinkware!"
+                return "I couldn't find products matching your criteria right now. Try asking about our popular items like 'tumblers', 'coffee mugs', 'travel cups', or specific features like 'dishwasher safe' or 'double wall insulation'. I'm here to help you find the perfect ZUS drinkware!"
             
-            response = f"☕ Excellent choice! Here are {len(products)} fantastic ZUS Coffee product{'s' if len(products) > 1 else ''} I'd recommend: "
+            response = f"Excellent choice! Here are {len(products)} fantastic ZUS Coffee product{'s' if len(products) > 1 else ''} I'd recommend: "
             
             product_details = []
             for i, product in enumerate(products, 1):
@@ -98,121 +98,125 @@ class ProfessionalResponseFormatter:
                     detail = f"{i}. **{product.get('name', 'Premium Product')}**"
                     
                     # Price information
-                    price = product.get('price', 'Contact for pricing')
-                    sale_price = product.get('sale_price')
-                    regular_price = product.get('regular_price')
+                    price = product.get('price', {})
+                    regular_price = price.get('regular_price_myr')
+                    special_price = price.get('special_price_myr')
                     
-                    if sale_price and regular_price:
-                        try:
-                            reg_price_num = float(str(regular_price).replace('RM ', '').replace(',', ''))
-                            if sale_price < reg_price_num:
-                                detail += f" 💰 Special price {price} (originally {regular_price}) - Great savings!"
-                            else:
-                                detail += f" 💰 {price}"
-                        except:
-                            detail += f" 💰 {price}"
-                    else:
-                        detail += f" 💰 {price}"
+                    if regular_price and special_price and regular_price != special_price:
+                        detail += f" Special price RM{special_price} (originally RM{regular_price}) - Great savings!"
+                    elif regular_price:
+                        detail += f" RM{regular_price}"
+                    elif special_price:
+                        detail += f" RM{special_price}"
                     
-                    # Key features
-                    features = product.get('features', [])
-                    if features and isinstance(features, list):
-                        detail += f" ✨ {', '.join(features[:2])}"
+                    # Category
+                    category = product.get('category', '')
+                    if category:
+                        detail += f" | {category}"
                     
-                    # Capacity and material
-                    capacity = product.get('capacity')
-                    material = product.get('material')
-                    if capacity:
-                        detail += f" 📏 {capacity}"
-                    if material:
-                        detail += f" 🧱 {material}"
+                    # Description
+                    description = product.get('description', '')
+                    if description:
+                        # Keep description concise for conversational flow
+                        short_desc = description[:100] + "..." if len(description) > 100 else description
+                        detail += f" | {short_desc}"
                     
                     product_details.append(detail)
                 except Exception as e:
-                    # Skip individual product if there's an error, don't break the whole response
+                    # Skip malformed products but continue processing
                     continue
             
             if product_details:
                 response += " | ".join(product_details)
-                response += " 🛒 Would you like more details about any of these products, or shall I help you with pricing calculations?"
+                response += " Would you like more details about any of these products, or shall I help you find something specific?"
             else:
-                response = "🔍 I found some products but had trouble formatting the details. Please try asking about specific product types or features!"
+                response = "I found some products but couldn't format them properly. Could you try asking about specific product types or features? I'll help you find exactly what you're looking for!"
             
             return response
         except Exception as e:
-            return "🔍 I'm having trouble retrieving product information right now. Please try asking about our drinkware collection or specific product types like tumblers or mugs!"
+            return "I'm having trouble retrieving product information right now. Please try asking about specific products like 'tumblers', 'mugs', or 'travel cups', and I'll do my best to help you find what you need!"
     
     @staticmethod
-    def format_calculation_result(expression: str, result: str, calculation_type: str = "general") -> str:
-        """Format calculation results professionally."""
+    def format_pricing_calculation(calculations: Dict[str, Any]) -> str:
+        """Format pricing calculations in a conversational way."""
         try:
-            if calculation_type == "tax":
-                return f"🧮 Tax calculation complete! **{expression}** equals **{result}**. This includes all applicable taxes for your convenience. Need help with anything else?"
-            elif calculation_type == "discount":
-                return f"💰 Discount calculation ready! **{expression}** equals **{result}**. Great savings await! Would you like to explore more deals or calculate additional discounts?"
-            elif calculation_type == "total":
-                return f"🛒 Total calculation done! **{expression}** equals **{result}**. Perfect for your shopping needs! Ready to proceed or need more calculations?"
-            elif calculation_type == "cart":
-                return f"🛒 Cart total calculated! **{expression}** equals **{result}**. This is your subtotal - would you like me to add tax or apply any discounts?"
-            else:
-                return f"🧮 Calculation complete! **{expression}** equals **{result}**. How else can I assist you with ZUS Coffee products or outlet information?"
+            if not calculations:
+                return "I couldn't calculate pricing information right now. Could you specify which products you're interested in? I'll help you get accurate pricing including taxes and any applicable discounts!"
+            
+            response = "Here's your pricing breakdown: "
+            
+            # Base pricing
+            subtotal = calculations.get('subtotal', 0)
+            tax = calculations.get('tax', 0)
+            total = calculations.get('total', 0)
+            
+            if subtotal > 0:
+                response += f"Subtotal: RM{subtotal:.2f}"
+                
+                if tax > 0:
+                    response += f" | Tax: RM{tax:.2f}"
+                
+                response += f" | **Total: RM{total:.2f}**"
+                
+                # Add discount info if available
+                discount = calculations.get('discount', 0)
+                if discount > 0:
+                    response += f" (You saved RM{discount:.2f}!)"
+            
+            # Add payment options or additional info
+            response += " This pricing includes applicable taxes. Would you like me to help you find the nearest outlet to purchase these items?"
+            
+            return response
         except Exception as e:
-            return f"🧮 I calculated: **{expression}** = **{result}**. Need help with anything else?"
+            return "I'm having trouble calculating pricing right now. Could you specify which products you're interested in? I'll help you get accurate pricing information!"
     
     @staticmethod
     def format_error_message(error_type: str = "general") -> str:
-        """Format error messages professionally."""
-        if error_type == "calculation":
-            return "🤔 I had trouble with that calculation. Could you rephrase it using numbers and basic operations like '+', '-', '*', '/' or percentages? For example: '15% of 50' or '25.50 + 18.90'. I'm here to help!"
-        elif error_type == "product":
-            return "🔍 I'm having trouble accessing our product catalog right now. Could you try asking about specific items like 'coffee mugs', 'tumblers', or 'travel cups'? I'll do my best to help you find what you're looking for!"
-        elif error_type == "outlet":
-            return "📍 I'm having difficulty finding outlet information at the moment. Could you specify a location like 'KLCC', 'Sunway', or your preferred area? I'll help you locate the nearest ZUS Coffee outlet!"
-        elif error_type == "malicious":
-            return "🛡️ I can't process that type of request for security reasons. I'm here to help with ZUS Coffee products, outlet locations, calculations, and general inquiries. What would you like to know about our coffee and drinkware?"
-        else:
-            return "🤝 I want to help you, but I'm not quite sure what you're looking for. Could you rephrase your question? I can assist with product information, outlet locations, pricing calculations, or general ZUS Coffee inquiries!"
+        """Format error messages in a helpful way."""
+        error_messages = {
+            "product_not_found": "I couldn't find that specific product in our current collection. Could you try asking about our popular categories like 'tumblers', 'mugs', 'travel cups', or mention specific features you're looking for? I'm here to help you find the perfect drinkware!",
+            "outlet_not_found": "I couldn't locate outlets matching your search. Could you try specifying a more specific location like 'KLCC', 'Pavilion KL', 'Sunway Pyramid', or mention your preferred area? I'll help you find the nearest ZUS Coffee outlet!",
+            "calculation_error": "I'm having trouble with that calculation right now. Could you specify which products and quantities you're interested in? I'll help you get accurate pricing information!",
+            "general": "I'm having a bit of trouble with that request. Could you try rephrasing your question or ask about our products, outlets, or services? I'm here to help with anything related to ZUS Coffee!"
+        }
+        
+        return error_messages.get(error_type, error_messages["general"])
     
     @staticmethod
-    def format_clarification_request() -> str:
-        """Format clarification request."""
-        return "🤝 I'd love to help you find exactly what you need! Could you please be more specific? I can assist with 🏪 outlet locations and hours, ☕ product recommendations and details, 🧮 pricing calculations and tax computations, or 💰 current promotions and offers. What interests you most?"
+    def enhance_response(response: str) -> str:
+        """Apply general enhancements to responses."""
+        if not response:
+            return "I'm here to help with anything related to ZUS Coffee! Feel free to ask about our products, outlets, pricing, or services."
+        
+        # Remove excessive line breaks and normalize spacing
+        response = re.sub(r'\n\s*\n', ' ', response)
+        response = re.sub(r'\s+', ' ', response)
+        
+        # Ensure proper sentence structure
+        response = response.strip()
+        if response and not response.endswith(('.', '!', '?')):
+            response += "!"
+        
+        return response
     
     @staticmethod
-    def format_about_us() -> str:
-        """Format about us response."""
-        return "🏢 ZUS Coffee is Malaysia's leading tech-driven coffee chain, passionate about delivering premium coffee experiences and innovative drinkware products! 📍 We proudly operate 243 outlets across Malaysia, especially in Kuala Lumpur and Selangor, serving quality coffee and offering an amazing selection of tumblers, mugs, and cups. 🚀 We're committed to innovation, technology, and creating exceptional customer experiences. Visit zuscoffee.com to discover more about our journey and latest offerings!"
-    
-    @staticmethod
-    def format_context_recall(context_type: str, items: List[Dict]) -> str:
-        """Format context recall responses."""
-        if context_type == "outlets" and items:
-            return f"🔄 Based on our earlier conversation, you were interested in these outlets: {ProfessionalResponseFormatter.format_outlet_list(items)}. Would you like more specific information about any of these locations?"
-        elif context_type == "products" and items:
-            return f"🔄 From what we discussed earlier, you were looking at these products: {ProfessionalResponseFormatter.format_product_list(items)}. Shall I provide more details or help with calculations?"
-        else:
-            return "🔄 I'd be happy to continue helping you! Could you remind me what specific information you're looking for? I have access to all our outlet and product details!"
-    
-    @staticmethod
-    def _get_today_hours(hours_dict: Dict) -> str:
+    def _get_today_hours(hours: Dict) -> str:
         """Get today's hours from hours dictionary."""
         import datetime
-        today = datetime.datetime.now().strftime('%A').lower()
         
-        if today in hours_dict:
-            return f"Today: {hours_dict[today]}"
-        elif 'monday' in hours_dict:
-            return f"Typical hours: {hours_dict['monday']}"
-        else:
+        try:
+            today = datetime.datetime.now().strftime("%A").lower()
+            
+            if today in hours:
+                day_hours = hours[today]
+                if isinstance(day_hours, dict):
+                    open_time = day_hours.get('open', '')
+                    close_time = day_hours.get('close', '')
+                    if open_time and close_time:
+                        return f"Today: {open_time} - {close_time}"
+                elif isinstance(day_hours, str):
+                    return f"Today: {day_hours}"
+            
             return "Hours available upon request"
-    
-    @staticmethod
-    def clean_response(response: str) -> str:
-        """Clean response by removing excessive line breaks and formatting properly."""
-        # Remove multiple line breaks
-        response = re.sub(r'\n+', ' ', response)
-        # Remove excessive spaces
-        response = re.sub(r'\s+', ' ', response)
-        # Clean up markdown formatting for better readability
-        response = response.strip()
-        return response
+        except Exception:
+            return "Hours available upon request"

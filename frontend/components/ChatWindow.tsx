@@ -159,21 +159,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
                 onClick={() => sendMessage("Show me your coffee products")}
                 className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="font-medium text-gray-900 dark:text-white">☕ Browse Coffee Products</div>
+                <div className="font-medium text-gray-900 dark:text-white">Browse Coffee Products</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Explore our coffee selection</div>
               </button>
               <button 
                 onClick={() => sendMessage("Find ZUS Coffee outlets near me")}
                 className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="font-medium text-gray-900 dark:text-white">📍 Find Outlets</div>
+                <div className="font-medium text-gray-900 dark:text-white">Find Outlets</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Locate nearby stores</div>
               </button>
               <button 
                 onClick={() => sendMessage("What can you help me with?")}
                 className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
               >
-                <div className="font-medium text-gray-900 dark:text-white">❓ Get Help</div>
+                <div className="font-medium text-gray-900 dark:text-white">Get Help</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Learn what I can do</div>
               </button>
             </div>
@@ -181,7 +181,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
             {!isSidebarOpen && (
               <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors duration-300">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  💡 <strong>Tip:</strong> Click the menu button to access suggested prompts and categories
+                  <strong>Tip:</strong> Click the menu button to access suggested prompts and categories
                 </p>
               </div>
             )}

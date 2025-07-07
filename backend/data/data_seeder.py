@@ -91,7 +91,7 @@ class DatabaseSeeder:
                 continue
         
         session.commit()
-        logger.info(f"✅ Seeded {count} products")
+        logger.info(f"Seeded {count} products")
         return count
     
     def seed_outlets(self, session: Session) -> int:
@@ -120,13 +120,13 @@ class DatabaseSeeder:
                 continue
         
         session.commit()
-        logger.info(f"✅ Seeded {count} outlets")
+        logger.info(f"Seeded {count} outlets")
         return count
     
     def seed_database(self) -> Dict[str, int]:
         """Seed the entire database"""
         if not engine:
-            logger.error("❌ Database engine not configured")
+            logger.error("Database engine not configured")
             return {"error": "Database not configured"}
         
         try:
@@ -145,7 +145,7 @@ class DatabaseSeeder:
                 }
         
         except Exception as e:
-            logger.error(f"❌ Database seeding failed: {e}")
+            logger.error(f"Database seeding failed: {e}")
             return {"error": str(e)}
 
 def seed_render_database():
@@ -154,13 +154,10 @@ def seed_render_database():
     result = seeder.seed_database()
     
     if "error" in result:
-        print(f"❌ Seeding failed: {result['error']}")
+        print(f"Seeding failed: {result['error']}")
     else:
-        print(f"🎉 Database seeded successfully!")
+        print(f"Database seeded successfully!")
         print(f"   Products: {result['products_seeded']}")
         print(f"   Outlets: {result['outlets_seeded']}")
     
     return result
-
-if __name__ == "__main__":
-    seed_render_database()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Trash2, Moon, Sun, Sparkles, Coffee, Search } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
+import { Trash2, Moon, Sun, Sparkles, Coffee, Search, X, ChevronDown } from 'lucide-react'
 
 // VERCEL CACHE BUSTER - BUILD: 2025-07-05-19:55:00 - VERSION 2.0.0 - NO EXTERNAL IMPORTS
 // EMBEDDED PROMPTS DATA TO ELIMINATE ALL MODULE RESOLUTION ISSUES
@@ -16,107 +16,107 @@ const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // High Priority - Popular Queries
   {
     text: "What's new at ZUS Coffee this month?",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["new", "latest", "updates", "promotion"]
   },
   {
     text: "Find ZUS Coffee outlets near KLCC",
-    category: "🌟 Popular", 
+    category: "Popular", 
     priority: 1,
     tags: ["location", "klcc", "outlets", "nearby"]
   },
   {
     text: "Show me your best-selling drinks",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["drinks", "popular", "coffee", "bestseller"]
   },
   {
     text: "What promotions are available today?",
-    category: "🌟 Popular",
+    category: "Popular",
     priority: 1,
     tags: ["promotion", "deals", "discount", "offers"]
   },
   // Product Related
   {
     text: "Show me coffee tumblers under RM40",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["tumbler", "drinkware", "price", "budget"]
   },
   {
     text: "What drinkware collections do you have?",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["drinkware", "collection", "merchandise", "products"]
   },
   {
     text: "Show me eco-friendly drinkware options",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["eco", "sustainable", "environment", "green"]
   },
   {
     text: "What steel tumblers are available?",
-    category: "☕ Products",
+    category: "Products",
     priority: 2,
     tags: ["steel", "tumbler", "available", "metal"]
   },
   // Outlet Related
   {
     text: "ZUS Coffee outlets in KL with drive-thru",
-    category: "📍 Outlets",
+    category: "Outlets",
     priority: 2,
     tags: ["location", "drive-thru", "kuala lumpur", "convenient"]
   },
   {
     text: "Which outlets are open 24 hours?",
-    category: "📍 Outlets",
+    category: "Outlets",
     priority: 2,
     tags: ["24hours", "late night", "hours", "open"]
   },
   // Help & Information
   {
     text: "What products do you have?",
-    category: "ℹ️ Help",
+    category: "Help",
     priority: 2,
     tags: ["products", "available", "catalog", "what"]
   },
   {
     text: "Show me all outlet locations",
-    category: "ℹ️ Help",
+    category: "Help",
     priority: 2,
     tags: ["outlets", "locations", "all", "where"]
   },
   // Calculator & Math
   {
     text: "Calculate 25 + 15",
-    category: "🔢 Calculator",
+    category: "Calculator",
     priority: 2,
     tags: ["calculator", "math", "addition", "calculate"]
   },
   {
     text: "What is 15% of 200?",
-    category: "🔢 Calculator", 
+    category: "Calculator", 
     priority: 2,
     tags: ["percentage", "calculator", "math", "percent"]
   },
   {
     text: "Calculate 8 × 7",
-    category: "🔢 Calculator",
+    category: "Calculator",
     priority: 2,
     tags: ["multiplication", "calculator", "math", "times"]
   },
   {
     text: "Square root of 25",
-    category: "🔢 Calculator",
+    category: "Calculator",
     priority: 2,
     tags: ["square root", "calculator", "math", "sqrt"]
   },
   {
     text: "2 to the power of 3",
-    category: "🔢 Calculator",
+    category: "Calculator",
     priority: 2,
     tags: ["power", "calculator", "math", "exponent"]
   }
@@ -247,9 +247,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <span className="font-medium text-gray-800 dark:text-white">Suggested Prompts</span>
           </div>
           <div className={`transform transition-transform duration-200 ${showSuggestedPrompts ? 'rotate-180' : ''}`}>
-            <svg className="h-4 w-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-300" />
           </div>
         </button>
       </div>

@@ -219,20 +219,3 @@ def load_products_from_file() -> List[Dict[str, Any]]:
 def load_outlets_from_file() -> List[Dict[str, Any]]:
     """Convenience function to load outlets"""
     return get_file_data_loader().get_outlets()
-
-if __name__ == "__main__":
-    # Test the loader
-    loader = FileDataLoader()
-    
-    print("🔍 Testing File Data Loader")
-    print("=" * 40)
-    
-    products = loader.get_products()
-    print(f"✅ Loaded {len(products)} products")
-    if products:
-        print(f"   Sample: {products[0]['name']}")
-    
-    outlets = loader.get_outlets()
-    print(f"✅ Loaded {len(outlets)} outlets")
-    if outlets:
-        print(f"   Sample: {outlets[0]['name']}")

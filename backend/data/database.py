@@ -12,7 +12,7 @@ from datetime import datetime
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    print("⚠️  DATABASE_URL environment variable is not set. Database features will be disabled.")
+    print("DATABASE_URL environment variable is not set. Database features will be disabled.")
     DATABASE_URL = None
 
 # Clean up DATABASE_URL in case it has the variable name as prefix
@@ -22,7 +22,7 @@ if DATABASE_URL and DATABASE_URL.startswith("DATABASE_URL="):
 
 # Validate DATABASE_URL format
 if DATABASE_URL and not DATABASE_URL.startswith(("postgresql://", "postgres://")):
-    print(f"❌ Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...'. Must start with 'postgresql://' or 'postgres://'")
+    print(f"Invalid DATABASE_URL format: '{DATABASE_URL[:50]}...'. Must start with 'postgresql://' or 'postgres://'")
     DATABASE_URL = None
 
 # Additional database configuration
@@ -104,7 +104,7 @@ def get_db():
     """Get database session, or None if DB is not configured"""
     try:
         if not SessionLocal:
-            print("⚠️  Database session requested but database is not configured.")
+            print("Database session requested but database is not configured.")
             yield None
             return
         db = SessionLocal()
@@ -113,44 +113,44 @@ def get_db():
         finally:
             db.close()
     except Exception as e:
-        print(f"⚠️  Database session error: {e}")
+        print(f"Database session error: {e}")
         yield None
 
 def create_tables():
     """Create database tables if DB is configured"""
     try:
         if not engine:
-            print("⚠️  Cannot create tables: database engine is not configured.")
+            print("Cannot create tables: database engine is not configured.")
             return
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"⚠️  Error creating tables: {e}")
+        print(f"Error creating tables: {e}")
         return
 
 def get_connection():
     """Get database connection for direct queries, or None if not configured"""
     try:
         if not engine:
-            print("⚠️  Database connection requested but engine is not configured.")
+            print("Database connection requested but engine is not configured.")
             return None
         return engine.connect()
     except Exception as e:
-        print(f"⚠️  Error getting database connection: {e}")
+        print(f"Error getting database connection: {e}")
         return None
 
 def validate_database_config():
     """Validate database configuration and connection"""
     if not engine:
-        print("⚠️  Database engine is not configured.")
+        print("Database engine is not configured.")
         return False
     try:
         # Test database connection
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        print("✅ Database connection successful")
+        print("Database connection successful")
         return True
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"Database connection failed: {e}")
         print("Please check your DATABASE_URL and ensure PostgreSQL is running")
         return False
 

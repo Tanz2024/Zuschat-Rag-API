@@ -25,9 +25,9 @@ try:
     from backend.models import (
         ChatRequest, ChatResponse, ErrorResponse
     )
-    logger.info("✅ Models imported successfully")
+    logger.info("Models imported successfully")
 except Exception as e:
-    logger.warning(f"⚠️  Models import issue: {e}")
+    logger.warning(f"Models import issue: {e}")
     # Create basic models if import fails
     from pydantic import BaseModel
     
@@ -56,9 +56,9 @@ try:
             return {"status": "available", "available": True}
         else:
             return {"status": "not_available", "available": False}
-    logger.info(f"✅ Database system loaded (available: {database_available})")
+    logger.info(f"Database system loaded (available: {database_available})")
 except Exception as e:
-    logger.warning(f"⚠️  Database system not available: {e}")
+    logger.warning(f"Database system not available: {e}")
     # Create mock database functions
     def get_db():
         return None
@@ -75,16 +75,16 @@ try:
     from backend.chatbot.enhanced_minimal_agent import get_chatbot
     chatbot_available = True
     chatbot_type = "enhanced_minimal"
-    logger.info("✅ Using ENHANCED MINIMAL chatbot with real data keyword matching")
+    logger.info("Using ENHANCED MINIMAL chatbot with real data keyword matching")
 except Exception as e:
-    logger.warning(f"⚠️  Enhanced minimal chatbot not available: {e}")
+    logger.warning(f"Enhanced minimal chatbot not available: {e}")
     try:
         from backend.chatbot.minimal_agent import get_chatbot
         chatbot_available = True
         chatbot_type = "minimal"
-        logger.info("✅ Using minimal working chatbot")
+        logger.info("Using minimal working chatbot")
     except Exception as e2:
-        logger.warning(f"⚠️  Minimal chatbot not available: {e2}")
+        logger.warning(f"Minimal chatbot not available: {e2}")
         # Create ultra-simple fallback chatbot
         class SimpleFallbackChatbot:
             async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
@@ -107,20 +107,20 @@ except Exception as e:
         
         chatbot_available = True
         chatbot_type = "fallback"
-        logger.info("✅ Using ultra-simple fallback chatbot")
+        logger.info("Using ultra-simple fallback chatbot")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events with error handling."""
     # Startup
-    logger.info("🚀 Starting ZUS Chatbot Backend...")
+    logger.info("Starting ZUS Chatbot Backend...")
     
     # Initialize database (graceful failure)
     try:
         create_tables()
-        logger.info("✅ Database initialized")
+        logger.info("Database initialized")
     except Exception as e:
-        logger.warning(f"⚠️  Database initialization failed: {e}")
+        logger.warning(f"Database initialization failed: {e}")
     
     # Test chatbot
     try:
@@ -129,16 +129,16 @@ async def lifespan(app: FastAPI):
             test_result = await chatbot.process_message("test", "startup_test")
         else:
             test_result = chatbot.chat("test", "startup_test")
-        logger.info("✅ Chatbot test successful")
+        logger.info("Chatbot test successful")
     except Exception as e:
-        logger.warning(f"⚠️  Chatbot test failed: {e}")
+        logger.warning(f"Chatbot test failed: {e}")
     
-    logger.info(f"🎯 Backend ready - Database: {database_available}, Chatbot: {chatbot_type}")
+    logger.info(f"Backend ready - Database: {database_available}, Chatbot: {chatbot_type}")
     
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down ZUS Chatbot Backend...")
+    logger.info("Shutting down ZUS Chatbot Backend...")
 
 # Create FastAPI app with lifespan
 app = FastAPI(
@@ -260,55 +260,6 @@ async def health_check():
         health_status["database"] = {"status": "not_configured"}
     
     return health_status
-
-# Debug endpoint
-@app.get("/debug/system")
-async def debug_system():
-    """Debug endpoint to check all system components."""
-    debug_info = {
-        "status": "available",
-        "database": {
-            "available": database_available,
-            "health": "unknown"
-        },
-        "chatbot": {
-            "available": chatbot_available,
-            "type": chatbot_type,
-            "capabilities": []
-        },
-        "environment": {
-            "deployment_mode": os.getenv("DEPLOYMENT_MODE", "production"),
-            "database_url_set": bool(os.getenv("DATABASE_URL")),
-            "python_version": "3.x"
-        }
-    }
-    
-    # Test database if available
-    if database_available:
-        try:
-            debug_info["database"]["health"] = check_database_health()
-        except Exception as e:
-            debug_info["database"]["health"] = {"error": str(e)}
-    
-    # Test chatbot
-    if chatbot_available:
-        try:
-            chatbot = get_chatbot()
-            if chatbot_type == "enhanced_minimal":
-                debug_info["chatbot"]["capabilities"] = [
-                    "product_search", "outlet_search", "calculations",
-                    "real_data_matching", "agentic_planning", "context_memory"
-                ]
-            elif chatbot_type == "minimal":
-                debug_info["chatbot"]["capabilities"] = [
-                    "basic_responses", "simple_queries"
-                ]
-            else:
-                debug_info["chatbot"]["capabilities"] = ["fallback_responses"]
-        except Exception as e:
-            debug_info["chatbot"]["error"] = str(e)
-    
-    return debug_info
 
 # Main chat endpoint with robust error handling
 @app.post("/chat", response_model=ChatResponse)
