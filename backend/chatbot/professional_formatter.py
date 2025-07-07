@@ -86,63 +86,78 @@ class ProfessionalResponseFormatter:
     @staticmethod
     def format_product_list(products: List[Dict], user_context: str = "") -> str:
         """Format product list in a conversational way."""
-        if not products:
-            return "🔍 I couldn't find products matching your criteria right now. Try asking about our popular items like 'tumblers', 'coffee mugs', 'travel cups', or specific features like 'dishwasher safe' or 'double wall insulation'. I'm here to help you find the perfect ZUS drinkware!"
-        
-        response = f"☕ Excellent choice! Here are {len(products)} fantastic ZUS Coffee product{'s' if len(products) > 1 else ''} I'd recommend: "
-        
-        product_details = []
-        for i, product in enumerate(products, 1):
-            detail = f"{i}. **{product.get('name', 'Premium Product')}**"
+        try:
+            if not products:
+                return "🔍 I couldn't find products matching your criteria right now. Try asking about our popular items like 'tumblers', 'coffee mugs', 'travel cups', or specific features like 'dishwasher safe' or 'double wall insulation'. I'm here to help you find the perfect ZUS drinkware!"
             
-            # Price information
-            price = product.get('price', 'Contact for pricing')
-            sale_price = product.get('sale_price')
-            regular_price = product.get('regular_price')
+            response = f"☕ Excellent choice! Here are {len(products)} fantastic ZUS Coffee product{'s' if len(products) > 1 else ''} I'd recommend: "
             
-            if sale_price and regular_price:
+            product_details = []
+            for i, product in enumerate(products, 1):
                 try:
-                    reg_price_num = float(str(regular_price).replace('RM ', '').replace(',', ''))
-                    if sale_price < reg_price_num:
-                        detail += f" 💰 Special price {price} (originally {regular_price}) - Great savings!"
+                    detail = f"{i}. **{product.get('name', 'Premium Product')}**"
+                    
+                    # Price information
+                    price = product.get('price', 'Contact for pricing')
+                    sale_price = product.get('sale_price')
+                    regular_price = product.get('regular_price')
+                    
+                    if sale_price and regular_price:
+                        try:
+                            reg_price_num = float(str(regular_price).replace('RM ', '').replace(',', ''))
+                            if sale_price < reg_price_num:
+                                detail += f" 💰 Special price {price} (originally {regular_price}) - Great savings!"
+                            else:
+                                detail += f" 💰 {price}"
+                        except:
+                            detail += f" 💰 {price}"
                     else:
                         detail += f" 💰 {price}"
-                except:
-                    detail += f" 💰 {price}"
+                    
+                    # Key features
+                    features = product.get('features', [])
+                    if features and isinstance(features, list):
+                        detail += f" ✨ {', '.join(features[:2])}"
+                    
+                    # Capacity and material
+                    capacity = product.get('capacity')
+                    material = product.get('material')
+                    if capacity:
+                        detail += f" 📏 {capacity}"
+                    if material:
+                        detail += f" 🧱 {material}"
+                    
+                    product_details.append(detail)
+                except Exception as e:
+                    # Skip individual product if there's an error, don't break the whole response
+                    continue
+            
+            if product_details:
+                response += " | ".join(product_details)
+                response += " 🛒 Would you like more details about any of these products, or shall I help you with pricing calculations?"
             else:
-                detail += f" 💰 {price}"
+                response = "🔍 I found some products but had trouble formatting the details. Please try asking about specific product types or features!"
             
-            # Key features
-            features = product.get('features', [])
-            if features and isinstance(features, list):
-                detail += f" ✨ {', '.join(features[:2])}"
-            
-            # Capacity and material
-            capacity = product.get('capacity')
-            material = product.get('material')
-            if capacity:
-                detail += f" 📏 {capacity}"
-            if material:
-                detail += f" 🧱 {material}"
-            
-            product_details.append(detail)
-        
-        response += " | ".join(product_details)
-        response += " 🛒 Would you like more details about any of these products, or shall I help you with pricing calculations?"
-        
-        return response
+            return response
+        except Exception as e:
+            return "🔍 I'm having trouble retrieving product information right now. Please try asking about our drinkware collection or specific product types like tumblers or mugs!"
     
     @staticmethod
     def format_calculation_result(expression: str, result: str, calculation_type: str = "general") -> str:
         """Format calculation results professionally."""
-        if calculation_type == "tax":
-            return f"🧮 Tax calculation complete! **{expression}** equals **{result}**. This includes all applicable taxes for your convenience. Need help with anything else?"
-        elif calculation_type == "discount":
-            return f"💸 Discount calculation done! **{expression}** equals **{result}**. That's a great savings! Would you like me to calculate the final total with tax?"
-        elif calculation_type == "cart":
-            return f"🛒 Cart total calculated! **{expression}** equals **{result}**. This is your subtotal - would you like me to add tax or apply any discounts?"
-        else:
-            return f"🧮 Calculation complete! **{expression}** equals **{result}**. Is there anything else I can calculate for you?"
+        try:
+            if calculation_type == "tax":
+                return f"🧮 Tax calculation complete! **{expression}** equals **{result}**. This includes all applicable taxes for your convenience. Need help with anything else?"
+            elif calculation_type == "discount":
+                return f"💰 Discount calculation ready! **{expression}** equals **{result}**. Great savings await! Would you like to explore more deals or calculate additional discounts?"
+            elif calculation_type == "total":
+                return f"🛒 Total calculation done! **{expression}** equals **{result}**. Perfect for your shopping needs! Ready to proceed or need more calculations?"
+            elif calculation_type == "cart":
+                return f"🛒 Cart total calculated! **{expression}** equals **{result}**. This is your subtotal - would you like me to add tax or apply any discounts?"
+            else:
+                return f"🧮 Calculation complete! **{expression}** equals **{result}**. How else can I assist you with ZUS Coffee products or outlet information?"
+        except Exception as e:
+            return f"🧮 I calculated: **{expression}** = **{result}**. Need help with anything else?"
     
     @staticmethod
     def format_error_message(error_type: str = "general") -> str:

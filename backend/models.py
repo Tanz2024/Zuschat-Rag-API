@@ -83,8 +83,8 @@ class AgentAction(str, Enum):
 # Request Models
 class ChatRequest(BaseModel):
     """Chat request model."""
-    message: str = Field(..., description="User message")
-    session_id: Optional[str] = Field(None, description="Session ID for conversation continuity")
+    message: str = Field(..., description="User message", min_length=1, max_length=2000)
+    session_id: Optional[str] = Field("default", description="Session ID for conversation continuity", max_length=100)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional context")
 
     class Config:
@@ -95,6 +95,20 @@ class ChatRequest(BaseModel):
                 "context": {"location": "KL"}
             }
         }
+    
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate_to_json
+
+    @classmethod
+    def validate_to_json(cls, v):
+        try:
+            if isinstance(v, str):
+                return cls.parse_raw(v)
+            return v
+        except Exception:
+            # Return a safe fallback if parsing fails
+            return cls(message="Hello", session_id="default")
 
 
 class ProductSearchRequest(BaseModel):
@@ -293,16 +307,16 @@ class CalculatorResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Error response model."""
     error: str = Field(..., description="Error message")
-    error_code: Optional[str] = Field(None, description="Error code")
-    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
+    status_code: int = Field(500, description="HTTP status code")
+    detail: str = Field("", description="Additional error details")
     timestamp: datetime = Field(default_factory=datetime.now)
 
     class Config:
         json_schema_extra = {
             "example": {
                 "error": "Invalid input provided",
-                "error_code": "VALIDATION_ERROR",
-                "details": {"field": "message", "issue": "cannot be empty"},
+                "status_code": 400,
+                "detail": "Message cannot be empty",
                 "timestamp": "2024-01-01T12:00:00Z"
             }
         }

@@ -12,14 +12,66 @@ import json
 import math
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
-from backend.data.database import SessionLocal, Product, Outlet
 
 logger = logging.getLogger(__name__)
 
+# Try to import database components
+DATABASE_AVAILABLE = False
+SessionLocal = None
+Product = None
+Outlet = None
+
+try:
+    from backend.data.database import SessionLocal, Product, Outlet
+    DATABASE_AVAILABLE = True
+    logger.info("Database components imported successfully")
+except Exception as e:
+    logger.warning(f"Database not available, using file-based data: {e}")
+
+# Import file data loader for fallback
+FILE_LOADER_AVAILABLE = False
+load_products_from_file = None
+load_outlets_from_file = None
+
+try:
+    from backend.data.file_data_loader import load_products_from_file, load_outlets_from_file
+    FILE_LOADER_AVAILABLE = True
+    logger.info("File data loader imported successfully")
+except Exception as e:
+    logger.warning(f"File data loader not available: {e}")
+
 class EnhancedMinimalAgent:
     def __init__(self):
-        self.sessions = {}  # Ensure sessions attribute exists for all agent logic
+        self.sessions = {}  # Part 1: Memory and conversation state
+        
+        # Advanced agentic planning keywords and patterns (Part 2)
+        self.product_keywords = {
+            'categories': ['tumbler', 'cup', 'mug', 'cold cup', 'drinkware'],
+            'materials': ['stainless steel', 'ceramic', 'acrylic', 'glass'],
+            'features': ['leak-proof', 'dishwasher safe', 'double wall', 'insulated'],
+            'collections': ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can'],
+            'general': ['product', 'item', 'drinkware', 'collection']
+        }
+        
+        # Text2SQL for natural language outlet queries (Part 4)
+        self.outlet_keywords = {
+            'locations': ['location', 'outlet', 'store', 'branch', 'address', 'where'],
+            'cities': ['kl', 'kuala lumpur', 'petaling jaya', 'pj', 'selangor', 'klcc', 'pavilion', 'mid valley', 'ss2'],
+            'services': ['drive-thru', 'dine-in', 'takeaway', '24 hours', '24/7', 'wifi', 'parking'],
+            'hours': ['open', 'hours', 'timing', '24 hours', 'late night', 'early morning']
+        }
+
+        # Tax and calculation keywords (Part 3 + SST/Tax support)
+        self.tax_keywords = ['tax', 'sst', 'gst', 'total', 'calculate tax', 'with tax', 'including tax']
+        self.tax_rates = {
+            'sst': 0.06,  # 6% SST in Malaysia
+            'gst': 0.06,  # If GST returns
+            'service': 0.10  # 10% service charge
+        }
+        
+        # Math calculation patterns (Part 3: Tool Integration)
+        self.math_operators = ['+', '-', '*', '/', 'x', '×', '÷', '^', '**', 'sqrt', '%', 'of']
+        self.math_keywords = ['calculate', 'math', 'compute', 'what is', 'plus', 'minus', 'times', 'divided by', 'power', 'square root', 'percent']
 
     # --- Advanced: Hybrid Search (Semantic + Fuzzy + Keyword) ---
     def hybrid_search_products(self, query: str, top_k: int = 5, lang: str = "en") -> List[Dict]:
@@ -183,61 +235,151 @@ class EnhancedMinimalAgent:
     
 
     def get_products(self) -> List[Dict]:
-        """Fetch all products from the database as dicts."""
-        with SessionLocal() as db:
-            products = db.query(Product).all()
-            result = []
-            for p in products:
-                # Parse JSON fields if needed
-                colors = []
-                features = []
-                try:
-                    if p.colors:
-                        colors = json.loads(p.colors) if isinstance(p.colors, str) else p.colors
-                except Exception:
-                    colors = []
-                try:
-                    if p.features:
-                        features = json.loads(p.features) if isinstance(p.features, str) else p.features
-                except Exception:
-                    features = []
-                result.append({
-                    "name": p.name,
-                    "price": p.price,
-                    "regular_price": p.regular_price,
-                    "category": p.category,
-                    "capacity": p.capacity,
-                    "material": p.material,
-                    "colors": colors,
-                    "features": features,
-                    "collection": p.collection,
-                    "promotion": p.promotion,
-                    "on_sale": p.on_sale == "True" if p.on_sale is not None else False,
-                    "description": p.description,
-                    "price_numeric": float(p.price.replace("RM", "").replace(",", "").strip()) if p.price else None
-                })
-            return result
+        """Fetch all products from the database as dicts. Always returns a safe fallback if DB is down."""
+        try:
+            # Try database first if available
+            if DATABASE_AVAILABLE and SessionLocal and Product:
+                with SessionLocal() as db:
+                    products = db.query(Product).all()
+                    result = []
+                    for p in products:
+                        # Parse JSON fields if needed
+                        colors = []
+                        features = []
+                        try:
+                            if p.colors:
+                                colors = json.loads(p.colors) if isinstance(p.colors, str) else p.colors
+                        except Exception:
+                            colors = []
+                        try:
+                            if p.features:
+                                features = json.loads(p.features) if isinstance(p.features, str) else p.features
+                        except Exception:
+                            features = []
+                        result.append({
+                            "name": p.name,
+                            "price": p.price,
+                            "regular_price": p.regular_price,
+                            "category": p.category,
+                            "capacity": p.capacity,
+                            "material": p.material,
+                            "colors": colors,
+                            "features": features,
+                            "collection": p.collection,
+                            "promotion": p.promotion,
+                            "on_sale": p.on_sale == "True" if p.on_sale is not None else False,
+                            "description": p.description,
+                            "price_numeric": float(p.price.replace("RM", "").replace(",", "").strip()) if p.price else None
+                        })
+                    logger.info(f"Loaded {len(result)} products from database")
+                    return result
+            
+            # Try file loader if database not available
+            if FILE_LOADER_AVAILABLE and load_products_from_file:
+                logger.info("Database not available, loading products from file")
+                return load_products_from_file()
+            
+            # Ultimate fallback if both fail
+            raise Exception("Both database and file loader unavailable")
+            
+        except Exception as e:
+            logger.error(f"Error in get_products: {e}")
+            # Fallback: return a minimal hardcoded product list
+            return [
+                {
+                    "name": "ZUS OG CUP 2.0 With Screw-On Lid 500ml",
+                    "price": "RM 55.00",
+                    "regular_price": "RM 79.00",
+                    "category": "Tumbler",
+                    "capacity": "500ml",
+                    "material": "Stainless Steel",
+                    "colors": ["Thunder Blue", "Space Black", "Lucky Pink"],
+                    "features": ["Screw-on lid", "Double-wall insulation", "Leak-proof design"],
+                    "collection": "OG",
+                    "promotion": None,
+                    "on_sale": True,
+                    "description": "The iconic ZUS OG Cup 2.0 with improved screw-on lid design",
+                    "price_numeric": 55.0
+                },
+                {
+                    "name": "ZUS All-Can Tumbler 600ml",
+                    "price": "RM 105.00",
+                    "regular_price": None,
+                    "category": "Tumbler",
+                    "capacity": "600ml",
+                    "material": "Stainless Steel",
+                    "colors": ["Thunder Blue", "Stainless Steel"],
+                    "features": ["Car cup holder friendly", "Double-wall insulation"],
+                    "collection": "All-Can",
+                    "promotion": "Buy 1 Free 1",
+                    "on_sale": False,
+                    "description": "Universal tumbler that fits perfectly in your car cup holder",
+                    "price_numeric": 105.0
+                }
+            ]
 
     def get_outlets(self) -> List[Dict]:
-        """Fetch all outlets from the database as dicts."""
-        with SessionLocal() as db:
-            outlets = db.query(Outlet).all()
-            result = []
-            for o in outlets:
-                # Parse JSON fields if needed
-                services = []
-                try:
-                    if o.services:
-                        services = json.loads(o.services) if isinstance(o.services, str) else o.services
-                except Exception:
-                    services = []
-                result.append({
-                    "name": o.name,
-                    "address": o.address,
-                    "hours": o.opening_hours,
-                    "services": services
-                })
-            return result
+        """Fetch all outlets from the database as dicts. Always returns a safe fallback if DB is down."""
+        try:
+            # Try database first if available
+            if DATABASE_AVAILABLE and SessionLocal and Outlet:
+                with SessionLocal() as db:
+                    outlets = db.query(Outlet).all()
+                    result = []
+                    for o in outlets:
+                        # Parse JSON fields if needed
+                        services = []
+                        try:
+                            if o.services:
+                                services = json.loads(o.services) if isinstance(o.services, str) else o.services
+                        except Exception:
+                            services = []
+                        result.append({
+                            "name": o.name,
+                            "address": o.address,
+                            "hours": o.opening_hours,
+                            "services": services
+                        })
+                    logger.info(f"Loaded {len(result)} outlets from database")
+                    return result
+            
+            # Try file loader if database not available
+            if FILE_LOADER_AVAILABLE and load_outlets_from_file:
+                logger.info("Database not available, loading outlets from file")
+                return load_outlets_from_file()
+            
+            # Ultimate fallback if both fail
+            raise Exception("Both database and file loader unavailable")
+            
+        except Exception as e:
+            logger.error(f"Error in get_outlets: {e}")
+            # Fallback: return a minimal hardcoded outlet list
+            return [
+                {
+                    "name": "ZUS Coffee KLCC",
+                    "address": "Suria KLCC, Level 4, Kuala Lumpur City Centre, 50088 Kuala Lumpur",
+                    "hours": "8:00 AM - 10:00 PM",
+                    "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
+                },
+                {
+                    "name": "ZUS Coffee Pavilion KL",
+                    "address": "Pavilion Kuala Lumpur, Level 6, 168 Jalan Bukit Bintang, 55100 Kuala Lumpur",
+                    "hours": "10:00 AM - 10:00 PM",
+                    "services": ["Dine-in", "Takeaway", "Delivery", "WiFi"]
+                },
+                {
+                    "name": "ZUS Coffee Mid Valley",
+                    "address": "Mid Valley Megamall, Level 3, Lingkaran Syed Putra, 59200 Kuala Lumpur",
+                    "hours": "10:00 AM - 10:00 PM",
+                    "services": ["Dine-in", "Takeaway", "Delivery"]
+                },
+                {
+                    "name": "ZUS Coffee Shah Alam",
+                    "address": "No 5 Ground Floor, Jalan Eserina AA U16/AA, 40150 Shah Alam, Selangor",
+                    "hours": "8:00 AM - 10:00 PM",
+                    "services": ["Dine-in", "Takeaway", "Delivery"]
+                }
+            ]
 
     def get_session_context(self, session_id: str) -> Dict[str, Any]:
         """Get or create session context with memory (Part 1: State Management)."""
@@ -297,16 +439,22 @@ class EnhancedMinimalAgent:
         }
         
         # Calculate intent confidence scores
-        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]):
+        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "welcome"]):
             intent_scores["greeting"] = 0.9
             
-        if any(word in message_lower for word in ["product", "tumbler", "cup", "mug", "drinkware", "collection"]):
+        if any(word in message_lower for word in ["product", "tumbler", "cup", "mug", "drinkware", "collection", "show me", "what products"]):
             intent_scores["product_search"] = 0.8
             
-        if any(word in message_lower for word in ["outlet", "location", "store", "branch", "hours", "address"]):
+        if any(word in message_lower for word in ["outlet", "location", "store", "branch", "hours", "address", "where"]):
             intent_scores["outlet_search"] = 0.8
             
-        if any(op in message for op in ['+', '-', '*', '/', 'calculate', 'math']):
+        # Enhanced calculation detection
+        if (any(op in message for op in ['+', '-', '*', '/', '×', '÷', '=']) or 
+            any(word in message_lower for word in ["calculate", "math", "compute", "what is", "plus", "minus", "times", "divided by", "power", "square root", "percent", "percentage", "of", "sst", "tax"]) or
+            re.search(r'\d+\s*[\+\-\*\/\×\÷\^]\s*\d+', message) or
+            re.search(r'\d+\s*(?:to\s+the\s+power\s+of|[\^\*]{2}|\^)\s*\d+', message_lower) or
+            re.search(r'(?:square\s+root|sqrt)\s+of\s+\d+', message_lower) or
+            re.search(r'\d+\s*%\s*of\s*\d+', message_lower)):
             intent_scores["calculation"] = 0.9
             
         if any(word in message_lower for word in ["promotion", "sale", "discount", "offer"]):
@@ -456,18 +604,44 @@ class EnhancedMinimalAgent:
 
     def handle_advanced_calculation(self, message: str) -> str:
         """
-        Part 3: Tool Integration - Advanced calculator with error handling.
+        Part 3: Tool Integration - Advanced calculator with error handling and SST/Tax support.
+        Handles: basic math, percentages, square roots, powers, tax calculations
         Never hallucinates (e.g., won't answer "banana+apple" as calculation).
         """
         try:
             # Extract mathematical expressions with strict validation
-            math_pattern = r'[\d\+\-\*\/\(\)\.\s]+'
+            math_pattern = r'[\d\+\-\*\/\(\)\.\s%]+'
             expressions = re.findall(math_pattern, message)
             
-            # Security check - reject non-mathematical queries
+            # Security check - reject non-mathematical queries (Part 5: Error handling)
             non_math_terms = ["banana", "apple", "fruit", "product", "outlet", "coffee", "zus"]
             if any(term in message.lower() for term in non_math_terms):
                 return "I can only calculate mathematical expressions with numbers and operators (+, -, *, /). I won't calculate combinations of products or non-mathematical items. Please provide a math expression like '25 + 15'."
+            
+            # Handle percentage calculations (e.g., "15% of 200")
+            percentage_match = re.search(r'(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)', message.lower())
+            if percentage_match:
+                percent, number = float(percentage_match.group(1)), float(percentage_match.group(2))
+                result = (percent / 100) * number
+                return f"Here's your percentage calculation: **{percent}% of {number} = {result:.2f}**. Need more calculations or ZUS Coffee information?"
+            
+            # Handle square root (e.g., "square root of 25")
+            sqrt_match = re.search(r'square\s+root\s+of\s+(\d+(?:\.\d+)?)', message.lower())
+            if sqrt_match:
+                number = float(sqrt_match.group(1))
+                result = math.sqrt(number)
+                return f"Here's your square root calculation: **√{number} = {result:.2f}**. Need more calculations?"
+            
+            # Handle powers (e.g., "2 to the power of 3" or "2^3")
+            power_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:to\s+the\s+power\s+of|[\^\*]{2}|\^)\s*(\d+(?:\.\d+)?)', message.lower())
+            if power_match:
+                base, exponent = float(power_match.group(1)), float(power_match.group(2))
+                result = base ** exponent
+                return f"Here's your power calculation: **{base}^{exponent} = {result:.2f}**. Need more calculations?"
+            
+            # Handle SST/Tax calculations
+            if any(keyword in message.lower() for keyword in self.tax_keywords):
+                return self.handle_tax_calculation(message)
             
             if not expressions:
                 return "I couldn't find a mathematical expression in your message. Please provide numbers and operators like '25 + 15', '(100 * 2) - 50', or '200 / 4'."
@@ -508,378 +682,58 @@ class EnhancedMinimalAgent:
             logger.error(f"Calculation error: {e}")
             return "I'm having trouble with that calculation. Please try a simpler mathematical expression like '25 + 15' or '100 / 4'."
 
-    def format_product_response(self, products: List[Dict], session_id: str, query: str = "") -> str:
-        """Format product response with context awareness and enhanced features."""
-        context = self.get_session_context(session_id)
-        context["last_products"] = products
-        filters = self.detect_filtering_intent(query)
-        show_tax = filters.get("tax_calculation", False)
-
-        if not products:
-            return (
-                "🚫 Oops! I couldn't find any products that match your request. "
-                "Try searching for something else from our real ZUS Coffee collections, categories, or ask about our latest drinkware! ☕✨"
-            )
-
-        if len(products) == 1:
-            product = products[0]
-            response = f"Perfect! Here's the **{product['name']}** for {product['price']} - {product['capacity']}, made from {product['material']}. Features: {', '.join(product['features'])}."
-            if "colors" in product:
-                response += f" Available in {', '.join(product['colors'])}."
-            if "on_sale" in product and product["on_sale"]:
-                response += f" Currently on sale (regular price: {product.get('regular_price', 'N/A')})!"
-            if "promotion" in product:
-                response += f" Special promotion: {product['promotion']}!"
-            if show_tax:
-                tax_info = self.calculate_tax_and_sst(product.get("price_numeric", 0))
-                if "error" not in tax_info:
-                    response += f"\n\n💰 **Price Breakdown:**\n- Subtotal: {tax_info['formatted']['subtotal']}\n- SST (6%): {tax_info['formatted']['sst_amount']}\n- **Total with SST: {tax_info['formatted']['total_with_sst']}**"
-        else:
-            response = f"Here are our ZUS Coffee drinkware products ({len(products)} items"
-            if filters["price_range"]:
-                min_p, max_p = filters.get("min_price"), filters.get("max_price")
-                if min_p and max_p:
-                    response += f" in RM {min_p:.0f}-{max_p:.0f} range"
-                elif min_p:
-                    response += f" above RM {min_p:.0f}"
-                elif max_p:
-                    response += f" under RM {max_p:.0f}"
-            if filters["category"]:
-                response += f" in {filters['category']} category"
-            if filters["material"]:
-                response += f" made from {filters['material']}"
-            if filters["collection"]:
-                response += f" from {filters['collection']} collection"
-            response += "): "
-            product_details = []
-            for i, product in enumerate(products, 1):
-                detail = f"{i}. **{product['name']}** - {product['price']} ({product['capacity']}, {product['material']})"
-                if "on_sale" in product and product["on_sale"]:
-                    detail += " [ON SALE]"
-                if "promotion" in product:
-                    detail += f" [{product['promotion']}]"
-                if show_tax:
-                    tax_info = self.calculate_tax_and_sst(product.get("price_numeric", 0))
-                    if "error" not in tax_info:
-                        detail += f" | With SST: {tax_info['formatted']['total_with_sst']}"
-                product_details.append(detail)
-            response += " | ".join(product_details)
-        response += " Would you like details about any specific product, pricing calculations, or outlet locations?"
-        return response
-
-    def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str = "") -> str:
-        """Format outlet response with context awareness and city filtering."""
-        context = self.get_session_context(session_id)
-        context["last_outlets"] = outlets
-        filters = self.detect_filtering_intent(query)
-
-        if not outlets:
-            return (
-                "🚫 No matching outlets found! "
-                "Try asking about a real ZUS Coffee location, city, or available service. I'm here to help you discover our nearest stores and what they offer! 🏪📍"
-            )
-
-        if len(outlets) == 1:
-            outlet = outlets[0]
-            response = f"Found it! **{outlet['name']}** is located at {outlet['address']}. Hours: {outlet['hours']}. Services: {', '.join(outlet['services'])}."
-        else:
-            response = f"Here are our ZUS Coffee outlet locations ({len(outlets)} outlets"
-            if filters["city"]:
-                response += f" in {filters['city'].title()}"
-            if filters["service"]:
-                response += f" with {filters['service']} service"
-            response += "): "
-            outlet_details = []
-            for i, outlet in enumerate(outlets, 1):
-                detail = f"{i}. **{outlet['name']}** - {outlet['address']}, Hours: {outlet['hours']}, Services: {', '.join(outlet['services'])}"
-                outlet_details.append(detail)
-            response += " | ".join(outlet_details)
-        response += " Would you like directions, specific hours, or details about services at any location?"
-        return response
-
-    def calculate_tax_and_sst(self, price: float, quantity: int = 1) -> Dict[str, Any]:
-        """
-        Calculate tax and SST for Malaysian pricing
-        Malaysia SST: 6% on goods, Service Tax: 6% on services
-        """
+    def handle_tax_calculation(self, message: str) -> str:
+        """Handle SST/tax calculations for Malaysian pricing"""
         try:
-            subtotal = price * quantity
-            sst_rate = 0.06  # 6% SST in Malaysia
-            sst_amount = subtotal * sst_rate
-            total_with_tax = subtotal + sst_amount
+            # Extract price from message
+            price_match = re.search(r'(\d+(?:\.\d+)?)', message)
+            if not price_match:
+                return "Please specify a price amount for tax calculation. Example: 'Calculate tax for RM 100' or 'What's the SST on 50?'"
             
-            return {
-                "quantity": quantity,
-                "unit_price": price,
-                "subtotal": round(subtotal, 2),
-                "sst_rate": "6%",
-                "sst_amount": round(sst_amount, 2),
-                "total_with_sst": round(total_with_tax, 2),
-                "formatted": {
-                    "subtotal": f"RM {subtotal:.2f}",
-                    "sst_amount": f"RM {sst_amount:.2f}",
-                    "total_with_sst": f"RM {total_with_tax:.2f}"
-                }
-            }
-        except Exception as e:
-            logger.error(f"Tax calculation error: {e}")
-            return {
-                "error": "Unable to calculate tax",
-                "quantity": quantity,
-                "unit_price": price
-            }
-
-    def filter_products_by_price_range(self, min_price=None, max_price=None):
-        """Filter products by price range using real DB data"""
-        try:
-            products = self.get_products()
-            filtered = []
-            for product in products:
-                price = product.get('price_numeric', 0)
-                if min_price is not None and price < min_price:
-                    continue
-                if max_price is not None and price > max_price:
-                    continue
-                filtered.append(product)
-            return filtered
-        except Exception:
-            return self.get_products()
-
-    def filter_products_by_category(self, category):
-        """Filter products by category using real DB data"""
-        try:
-            category_lower = category.lower()
-            products = self.get_products()
-            return [p for p in products if category_lower in (p.get('category', '') or '').lower()]
-        except Exception:
-            return self.get_products()
-
-    def filter_products_by_material(self, material):
-        """Filter products by material using real DB data"""
-        try:
-            material_lower = material.lower()
-            products = self.get_products()
-            return [p for p in products if material_lower in (p.get('material', '') or '').lower()]
-        except Exception:
-            return self.get_products()
-
-    def filter_products_by_collection(self, collection):
-        """Filter products by collection using real DB data"""
-        try:
-            collection_lower = collection.lower()
-            products = self.get_products()
-            return [p for p in products if collection_lower in (p.get('collection', '') or '').lower()]
-        except Exception:
-            return self.get_products()
-
-    def filter_outlets_by_city(self, city):
-        """Filter outlets by city using real DB data"""
-        try:
-            city_lower = city.lower()
-            outlets = self.get_outlets()
-            return [o for o in outlets if city_lower in (o.get('address', '') or '').lower()]
-        except Exception:
-            return self.get_outlets()
-
-    def filter_outlets_by_service(self, service):
-        """Filter outlets by available service using real DB data"""
-        try:
-            service_lower = service.lower()
-            outlets = self.get_outlets()
-            return [o for o in outlets if any(service_lower in (s or '').lower() for s in o.get('services', []))]
-        except Exception:
-            return self.get_outlets()
-
-    def calculate_price_with_tax(self, price, tax_type="sst"):
-        """Calculate price including tax"""
-        try:
-            if isinstance(price, str):
-                # Extract numeric value from "RM XX.XX" format
-                price_str = price.replace("RM", "").replace(",", "").strip()
-                price = float(price_str)
+            price = float(price_match.group(1))
             
-            tax_rate = self.tax_rates.get(tax_type, 0.06)
+            # Determine tax type
+            if 'sst' in message.lower():
+                tax_rate = self.tax_rates['sst']
+                tax_name = "SST"
+            elif 'service' in message.lower():
+                tax_rate = self.tax_rates['service']
+                tax_name = "Service Charge"
+            else:
+                tax_rate = self.tax_rates['sst']  # Default to SST
+                tax_name = "SST"
+            
             tax_amount = price * tax_rate
-            total_price = price + tax_amount
+            total = price + tax_amount
             
-            return {
-                "original_price": f"RM {price:.2f}",
-                "tax_type": tax_type.upper(),
-                "tax_rate": f"{tax_rate * 100:.0f}%",
-                "tax_amount": f"RM {tax_amount:.2f}",
-                "total_price": f"RM {total_price:.2f}"
-            }
-        except Exception:
-            return {"error": "Unable to calculate tax"}
-
-    def get_all_products_formatted(self, filters=None):
-        """Get all products with optional filtering from real DB data"""
-        try:
-            products = self.get_products()
-            if filters:
-                if 'min_price' in filters or 'max_price' in filters:
-                    min_p, max_p = filters.get('min_price'), filters.get('max_price')
-                    products = [p for p in products if (min_p is None or (p.get('price_numeric') and p['price_numeric'] >= min_p)) and (max_p is None or (p.get('price_numeric') and p['price_numeric'] <= max_p))]
-                if 'category' in filters and filters['category']:
-                    products = [p for p in products if filters['category'].lower() in (p.get('category', '') or '').lower()]
-                if 'material' in filters and filters['material']:
-                    products = [p for p in products if filters['material'].lower() in (p.get('material', '') or '').lower()]
-                if 'collection' in filters and filters['collection']:
-                    products = [p for p in products if filters['collection'].lower() in (p.get('collection', '') or '').lower()]
-            if not products:
-                return "No products found matching your criteria."
-            response = f"Here are our {len(products)} ZUS Coffee products:\n\n"
-            for product in products:
-                response += f"• {product['name']}\n"
-                response += f"  Price: {product['price']}"
-                if product.get('regular_price') and product.get('on_sale'):
-                    response += f" (was {product['regular_price']})"
-                response += f"\n  Material: {product['material']}\n"
-                response += f"  Category: {product['category']}\n"
-                if product.get('collection'):
-                    response += f"  Collection: {product['collection']}\n"
-                response += "\n"
-            return response.strip()
-        except Exception:
-            return "Sorry, I couldn't retrieve the product information right now."
-
-    def get_all_outlets_formatted(self, filters=None):
-        """Get all outlets with optional filtering from real DB data"""
-        try:
-            outlets = self.get_outlets()
-            if filters:
-                if 'city' in filters and filters['city']:
-                    outlets = [o for o in outlets if filters['city'].lower() in (o.get('address', '') or '').lower()]
-                if 'service' in filters and filters['service']:
-                    outlets = [o for o in outlets if any(filters['service'].lower() in (s or '').lower() for s in o.get('services', []))]
-            if not outlets:
-                return "No outlets found matching your criteria."
-            response = f"Here are our {len(outlets)} ZUS Coffee outlets:\n\n"
-            for outlet in outlets:
-                response += f"• {outlet['name']}\n"
-                response += f"  Address: {outlet['address']}\n"
-                response += f"  Hours: {outlet['hours']}\n"
-                if outlet.get('services'):
-                    response += f"  Services: {', '.join(outlet['services'])}\n"
-                response += "\n"
-            return response.strip()
-        except Exception:
-            return "Sorry, I couldn't retrieve the outlet information right now."
-
-    def detect_filtering_intent(self, query: str) -> Dict[str, Any]:
-        """Detect filtering intent and extract filter parameters from user query"""
-        query_lower = query.lower()
-        
-        filters = {
-            "price_range": False,
-            "min_price": None,
-            "max_price": None,
-            "category": None,
-            "material": None,
-            "collection": None,
-            "city": None,
-            "service": None,
-            "tax_calculation": False
-        }
-        
-        # Detect price range filters
-        price_patterns = [
-            r'under\s+rm\s*(\d+)',
-            r'below\s+rm\s*(\d+)',
-            r'less\s+than\s+rm\s*(\d+)',
-            r'above\s+rm\s*(\d+)',
-            r'over\s+rm\s*(\d+)',
-            r'more\s+than\s+rm\s*(\d+)',
-            r'between\s+rm\s*(\d+)\s*and\s+rm\s*(\d+)',
-            r'rm\s*(\d+)\s*to\s*rm\s*(\d+)',
-            r'price\s+range\s+rm\s*(\d+)\s*-\s*rm\s*(\d+)'
-        ]
-        
-        for pattern in price_patterns:
-            matches = re.findall(pattern, query_lower)
-            if matches:
-                filters["price_range"] = True
-                if 'under' in pattern or 'below' in pattern or 'less' in pattern:
-                    filters["max_price"] = float(matches[0])
-                elif 'above' in pattern or 'over' in pattern or 'more' in pattern:
-                    filters["min_price"] = float(matches[0])
-                elif 'between' in pattern or 'to' in pattern or '-' in pattern:
-                    prices = matches[0] if isinstance(matches[0], tuple) else [matches[0], matches[1] if len(matches) > 1 else matches[0]]
-                    if len(prices) == 2:
-                        filters["min_price"] = float(prices[0])
-                        filters["max_price"] = float(prices[1])
-                break
-        
-        # Detect category filters
-        category_keywords = ['cup', 'tumbler', 'mug', 'cold cup']
-        for category in category_keywords:
-            if category in query_lower:
-                filters["category"] = category.title()
-                break
-        
-        # Detect material filters
-        material_keywords = ['stainless steel', 'ceramic', 'acrylic']
-        for material in material_keywords:
-            if material in query_lower:
-                filters["material"] = material
-                break
-        
-        # Detect collection filters
-        collection_keywords = ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can']
-        for collection in collection_keywords:
-            if collection in query_lower:
-                filters["collection"] = collection
-                break
-        
-        # Detect city filters
-        city_keywords = {
-            'kuala lumpur': ['kuala lumpur', 'kl', 'kl city'],
-            'petaling jaya': ['petaling jaya', 'pj'],
-            'shah alam': ['shah alam'],
-            'selangor': ['selangor']
-        }
-        
-        for city, keywords in city_keywords.items():
-            if any(keyword in query_lower for keyword in keywords):
-                filters["city"] = city
-                break
-        
-        # Detect service filters
-        service_keywords = ['dine-in', 'takeaway', 'delivery', 'drive-thru', 'wifi']
-        for service in service_keywords:
-            if service.replace('-', ' ') in query_lower or service.replace('-', '') in query_lower:
-                filters["service"] = service
-                break
-        
-        # Detect tax calculation intent
-        tax_keywords = ['tax', 'sst', 'with tax', 'including tax', 'total price']
-        if any(keyword in query_lower for keyword in tax_keywords):
-            filters["tax_calculation"] = True
-        
-        return filters
-
-    def extract_filters_from_message(self, message: str) -> Dict[str, Any]:
-        """Extract filtering parameters from user message"""
-        return self.detect_filtering_intent(message)
-
-    def extract_outlet_filters_from_message(self, message: str) -> Dict[str, Any]:
-        """Extract outlet filtering parameters from user message"""
-        return self.detect_filtering_intent(message)
-
+            return f"💰 **Tax Calculation:** Subtotal: RM {price:.2f} | {tax_name} ({tax_rate*100:.0f}%): RM {tax_amount:.2f} | **Total: RM {total:.2f}**. Malaysia's current SST is 6% on goods and services."
+            
+        except Exception as e:
+            return "I couldn't calculate the tax. Please try: 'Calculate SST for RM 100' or 'What's the tax on 50?'"
+    
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
         """
         Advanced agentic message processing: stateful, robust, and modular.
-        Handles intent parsing, planner/controller, tool/API calls, unhappy flows, and memory.
-        Now supports answering product, outlet, and calculation queries in a single response if all are detected.
+        Implements all 5 requirements: Memory, Planning, Tools, APIs, Error Handling
         """
+        # Part 1: Memory and Conversation - Get session context
         try:
-            # --- State Management & Memory ---
             context = self.get_session_context(session_id)
-            message_lower = message.lower().strip()
+            message_lower = str(message).lower().strip() if message is not None else ""
             self.update_session_context(session_id, "last_message", {"message": message})
+        except Exception as e:
+            return {
+                "message": "Sorry, I'm having trouble keeping track of your session. Please try again later.",
+                "session_id": session_id,
+                "intent": "error",
+                "error": str(e)
+            }
 
-            # --- Security & Malicious Input Check ---
-            if any(word in message_lower for word in ["drop", "delete", "script", "sql", "injection", "hack", "admin", "root"]):
+        # Part 5: Error Handling - Security & Malicious Input Check
+        try:
+            dangerous_words = ["drop", "delete", "script", "sql", "injection", "hack", "admin"]
+            # Don't flag "root" as it might be in "square root"
+            if any(word in message_lower for word in dangerous_words):
                 self.update_session_context(session_id, "security_violation", {"message": message})
                 return {
                     "message": "For security reasons, I cannot process requests containing potentially harmful content. I'm here to help with ZUS Coffee products, outlets, calculations, and general inquiries. How can I assist you today?",
@@ -887,8 +741,11 @@ class EnhancedMinimalAgent:
                     "intent": "security",
                     "confidence": 0.99
                 }
+        except Exception:
+            pass
 
-            # --- Empty/Short Message Handling ---
+        # Part 5: Error Handling - Empty/Short Message
+        try:
             if not message_lower or len(message_lower) < 2:
                 self.update_session_context(session_id, "clarification", {"message": message})
                 return {
@@ -897,47 +754,62 @@ class EnhancedMinimalAgent:
                     "intent": "clarification",
                     "confidence": 0.7
                 }
+        except Exception:
+            pass
 
-            # --- Intent Parsing & Planner/Controller ---
+        # Part 2: Agentic Planning - Intent Parsing & Action Planning
+        try:
             action_plan = self.parse_intent_and_plan_action(message, session_id)
+        except Exception as e:
+            self.update_session_context(session_id, "intent_parse_error", {"message": message, "error": str(e)})
+            return {
+                "message": "Sorry, I couldn't understand your request. Please try rephrasing or ask about ZUS Coffee products, outlets, or calculations.",
+                "session_id": session_id,
+                "intent": "error",
+                "error": str(e)
+            }
 
-            # --- Multi-intent detection ---
-            # If the message contains product, outlet, and calculation queries, answer all in one response
+        # Multi-intent detection and handling
+        try:
             product_intent = action_plan["intent"] == "product_search" or action_plan.get("action") == "show_all_products"
             outlet_intent = action_plan["intent"] == "outlet_search" or action_plan.get("action") == "show_all_outlets"
             calc_intent = action_plan["intent"] == "calculation" and action_plan.get("requires_tool")
 
-            # Heuristic: If the message contains both product and outlet keywords, or calculation and product/outlet, answer all
-            keywords = message_lower.split()
             has_product_kw = any(kw in message_lower for kw in ["product", "tumbler", "cup", "mug", "drinkware"])
             has_outlet_kw = any(kw in message_lower for kw in ["outlet", "location", "store", "branch", "address"])
-            has_calc_kw = any(op in message for op in ['+', '-', '*', '/', 'calculate', 'math'])
-
+            has_calc_kw = any(op in message for op in ['+', '-', '*', '/', 'calculate', 'math']) or any(kw in message_lower for kw in self.math_keywords)
             multi_intent = (has_product_kw and has_outlet_kw) or (has_product_kw and has_calc_kw) or (has_outlet_kw and has_calc_kw)
 
             if multi_intent:
                 response_parts = []
                 # Product answer
-                if has_product_kw:
-                    matching_products = self.find_matching_products(message, show_all=True)
-                    if matching_products:
-                        response_parts.append(self.format_product_response(matching_products, session_id, message))
-                    else:
-                        response_parts.append("Sorry, I couldn't find any products matching your request.")
+                try:
+                    if has_product_kw:
+                        matching_products = self.find_matching_products(message, show_all=True)
+                        if matching_products:
+                            response_parts.append(self.format_product_response(matching_products, session_id, message))
+                        else:
+                            response_parts.append("Sorry, I couldn't find any products matching your request.")
+                except Exception:
+                    response_parts.append("Sorry, there was an error fetching product info.")
                 # Outlet answer
-                if has_outlet_kw:
-                    matching_outlets = self.find_matching_outlets(message, show_all=True)
-                    if matching_outlets:
-                        response_parts.append(self.format_outlet_response(matching_outlets, session_id, message))
-                    else:
-                        response_parts.append("Sorry, I couldn't find any outlets matching your request.")
+                try:
+                    if has_outlet_kw:
+                        matching_outlets = self.find_matching_outlets(message, show_all=True)
+                        if matching_outlets:
+                            response_parts.append(self.format_outlet_response(matching_outlets, session_id, message))
+                        else:
+                            response_parts.append("Sorry, I couldn't find any outlets matching your request.")
+                except Exception:
+                    response_parts.append("Sorry, there was an error fetching outlet info.")
                 # Calculation answer
-                if has_calc_kw:
-                    try:
+                try:
+                    if has_calc_kw:
                         result = self.handle_advanced_calculation(message)
                         response_parts.append(result)
-                    except Exception as e:
-                        response_parts.append("Sorry, I couldn't complete the calculation due to an error.")
+                except Exception:
+                    response_parts.append("Sorry, I couldn't complete the calculation due to an error.")
+                
                 self.update_session_context(session_id, "multi_intent", {"message": message})
                 return {
                     "message": "\n\n".join(response_parts),
@@ -945,30 +817,33 @@ class EnhancedMinimalAgent:
                     "intent": "multi_intent",
                     "confidence": 0.95
                 }
+        except Exception:
+            pass
 
-            # --- Tool Integration: Calculator ---
-            if calc_intent:
-                try:
-                    result = self.handle_advanced_calculation(message)
-                    self.update_session_context(session_id, "calculation", {"expression": message, "result": result})
-                    return {
-                        "message": result,
-                        "session_id": session_id,
-                        "intent": "calculation",
-                        "confidence": action_plan["confidence"]
-                    }
-                except Exception as e:
-                    self.update_session_context(session_id, "calculation_error", {"expression": message, "error": str(e)})
-                    return {
-                        "message": "Sorry, I couldn't complete the calculation due to an error. Please check your input or try again later.",
-                        "session_id": session_id,
-                        "intent": "calculation_error",
-                        "confidence": 0.2
-                    }
+        # Part 3: Tool Integration - Calculator
+        if calc_intent:
+            try:
+                result = self.handle_advanced_calculation(message)
+                self.update_session_context(session_id, "calculation", {"expression": message, "result": result})
+                return {
+                    "message": result,
+                    "session_id": session_id,
+                    "intent": "calculation",
+                    "confidence": action_plan["confidence"]
+                }
+            except Exception as e:
+                self.update_session_context(session_id, "calculation_error", {"expression": message, "error": str(e)})
+                return {
+                    "message": "Sorry, I couldn't complete the calculation due to an error. Please check your input or try again later.",
+                    "session_id": session_id,
+                    "intent": "calculation_error",
+                    "confidence": 0.2
+                }
 
-            # --- Product Search (RAG) ---
-            if product_intent:
-                show_all = action_plan.get("action") == "show_all_products" or "all products" in message_lower or "show me products" in message_lower
+        # Part 4: APIs - Product Search (Vector DB simulation)
+        if product_intent:
+            try:
+                show_all = action_plan.get("action") == "show_all_products" or "all products" in message_lower or "show me products" in message_lower or "what products" in message_lower
                 matching_products = self.find_matching_products(message, show_all=show_all)
                 if not matching_products:
                     self.update_session_context(session_id, "no_product_results", {"query": message})
@@ -986,10 +861,19 @@ class EnhancedMinimalAgent:
                     "intent": "product_search",
                     "confidence": action_plan["confidence"]
                 }
+            except Exception as e:
+                self.update_session_context(session_id, "product_search_error", {"query": message, "error": str(e)})
+                return {
+                    "message": "Sorry, there was an error fetching product information. Please try again later.",
+                    "session_id": session_id,
+                    "intent": "error",
+                    "error": str(e)
+                }
 
-            # --- Outlet Search (Text2SQL) ---
-            if outlet_intent:
-                show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower
+        # Part 4: APIs - Outlet Search (Text2SQL simulation)
+        if outlet_intent:
+            try:
+                show_all = action_plan.get("action") == "show_all_outlets" or "all outlets" in message_lower or "show outlets" in message_lower or "show all outlet" in message_lower
                 matching_outlets = self.find_matching_outlets(message, show_all=show_all)
                 if not matching_outlets:
                     self.update_session_context(session_id, "no_outlet_results", {"query": message})
@@ -1007,32 +891,19 @@ class EnhancedMinimalAgent:
                     "intent": "outlet_search",
                     "confidence": action_plan["confidence"]
                 }
-
-            # --- Context-Aware Follow-up (Multi-turn) ---
-            if action_plan["intent"] == "follow_up" and action_plan.get("context_aware"):
-                if context.get("last_intent") == "product_search" and context.get("last_products"):
-                    if "more" in message_lower or "details" in message_lower:
-                        response = "I'd be happy to provide more details! Which specific product interests you? I can tell you about features, colors, pricing, or help you find outlets where you can purchase them."
-                    else:
-                        response = self.format_product_response(self.products, session_id)
-                elif context.get("last_intent") == "outlet_search" and context.get("last_outlets"):
-                    if "more" in message_lower or "details" in message_lower:
-                        response = "I can provide more outlet information! Would you like specific hours, services, directions, or contact details for any of our locations?"
-                    else:
-                        response = self.format_outlet_response(self.outlets, session_id)
-                else:
-                    response = "I want to help! I can assist with ZUS Coffee product information, outlet locations and hours, pricing calculations, or general inquiries. What would you like to know?"
-                self.update_session_context(session_id, "follow_up", {"context": context.get("last_intent")})
+            except Exception as e:
+                self.update_session_context(session_id, "outlet_search_error", {"query": message, "error": str(e)})
                 return {
-                    "message": response,
+                    "message": "Sorry, there was an error fetching outlet information. Please try again later.",
                     "session_id": session_id,
-                    "intent": "follow_up",
-                    "confidence": action_plan["confidence"]
+                    "intent": "error",
+                    "error": str(e)
                 }
 
-            # --- Greeting ---
-            if action_plan["intent"] == "greeting":
-                response = "Hello and welcome to ZUS Coffee! I'm your AI assistant ready to help you explore our drinkware collection, find outlet locations with hours and services, calculate pricing, or answer questions about ZUS Coffee. What would you like to know today?"
+        # Greeting
+        if action_plan["intent"] == "greeting":
+            try:
+                response = "Hello and welcome to ZUS Coffee! I'm your AI assistant ready to help you explore our drinkware collection, find outlet locations with hours and services, calculate pricing including SST/tax, or answer questions about ZUS Coffee. What would you like to know today?"
                 self.update_session_context(session_id, "greeting", {"message": message})
                 return {
                     "message": response,
@@ -1040,9 +911,17 @@ class EnhancedMinimalAgent:
                     "intent": "greeting",
                     "confidence": action_plan["confidence"]
                 }
+            except Exception as e:
+                return {
+                    "message": "Hello! Welcome to ZUS Coffee!",
+                    "session_id": session_id,
+                    "intent": "greeting",
+                    "error": str(e)
+                }
 
-            # --- Farewell ---
-            if action_plan["intent"] == "farewell":
+        # Farewell
+        if action_plan["intent"] == "farewell":
+            try:
                 response = "Thank you for choosing ZUS Coffee! Have a wonderful day and we look forward to serving you again soon. Don't forget to check out our latest products and visit our outlets!"
                 self.update_session_context(session_id, "farewell", {"message": message})
                 return {
@@ -1051,25 +930,216 @@ class EnhancedMinimalAgent:
                     "intent": "farewell",
                     "confidence": action_plan["confidence"]
                 }
+            except Exception as e:
+                return {
+                    "message": "Thank you for choosing ZUS Coffee!",
+                    "session_id": session_id,
+                    "intent": "farewell",
+                    "error": str(e)
+                }
 
-            # --- Default Fallback ---
+        # Part 5: Error Handling - Default Fallback for unmatched queries
+        try:
+            # Check if it's completely irrelevant (weather, politics, etc.)
+            irrelevant_keywords = ['weather', 'politics', 'sports', 'news', 'movie', 'music', 'game']
+            if any(keyword in message_lower for keyword in irrelevant_keywords):
+                return {
+                    "message": "I'm focused on helping with ZUS Coffee-related questions. I can assist with product information, outlet locations, pricing calculations, or general ZUS Coffee inquiries. How can I help you with ZUS Coffee today?",
+                    "session_id": session_id,
+                    "intent": "irrelevant",
+                    "confidence": 0.8
+                }
+            
+            # Check if it looks like a calculation that wasn't caught
+            if any(op in message for op in ['+', '-', '*', '/', '×', '÷', '=']) or any(word in message_lower for word in ["calculate", "math", "compute", "what is", "percent", "percentage", "of", "sst", "tax"]):
+                try:
+                    result = self.handle_advanced_calculation(message)
+                    self.update_session_context(session_id, "calculation_fallback", {"expression": message, "result": result})
+                    return {
+                        "message": result,
+                        "session_id": session_id,
+                        "intent": "calculation",
+                        "confidence": 0.7
+                    }
+                except Exception:
+                    pass
+            
             self.update_session_context(session_id, "general", {"message": message})
             return {
-                "message": "I'm here to help with ZUS Coffee product information, outlet locations, pricing calculations, or general inquiries. For example, try asking: 'Show me all products', 'Find all outlets', or 'Calculate 25 + 15'. What would you like to know?",
+                "message": "I'm here to help with ZUS Coffee product information, outlet locations, pricing calculations including SST/tax, or general inquiries. For example, try asking: 'Show me all products', 'Find all outlets', 'Calculate 25 + 15', or 'What's 15% of 200?'. What would you like to know?",
                 "session_id": session_id,
                 "intent": "general",
                 "confidence": 0.5
             }
-
         except Exception as e:
-            logger.error(f"Error in enhanced agent: {e}")
-            self.update_session_context(session_id, "error", {"message": message, "error": str(e)})
             return {
-                "message": "I'm experiencing some technical difficulties right now. Please try again in a moment, and I'll be happy to help you with ZUS Coffee information!",
+                "message": "Sorry, I'm having technical difficulties. Please try again later.",
                 "session_id": session_id,
                 "intent": "error",
                 "error": str(e)
             }
+    
+    def detect_filtering_intent(self, query: str) -> Dict[str, Any]:
+        """
+        Detect filtering intent from user query (price range, category, material, etc.)
+        Returns dict with filter criteria
+        """
+        query_lower = query.lower()
+        filters = {
+            "price_range": False,
+            "min_price": None,
+            "max_price": None,
+            "category": None,
+            "material": None,
+            "collection": None,
+            "city": None,
+            "service": None
+        }
+        
+        # Price range detection
+        import re
+        price_pattern = r'(?:under|below|less than|<)\s*rm?\s*(\d+(?:\.\d+)?)|(?:above|over|more than|>)\s*rm?\s*(\d+(?:\.\d+)?)|rm?\s*(\d+(?:\.\d+)?)\s*(?:to|-)\s*rm?\s*(\d+(?:\.\d+)?)'
+        price_matches = re.findall(price_pattern, query_lower)
+        
+        if price_matches:
+            filters["price_range"] = True
+            for match in price_matches:
+                if match[0]:  # under/below
+                    filters["max_price"] = float(match[0])
+                elif match[1]:  # above/over
+                    filters["min_price"] = float(match[1])
+                elif match[2] and match[3]:  # range
+                    filters["min_price"] = float(match[2])
+                    filters["max_price"] = float(match[3])
+        
+        # Category detection
+        categories = ['tumbler', 'cup', 'mug', 'cold cup', 'drinkware']
+        for category in categories:
+            if category in query_lower:
+                filters["category"] = category
+                break
+        
+        # Material detection
+        materials = ['stainless steel', 'ceramic', 'acrylic', 'glass', 'steel']
+        for material in materials:
+            if material in query_lower:
+                filters["material"] = material
+                break
+        
+        # Collection detection
+        collections = ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can']
+        for collection in collections:
+            if collection in query_lower:
+                filters["collection"] = collection
+                break
+        
+        # City detection for outlets
+        cities = ['kl', 'kuala lumpur', 'petaling jaya', 'pj', 'selangor', 'klcc', 'pavilion', 'mid valley', 'ss2', 'shah alam', 'sunway']
+        for city in cities:
+            if city in query_lower:
+                filters["city"] = city
+                break
+        
+        # Service detection for outlets
+        services = ['drive-thru', 'dine-in', 'takeaway', '24 hours', '24/7', 'wifi', 'parking', 'delivery']
+        for service in services:
+            if service in query_lower:
+                filters["service"] = service
+                break
+        
+        return filters
+
+    def format_product_response(self, products: List[Dict], session_id: str, query: str) -> str:
+        """Format product search results into a user-friendly response"""
+        try:
+            if not products:
+                return "Sorry, I couldn't find any products matching your request. Please try a different query!"
+            
+            # Limit to top 5 products for readability
+            display_products = products[:5]
+            
+            response_parts = []
+            response_parts.append(f"🛍️ **Found {len(products)} product{'s' if len(products) != 1 else ''} for you:**\n")
+            
+            for i, product in enumerate(display_products, 1):
+                name = product.get("name", "Unknown Product")
+                price = product.get("price", "Price not available")
+                category = product.get("category", "")
+                capacity = product.get("capacity", "")
+                material = product.get("material", "")
+                colors = product.get("colors", [])
+                features = product.get("features", [])
+                promotion = product.get("promotion")
+                on_sale = product.get("on_sale", False)
+                
+                product_info = f"**{i}. {name}**\n"
+                product_info += f"   💰 Price: {price}"
+                if on_sale and product.get("regular_price"):
+                    product_info += f" (was {product.get('regular_price')})"
+                product_info += "\n"
+                
+                if category:
+                    product_info += f"   📂 Category: {category}\n"
+                if capacity:
+                    product_info += f"   📏 Capacity: {capacity}\n"
+                if material:
+                    product_info += f"   🔧 Material: {material}\n"
+                if colors:
+                    product_info += f"   🎨 Colors: {', '.join(colors)}\n"
+                if features:
+                    product_info += f"   ✨ Features: {', '.join(features)}\n"
+                if promotion:
+                    product_info += f"   🎁 Promotion: {promotion}\n"
+                
+                response_parts.append(product_info)
+            
+            if len(products) > 5:
+                response_parts.append(f"\n... and {len(products) - 5} more products available!")
+            
+            response_parts.append("\n💡 Need more details about any product? Just ask!")
+            
+            return "\n".join(response_parts)
+            
+        except Exception as e:
+            logger.error(f"Error formatting product response: {e}")
+            return "I found some products but encountered an error displaying them. Please try again."
+
+    def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str) -> str:
+        """Format outlet search results into a user-friendly response"""
+        try:
+            if not outlets:
+                return "Sorry, I couldn't find any outlets matching your request. Please try a different location!"
+            
+            # Limit to top 5 outlets for readability
+            display_outlets = outlets[:5]
+            
+            response_parts = []
+            response_parts.append(f"📍 **Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
+            
+            for i, outlet in enumerate(display_outlets, 1):
+                name = outlet.get("name", "ZUS Coffee Outlet")
+                address = outlet.get("address", "Address not available")
+                hours = outlet.get("hours", "Hours not available")
+                services = outlet.get("services", [])
+                
+                outlet_info = f"**{i}. {name}**\n"
+                outlet_info += f"   📍 Address: {address}\n"
+                outlet_info += f"   🕐 Hours: {hours}\n"
+                if services:
+                    outlet_info += f"   🏪 Services: {', '.join(services)}\n"
+                
+                response_parts.append(outlet_info)
+            
+            if len(outlets) > 5:
+                response_parts.append(f"\n... and {len(outlets) - 5} more outlets available!")
+            
+            response_parts.append("\n💡 Need directions or more info about any outlet? Just ask!")
+            
+            return "\n".join(response_parts)
+            
+        except Exception as e:
+            logger.error(f"Error formatting outlet response: {e}")
+            return "I found some outlets but encountered an error displaying them. Please try again."
 
 # Singleton pattern for agent instance
 _agent_instance = None
@@ -1080,28 +1150,3 @@ def get_chatbot():
     if _agent_instance is None:
         _agent_instance = EnhancedMinimalAgent()
     return _agent_instance
-
-class ChatController:
-    """Wrapper class for compatibility with existing main.py calls."""
-    
-    def __init__(self):
-        self.sessions = {}  # Ensure sessions attribute exists
-        self.agent = get_chatbot()
-    
-    async def chat(self, message: str, session_id: str = "default") -> Dict[str, Any]:
-        """Process chat message using the enhanced minimal agent."""
-        try:
-            result = await self.agent.process_message(message, session_id)
-            return {
-                "response": result.get("message", "I'm having trouble responding right now."),
-                "session_id": session_id,
-                "intent": result.get("intent", "unknown"),
-                "confidence": result.get("confidence", 0.5)
-            }
-        except Exception as e:
-            logger.error(f"Chat controller error: {e}")
-            return {
-                "response": "I apologize, but I'm experiencing technical difficulties. Please try again in a moment.",
-                "session_id": session_id,
-                "error": str(e)
-            }

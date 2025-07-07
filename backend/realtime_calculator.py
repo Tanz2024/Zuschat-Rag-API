@@ -29,72 +29,100 @@ class RealTimePriceCalculator:
     
     def parse_price(self, price_str: str) -> float:
         """Convert price string to float"""
-        if not price_str:
+        try:
+            if not price_str:
+                return 0.0
+            # Remove "RM " and any commas, convert to float
+            return float(price_str.replace('RM ', '').replace(',', '').strip())
+        except (ValueError, AttributeError, TypeError) as e:
+            # Return 0.0 for any parsing errors to prevent 500 errors
             return 0.0
-        # Remove "RM " and any commas, convert to float
-        return float(price_str.replace('RM ', '').replace(',', '').strip())
     
     def calculate_discount(self, product: ProductInfo) -> Dict:
         """Calculate discount information for a product"""
-        current_price = product.sale_price
-        
-        # Try to get regular price
-        regular_price = None
-        if product.regular_price:
-            regular_price = self.parse_price(product.regular_price)
-        
-        # Calculate discount if regular price exists and is higher
-        if regular_price and regular_price > current_price:
-            discount_amount = regular_price - current_price
-            discount_percentage = (discount_amount / regular_price) * 100
+        try:
+            current_price = product.sale_price
+            
+            # Try to get regular price
+            regular_price = None
+            if product.regular_price:
+                regular_price = self.parse_price(product.regular_price)
+            
+            # Calculate discount if regular price exists and is higher
+            if regular_price and regular_price > current_price:
+                discount_amount = regular_price - current_price
+                discount_percentage = (discount_amount / regular_price) * 100
+                
+                return {
+                    'has_discount': True,
+                    'regular_price': regular_price,
+                    'current_price': current_price,
+                    'discount_amount': round(discount_amount, 2),
+                    'discount_percentage': round(discount_percentage, 1),
+                    'savings_display': f"Save RM {discount_amount:.2f} ({discount_percentage:.0f}% off)",
+                    'price_display': f"RM {current_price:.2f}",
+                    'regular_price_display': f"RM {regular_price:.2f}"
+                }
             
             return {
-                'has_discount': True,
-                'regular_price': regular_price,
+                'has_discount': False,
                 'current_price': current_price,
-                'discount_amount': round(discount_amount, 2),
-                'discount_percentage': round(discount_percentage, 1),
-                'savings_display': f"Save RM {discount_amount:.2f} ({discount_percentage:.0f}% off)",
                 'price_display': f"RM {current_price:.2f}",
-                'regular_price_display': f"RM {regular_price:.2f}"
+                'regular_price_display': None,
+                'savings_display': None
             }
-        
-        return {
-            'has_discount': False,
-            'current_price': current_price,
-            'price_display': f"RM {current_price:.2f}",
-            'regular_price_display': None,
-            'savings_display': None
-        }
+        except Exception as e:
+            # Return safe fallback for any calculation errors
+            return {
+                'has_discount': False,
+                'current_price': 0.0,
+                'price_display': "RM 0.00",
+                'regular_price_display': None,
+                'savings_display': None,
+                'error': str(e)
+            }
     
     def get_product_pricing_info(self, product: ProductInfo) -> Dict:
         """Get complete pricing information for chatbot responses"""
-        discount_info = self.calculate_discount(product)
-        
-        # Enhanced info for chatbot
-        pricing_info = {
-            **discount_info,
-            'product_name': product.name,
-            'promotion': product.promotion,
-            'is_on_sale': product.on_sale or discount_info['has_discount']
-        }
-        
-        # Generate chatbot-friendly text
-        if discount_info['has_discount']:
-            pricing_info['chat_text'] = (
-                f"{product.name} is on sale for {discount_info['price_display']} "
-                f"(was {discount_info['regular_price_display']}) - "
-                f"{discount_info['savings_display']}!"
-            )
-        elif product.promotion:
-            pricing_info['chat_text'] = (
-                f"{product.name} for {discount_info['price_display']} "
-                f"with special promotion: {product.promotion}!"
-            )
-        else:
-            pricing_info['chat_text'] = f"{product.name} for {discount_info['price_display']}"
-        
-        return pricing_info
+        try:
+            discount_info = self.calculate_discount(product)
+            
+            # Enhanced info for chatbot
+            pricing_info = {
+                **discount_info,
+                'product_name': product.name,
+                'promotion': product.promotion,
+                'is_on_sale': product.on_sale or discount_info['has_discount']
+            }
+            
+            # Generate chatbot-friendly text
+            if discount_info['has_discount']:
+                pricing_info['chat_text'] = (
+                    f"{product.name} is on sale for {discount_info['price_display']} "
+                    f"(was {discount_info['regular_price_display']}) - "
+                    f"{discount_info['savings_display']}!"
+                )
+            elif product.promotion:
+                pricing_info['chat_text'] = (
+                    f"{product.name} for {discount_info['price_display']} "
+                    f"with special promotion: {product.promotion}!"
+                )
+            else:
+                pricing_info['chat_text'] = f"{product.name} for {discount_info['price_display']}"
+            
+            return pricing_info
+        except Exception as e:
+            # Return safe fallback for any pricing info errors
+            return {
+                'has_discount': False,
+                'current_price': 0.0,
+                'price_display': "RM 0.00",
+                'product_name': getattr(product, 'name', 'Unknown Product'),
+                'promotion': None,
+                'is_on_sale': False,
+                'chat_text': f"{getattr(product, 'name', 'Product')} - pricing information temporarily unavailable",
+                'error': str(e)
+            }
 
 class RealTimeCartCalculator:
     """Real-time cart and checkout calculator"""

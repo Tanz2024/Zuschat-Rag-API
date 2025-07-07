@@ -102,29 +102,41 @@ class Product(Base):
 
 def get_db():
     """Get database session, or None if DB is not configured"""
-    if not SessionLocal:
-        print("⚠️  Database session requested but database is not configured.")
-        yield None
-        return
-    db = SessionLocal()
     try:
-        yield db
-    finally:
-        db.close()
+        if not SessionLocal:
+            print("⚠️  Database session requested but database is not configured.")
+            yield None
+            return
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"⚠️  Database session error: {e}")
+        yield None
 
 def create_tables():
     """Create database tables if DB is configured"""
-    if not engine:
-        print("⚠️  Cannot create tables: database engine is not configured.")
+    try:
+        if not engine:
+            print("⚠️  Cannot create tables: database engine is not configured.")
+            return
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"⚠️  Error creating tables: {e}")
         return
-    Base.metadata.create_all(bind=engine)
 
 def get_connection():
     """Get database connection for direct queries, or None if not configured"""
-    if not engine:
-        print("⚠️  Database connection requested but engine is not configured.")
+    try:
+        if not engine:
+            print("⚠️  Database connection requested but engine is not configured.")
+            return None
+        return engine.connect()
+    except Exception as e:
+        print(f"⚠️  Error getting database connection: {e}")
         return None
-    return engine.connect()
 
 def validate_database_config():
     """Validate database configuration and connection"""
@@ -145,6 +157,9 @@ def validate_database_config():
 def get_db_info():
     """Get database connection information (without exposing credentials)"""
     try:
+        if not DATABASE_URL:
+            return {"error": "DATABASE_URL not configured"}
+            
         url_parts = DATABASE_URL.split("://")[1].split("/")
         host_port = url_parts[0].split("@")[1] if "@" in url_parts[0] else url_parts[0]
         database = url_parts[1] if len(url_parts) > 1 else "unknown"
@@ -156,5 +171,5 @@ def get_db_info():
             "pool_size": DB_POOL_SIZE,
             "max_overflow": DB_MAX_OVERFLOW
         }
-    except Exception:
-        return {"error": "Unable to parse DATABASE_URL"}
+    except Exception as e:
+        return {"error": f"Unable to parse DATABASE_URL: {str(e)}"}

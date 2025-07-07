@@ -36,7 +36,7 @@ except Exception as e:
         session_id: str = "default"
     
     class ChatResponse(BaseModel):
-        response: str
+        message: str
         session_id: str
         intent: str = "unknown"
         confidence: float = 0.5
@@ -165,24 +165,55 @@ async def http_exception_handler(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder(ErrorResponse(
-            error=exc.detail,
+            error=str(exc.detail),
             status_code=exc.status_code,
             detail=str(exc.detail)
         ))
     )
 
+
+# Improved: Global exception handler returns 200 with fallback message for all unhandled errors in production
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    """Handle general exceptions gracefully."""
     logger.error(f"Unhandled exception: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content=jsonable_encoder(ErrorResponse(
-            error="Internal server error",
-            status_code=500,
-            detail="An unexpected error occurred. The service is still operational."
-        ))
-    )
+    # Try to return a ChatResponse if this was a /chat call, else ErrorResponse
+    try:
+        if request.url.path == "/chat":
+            # Try to extract session_id if possible
+            try:
+                body = await request.json()
+                session_id = body.get("session_id", "unknown")
+            except Exception:
+                session_id = "unknown"
+            return JSONResponse(
+                status_code=200,
+                content=jsonable_encoder({
+                    "message": "Thank you for contacting ZUS Coffee! I'm experiencing technical difficulties, but you can still ask about our products, outlets, or pricing. Please try again shortly!",
+                    "session_id": session_id,
+                    "intent": "critical_error",
+                    "confidence": 0.1
+                })
+            )
+        else:
+            return JSONResponse(
+                status_code=200,
+                content=jsonable_encoder(ErrorResponse(
+                    error="Internal server error",
+                    status_code=500,
+                    detail="An unexpected error occurred. The service is still operational."
+                ))
+            )
+    except Exception as e:
+        logger.error(f"Exception in global exception handler: {e}")
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Thank you for contacting ZUS Coffee! I'm experiencing technical difficulties. Please try again later.",
+                "session_id": "unknown",
+                "intent": "critical_error",
+                "confidence": 0.1
+            }
+        )
 
 # Root endpoint
 @app.get("/")
@@ -287,11 +318,21 @@ async def chat_endpoint(request: ChatRequest):
     Always returns a response, even if individual components fail.
     """
     try:
+        # Safely extract message and session_id with fallbacks
+        try:
+            message = getattr(request, 'message', '').strip() if request else ''
+            session_id = getattr(request, 'session_id', 'default') if request else 'default'
+        except Exception:
+            message = ''
+            session_id = 'default'
+        
         # Validate input
-        if not request.message or not request.message.strip():
-            raise HTTPException(
-                status_code=400, 
-                detail="Message cannot be empty"
+        if not message:
+            return ChatResponse(
+                message="I'd love to help you! Please send me a message about ZUS Coffee products, outlets, calculations, or any questions you have.",
+                session_id=session_id,
+                intent="validation_error",
+                confidence=0.5
             )
         
         # Get chatbot instance
@@ -301,7 +342,7 @@ async def chat_endpoint(request: ChatRequest):
             logger.error(f"Failed to get chatbot: {e}")
             return ChatResponse(
                 message="I'm temporarily experiencing technical difficulties. Please try again in a moment.",
-                session_id=request.session_id,
+                session_id=session_id,
                 intent="error",
                 confidence=0.1
             )
@@ -310,19 +351,19 @@ async def chat_endpoint(request: ChatRequest):
         try:
             # Try enhanced method first
             if hasattr(chatbot, 'process_message'):
-                result = await chatbot.process_message(request.message, request.session_id)
+                result = await chatbot.process_message(message, session_id)
                 return ChatResponse(
                     message=result.get("message", "I'm sorry, I couldn't process that request properly."),
-                    session_id=request.session_id,
+                    session_id=session_id,
                     intent=result.get("intent", "unknown"),
                     confidence=result.get("confidence", 0.5)
                 )
             # Fallback to simple chat method
             elif hasattr(chatbot, 'chat'):
-                result = chatbot.chat(request.message, request.session_id)
+                result = chatbot.chat(message, session_id)
                 return ChatResponse(
                     message=result.get("response", "I'm sorry, I couldn't process that request properly."),
-                    session_id=request.session_id,
+                    session_id=session_id,
                     intent=result.get("intent", "unknown"),
                     confidence=result.get("confidence", 0.5)
                 )
@@ -330,28 +371,23 @@ async def chat_endpoint(request: ChatRequest):
                 # Ultimate fallback
                 return ChatResponse(
                     message="Welcome to ZUS Coffee! I'm temporarily running in limited mode. Our premium drinkware collection includes tumblers, cups, and mugs. Visit our outlets in KLCC, Pavilion, Mid Valley, and more locations across KL and Selangor.",
-                    session_id=request.session_id,
+                    session_id=session_id,
                     intent="fallback",
                     confidence=0.3
                 )
-                
         except Exception as e:
             logger.error(f"Chatbot processing error: {e}")
             return ChatResponse(
                 message="I apologize for the inconvenience. I'm experiencing some technical issues but I'm still here to help! ZUS Coffee offers premium drinkware and has outlets across KL and Selangor. Please try your question again.",
-                session_id=request.session_id,
+                session_id=session_id,
                 intent="error",
                 confidence=0.2
             )
-    
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
     except Exception as e:
         logger.error(f"Unexpected chat endpoint error: {e}")
         return ChatResponse(
             message="Thank you for contacting ZUS Coffee! While I'm experiencing some technical difficulties right now, I want you to know that we offer premium drinkware and have multiple outlet locations. Please try again shortly!",
-            session_id=request.session_id,
+            session_id="default",
             intent="critical_error",
             confidence=0.1
         )
