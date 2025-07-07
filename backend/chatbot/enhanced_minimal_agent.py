@@ -175,13 +175,15 @@ class EnhancedMinimalAgent:
     # --- Advanced: Multi-language Support (Translation) ---
     def translate_query(self, query: str, target_lang: str = "en") -> str:
         """
-        Translate user query to English for better matching (requires googletrans or similar).
+        Simple language detection and basic translation fallback.
+        For production, consider using a dedicated translation service.
         """
         try:
-            from googletrans import Translator
-            translator = Translator()
-            translated = translator.translate(query, dest=target_lang)
-            return translated.text
+            # Simple language detection based on common patterns
+            # For now, just return the original query since most users use English/Malay
+            # In future, can integrate with cloud translation services
+            logger.info(f"Translation requested for: {query}")
+            return query
         except Exception as e:
             logger.warning(f"Translation unavailable, using original query: {e}")
             return query

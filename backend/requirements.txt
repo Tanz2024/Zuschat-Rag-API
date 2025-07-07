@@ -1,5 +1,5 @@
-# PRODUCTION ZUS CHATBOT - NO RUST COMPILATION REQUIRED
-# Tested and working versions on Render
+# PRODUCTION ZUS CHATBOT - DEPENDENCY CONFLICT RESOLVED
+# Updated July 8, 2025 - Render deployment ready
 fastapi==0.95.2
 uvicorn[standard]==0.22.0
 pydantic==1.10.7
@@ -12,14 +12,12 @@ python-dotenv==1.0.0
 
 # Essential utilities
 requests==2.31.0
-httpx==0.24.0
 
-# AI and NLP Features
+# AI and NLP Features - Compatible versions
 rapidfuzz==3.5.2
-sentence-transformers==2.2.2
-googletrans==4.0.0rc1
-torch==2.0.1
-numpy==1.24.3
+sentence-transformers>=2.2.0,<3.0.0
+torch>=2.0.0,<3.0.0
+numpy>=1.21.0,<2.0.0
 
 # Compatibility
 typing-extensions==4.5.0
