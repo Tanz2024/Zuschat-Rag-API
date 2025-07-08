@@ -361,7 +361,13 @@ async def chat_endpoint(request: ChatRequest):
 @app.get("/ping")
 async def ping():
     """Simple ping endpoint for connectivity testing."""
-    return {"status": "pong", "timestamp": "2025-07-06"}
+    return {"status": "pong", "timestamp": "2025-07-08"}
+
+# Startup validation
+if __name__ == "__main__":
+    import uvicorn
+    logger.info("Starting ZUS Coffee Backend in development mode...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 """
 This file is intended to be run with:
