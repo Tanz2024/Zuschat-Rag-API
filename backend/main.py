@@ -1,6 +1,7 @@
 """
 Robust FastAPI main application for ZUS Coffee Chatbot
 Handles database connectivity issues gracefully while maintaining chatbot functionality
+Version: 1.0.1 - July 8, 2025 - Render deployment fix
 """
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
