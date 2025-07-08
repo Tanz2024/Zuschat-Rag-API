@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import Image from 'next/image'
 import { useTheme } from '../hooks/useTheme'
 import { Trash2, Moon, Sun, Sparkles, Coffee, Search, ChevronDown } from 'lucide-react'
 
@@ -161,11 +162,14 @@ const Sidebar: React.FC<SidebarProps> = () => {
           <div className="relative group">
             {/* ZUS Coffee Logo - Primary Location - Circular */}
             <div className="relative">
-              <img 
+              <Image 
                 src="/assets/logos/zusslogo.jpg" 
                 alt="ZUS Coffee" 
+                width={72}
+                height={72}
                 className="h-16 w-16 md:h-18 md:w-18 object-cover rounded-full border-3 transition-all duration-500 ease-in-out group-hover:scale-110 filter hover:brightness-110 shadow-lg"
                 style={{ borderColor: '#0057FF' }}
+                priority
               />
               {/* Premium glow ring */}
               <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-20 transition-all duration-500 blur-md scale-110" style={{ backgroundColor: '#0057FF' }}></div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import Image from 'next/image'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import TypingIndicator from './TypingIndicator'
@@ -74,7 +75,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
       window.removeEventListener('sendChatMessage', handleSendMessage as EventListener)
       window.removeEventListener('clearChat', handleClearChatEvent)
     }
-  }, [sendMessage])
+  }, [sendMessage, handleClearChat]) // Added handleClearChat to dependency array
 
   // Listen for sidebar events
   useEffect(() => {
@@ -134,60 +135,63 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
       {/* Messages Container - Production Layout */}
       <div className={`chat-messages ${isSidebarOpen ? 'chat-messages-with-sidebar' : 'chat-messages-expanded'}`}>
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 sm:p-8">
+          <div className="flex flex-col items-center justify-center h-full text-center welcome-container">
             {/* Zuss Logo Welcome */}
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg border-2 border-gray-100 dark:border-gray-600 transition-colors duration-300">
-                <img 
+            <div className="relative mb-4 sm:mb-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg border-2 border-gray-100 dark:border-gray-600 transition-colors duration-300">
+                <Image 
                   src="/assets/logos/zusslogo.jpg" 
                   alt="Zuss Coffee AI" 
-                  className="h-16 w-16 object-cover rounded-full"
+                  width={64}
+                  height={64}
+                  className="h-12 w-12 sm:h-16 sm:w-16 object-cover rounded-full"
+                  priority
                 />
               </div>
               {/* Online indicator */}
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-colors duration-300">
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-colors duration-300">
                 <div className="absolute inset-1 bg-white dark:bg-gray-800 rounded-full transition-colors duration-300"></div>
                 <div className="absolute inset-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
               </div>
             </div>
             
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3 transition-colors duration-300">
+            <h2 className="welcome-title text-gray-900 dark:text-white transition-colors duration-300">
               <span style={{ color: '#0057FF', fontWeight: 'bold', textTransform: 'uppercase' }}>ZUS</span>
               <span className="text-gray-800 dark:text-white" style={{ fontWeight: '500' }}> Coffee</span>
               <span className="text-gray-500 dark:text-gray-400" style={{ fontWeight: '300' }}> • AI Assistant</span>
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-md leading-relaxed mb-6 transition-colors duration-300">
+            <p className="welcome-subtitle text-gray-600 dark:text-gray-300 max-w-sm sm:max-w-md leading-relaxed transition-colors duration-300">
               I&apos;m here to help you find products, locate outlets, calculate prices, or answer questions about Zuss Coffee.
             </p>
             
             {/* Quick start suggestions */}
-            <div className="grid gap-3 w-full max-w-md">
+            <div className="welcome-buttons">
               <button 
                 onClick={() => sendMessage("Show me your coffee products")}
-                className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
+                className="welcome-button"
               >
-                <div className="font-medium text-gray-900 dark:text-white">Browse Coffee Products</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Explore our coffee selection</div>
+                <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Browse Coffee Products</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Explore our coffee selection</div>
               </button>
               <button 
                 onClick={() => sendMessage("Find ZUS Coffee outlets near me")}
-                className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
+                className="welcome-button"
               >
-                <div className="font-medium text-gray-900 dark:text-white">Find Outlets</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Locate nearby stores</div>
+                <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Find Outlets</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Locate nearby stores</div>
               </button>
               <button 
                 onClick={() => sendMessage("What can you help me with?")}
-                className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left"
+                className="welcome-button"
               >
-                <div className="font-medium text-gray-900 dark:text-white">Get Help</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Learn what I can do</div>
+                <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Get Help</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Learn what I can do</div>
               </button>
             </div>
             
             {!isSidebarOpen && (
-              <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors duration-300">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors duration-300 max-w-sm sm:max-w-md">
+                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
                   <strong>Tip:</strong> Click the menu button to access suggested prompts and categories
                 </p>
               </div>
@@ -210,9 +214,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
                 <div className="flex gap-4">
                   {/* Zuss AI Avatar */}
                   <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 shadow-sm transition-colors duration-300">
-                    <img 
+                    <Image 
                       src="/assets/logos/zusslogo.jpg" 
                       alt="Zuss AI" 
+                      width={32}
+                      height={32}
                       className="h-8 w-8 object-cover rounded-full"
                     />
                   </div>

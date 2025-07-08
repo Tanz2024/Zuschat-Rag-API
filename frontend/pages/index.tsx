@@ -3,10 +3,12 @@ import Head from 'next/head'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import ChatWindow from '../components/ChatWindow'
+import FloatingHamburger from '../components/FloatingHamburger'
 
 export default function Home() {
   // Use null initially to prevent hydration flicker
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean | null>(null)
+  const [isLayoutReady, setIsLayoutReady] = useState(false)
 
   // Load sidebar preference from localStorage after mount
   useEffect(() => {
@@ -16,6 +18,11 @@ export default function Home() {
     } else {
       setIsSidebarOpen(false) // Default to closed for maximum chat space
     }
+    
+    // Small delay to prevent layout shift
+    setTimeout(() => {
+      setIsLayoutReady(true)
+    }, 100)
   }, [])
 
   // Save sidebar state to localStorage
@@ -53,7 +60,7 @@ export default function Home() {
   }, [isSidebarOpen])
 
   // Show loading state to prevent layout flicker
-  if (isSidebarOpen === null) {
+  if (isSidebarOpen === null || !isLayoutReady) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 items-center justify-center transition-colors duration-300">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -71,12 +78,7 @@ export default function Home() {
       <Head>
         <title>ZUS Coffee • AI Assistant</title>
         <meta name="description" content="Get instant answers about ZUS Coffee outlets, products, and services with our AI assistant. Find nearby outlets, discover menu items, and calculate your orders." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        
-        {/* Enhanced Font Loading */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         
         {/* Favicons */}
         <link rel="icon" href="/favicon-16.svg" sizes="16x16" type="image/svg+xml" />
@@ -86,7 +88,6 @@ export default function Home() {
         
         {/* Theme and Meta */}
         <meta name="theme-color" content="#0057FF" />
-        <meta name="application-name" content="ZUS Coffee AI" />
         <meta name="apple-mobile-web-app-title" content="ZUS Coffee AI" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -109,23 +110,30 @@ export default function Home() {
         <meta name="referrer" content="origin-when-cross-origin" />
       </Head>
       
-      <div className="app-layout relative">
-        {/* Sidebar overlay */}
+      <div className={`app-layout relative ${isLayoutReady ? '' : 'loading'}`}>
+        {/* Floating Hamburger - Mobile only */}
+        <FloatingHamburger 
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={toggleSidebar}
+        />
+        
+        {/* Sidebar overlay - Mobile optimized */}
         {isSidebarOpen && (
           <div 
-            className="sidebar-overlay"
+            className="sidebar-overlay lg:hidden"
             onClick={closeSidebar}
+            onTouchStart={closeSidebar} // Better mobile touch support
           />
         )}
         
-        {/* Sidebar */}
+        {/* Sidebar - Mobile responsive */}
         <div className={`sidebar-container ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
           <Sidebar onClose={closeSidebar} />
         </div>
         
-        {/* Main content - expands to full width when sidebar is closed */}
-        <div className={`main-layout ${isSidebarOpen ? 'main-layout-sidebar-open' : 'main-layout-sidebar-closed'}`}>
-          <div className="flex flex-col h-screen">
+        {/* Main content - Mobile first responsive */}
+        <div className={`main-layout ${typeof window !== 'undefined' && isSidebarOpen && window.innerWidth >= 1024 ? 'main-layout-sidebar-open' : 'main-layout-sidebar-closed'}`}>
+          <div className="flex flex-col h-full">
             <Header 
               isSidebarOpen={isSidebarOpen}
               onToggleSidebar={toggleSidebar}

@@ -5,15 +5,28 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <meta charSet="utf-8" />
+        {/* Enhanced Font Loading - Fixed from index.tsx warning */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        
         {/* Circular SVG Favicons */}
         <link rel="icon" href="/favicon-16.svg" sizes="16x16" type="image/svg+xml" />
         <link rel="icon" href="/favicon-32.svg" sizes="32x32" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" sizes="180x180" />
         {/* Fallback for older browsers */}
         <link rel="shortcut icon" href="/assets/logos/zusslogo.jpg" type="image/jpeg" />
+        
+        {/* PWA and Mobile Optimization */}
         <meta name="theme-color" content="#0057FF" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <meta name="application-name" content="ZUS Coffee AI" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
+        
+        {/* Performance Hints */}
+        <meta httpEquiv="X-DNS-Prefetch-Control" content="on" />
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
       </Head>
       <body className="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
         <script

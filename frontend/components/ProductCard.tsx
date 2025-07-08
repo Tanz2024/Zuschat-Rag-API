@@ -1,4 +1,5 @@
 import React from 'react'
+import Image from 'next/image'
 
 interface Product {
   id: string
@@ -24,9 +25,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
       {/* Product Image */}
       {product.image && (
         <div className="aspect-w-16 aspect-h-9 mb-3">
-          <img
+          <Image
             src={product.image}
             alt={product.name}
+            width={300}
+            height={200}
             className="w-full h-32 object-cover rounded-lg"
             onError={(e) => {
               const target = e.target as HTMLImageElement

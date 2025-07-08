@@ -48,18 +48,19 @@ except Exception as e:
 
 class EnhancedMinimalAgent:
     def __init__(self):
-        self.sessions = {}  # Conversation state storage
+        self.sessions = {}  # Conversation state storage with enhanced memory
         
-        # Intent planning keywords and patterns
+        # Enhanced intent planning keywords and patterns
         self.product_keywords = {
             'categories': ['tumbler', 'cup', 'mug', 'cold cup', 'drinkware'],
             'materials': ['stainless steel', 'ceramic', 'acrylic', 'glass'],
             'features': ['leak-proof', 'dishwasher safe', 'double wall', 'insulated'],
             'collections': ['sundaze', 'aqua', 'corak malaysia', 'og', 'frozee', 'all-can'],
-            'general': ['product', 'item', 'drinkware', 'collection']
+            'general': ['product', 'item', 'drinkware', 'collection'],
+            'price_qualifiers': ['cheap', 'cheapest', 'expensive', 'most expensive', 'affordable', 'premium', 'budget']
         }
         
-        # Text2SQL for natural language outlet queries (Part 4)
+        # Enhanced outlet keywords
         self.outlet_keywords = {
             'locations': ['location', 'outlet', 'store', 'branch', 'address', 'where'],
             'cities': ['kl', 'kuala lumpur', 'petaling jaya', 'pj', 'selangor', 'klcc', 'pavilion', 'mid valley', 'ss2'],
@@ -67,7 +68,7 @@ class EnhancedMinimalAgent:
             'hours': ['open', 'hours', 'timing', '24 hours', 'late night', 'early morning']
         }
 
-        # Tax and calculation keywords (Part 3 + SST/Tax support)
+        # Enhanced tax and calculation keywords
         self.tax_keywords = ['tax', 'sst', 'gst', 'total', 'calculate tax', 'with tax', 'including tax']
         self.tax_rates = {
             'sst': 0.06,  # 6% SST in Malaysia
@@ -75,9 +76,134 @@ class EnhancedMinimalAgent:
             'service': 0.10  # 10% service charge
         }
         
-        # Math calculation patterns
+        # Enhanced math calculation patterns
         self.math_operators = ['+', '-', '*', '/', 'x', '×', '÷', '^', '**', 'sqrt', '%', 'of']
         self.math_keywords = ['calculate', 'math', 'compute', 'what is', 'plus', 'minus', 'times', 'divided by', 'power', 'square root', 'percent']
+        
+        # New: Context awareness patterns
+        self.context_keywords = {
+            'reference': ['that', 'those', 'them', 'it', 'this', 'these', 'above', 'previous', 'earlier', 'mentioned'],
+            'continuation': ['also', 'and', 'additionally', 'furthermore', 'moreover', 'what about', 'how about'],
+            'comparison': ['compare', 'versus', 'vs', 'difference', 'better', 'worse', 'similar']
+        }
+
+    def get_session_context(self, session_id: str) -> Dict[str, Any]:
+        """Enhanced session context with conversation memory"""
+        if session_id not in self.sessions:
+            self.sessions[session_id] = {
+                "count": 0,
+                "messages": [],  # Store all messages for context
+                "last_intent": None,
+                "last_results": None,
+                "last_products": [],
+                "last_outlets": [],
+                "last_shown_products": [],  # Track recently shown products for context
+                "last_shown_outlets": [],  # Track recently shown outlets for context
+                "conversation_history": [],  # Enhanced conversation tracking
+                "conversation_flow": [],
+                "user_preferences": {},  # Track user preferences
+                "context_entities": [],  # Track mentioned entities (products, outlets, etc.)
+                "last_calculation": None,
+                "context_memory": [],
+                "created_at": datetime.now()
+            }
+        return self.sessions[session_id]
+
+    def update_session_context(self, session_id: str, intent: str, data: Dict[str, Any]):
+        """Enhanced context update with conversation memory"""
+        context = self.get_session_context(session_id)
+        context["last_intent"] = intent
+        context["last_results"] = data
+        
+        # Store conversation turn
+        conversation_turn = {
+            "timestamp": datetime.now(),
+            "intent": intent,
+            "data": data,
+            "user_message": data.get("query", data.get("message", ""))
+        }
+        context["conversation_history"].append(conversation_turn)
+        
+        # Keep only last 10 conversation turns to manage memory
+        if len(context["conversation_history"]) > 10:
+            context["conversation_history"] = context["conversation_history"][-10:]
+        
+        # Extract and store entities mentioned
+        if "query" in data:
+            self._extract_and_store_entities(session_id, data["query"])
+
+    def _extract_and_store_entities(self, session_id: str, message: str):
+        """Extract and store entities (products, locations, etc.) mentioned in conversation"""
+        context = self.get_session_context(session_id)
+        message_lower = message.lower()
+        
+        # Extract product-related entities
+        for category in self.product_keywords['categories']:
+            if category in message_lower:
+                if category not in context["context_entities"]:
+                    context["context_entities"].append({"type": "product_category", "value": category})
+        
+        # Extract location entities
+        for city in self.outlet_keywords['cities']:
+            if city in message_lower:
+                if city not in [e["value"] for e in context["context_entities"] if e["type"] == "location"]:
+                    context["context_entities"].append({"type": "location", "value": city})
+        
+        # Keep only recent entities (last 20)
+        if len(context["context_entities"]) > 20:
+            context["context_entities"] = context["context_entities"][-20:]
+
+    def analyze_conversation_context(self, message: str, session_id: str) -> Dict[str, Any]:
+        """Analyze conversation context to understand references and continuations"""
+        context = self.get_session_context(session_id)
+        message_lower = message.lower()
+        
+        analysis = {
+            "has_reference": False,
+            "has_continuation": False,
+            "referenced_intent": None,
+            "referenced_entities": [],
+            "referenced_products": [],
+            "referenced_outlets": [],
+            "needs_context": False
+        }
+        
+        # Check for reference words
+        reference_patterns = [
+            "that product", "that item", "that tumbler", "that cup", "that mug",
+            "that outlet", "that store", "that location", "that place",
+            "those products", "those items", "those outlets",
+            "it", "them", "these", "this one", "that one"
+        ]
+        
+        if any(ref in message_lower for ref in reference_patterns):
+            analysis["has_reference"] = True
+            analysis["needs_context"] = True
+            
+            # Find what's being referenced from recent conversation
+            if context["conversation_history"]:
+                recent_turn = context["conversation_history"][-1]
+                analysis["referenced_intent"] = recent_turn["intent"]
+                
+                # If referencing products and we have recently shown products
+                if any(prod_ref in message_lower for prod_ref in ["product", "item", "tumbler", "cup", "mug", "it", "that"]) and context.get("last_shown_products"):
+                    analysis["referenced_products"] = context["last_shown_products"]
+                
+                # If referencing outlets and we have recently shown outlets
+                if any(outlet_ref in message_lower for outlet_ref in ["outlet", "store", "location", "place", "it", "that"]) and context.get("last_shown_outlets"):
+                    analysis["referenced_outlets"] = context["last_shown_outlets"]
+        
+        # Check for continuation words
+        if any(cont in message_lower for cont in self.context_keywords['continuation']):
+            analysis["has_continuation"] = True
+            analysis["needs_context"] = True
+        
+        # Extract entities being referenced
+        for entity in context["context_entities"]:
+            if entity["value"] in message_lower:
+                analysis["referenced_entities"].append(entity)
+        
+        return analysis
 
     # --- Advanced: Hybrid Search (Semantic + Fuzzy + Keyword) ---
     def hybrid_search_products(self, query: str, top_k: int = 5, lang: str = "en") -> List[Dict]:
@@ -392,20 +518,7 @@ class EnhancedMinimalAgent:
                 }
             ]
 
-    def get_session_context(self, session_id: str) -> Dict[str, Any]:
-        """Get or create session context with memory storage."""
-        if session_id not in self.sessions:
-            self.sessions[session_id] = {
-                "count": 0,
-                "last_intent": None,
-                "last_products": [],
-                "last_outlets": [],
-                "conversation_flow": [],
-                "user_preferences": {},
-                "last_calculation": None,
-                "context_memory": []
-            }
-        return self.sessions[session_id]
+
 
     def update_session_context(self, session_id: str, intent: str, data: Dict[str, Any]) -> None:
         """Update session context with current turn data."""
@@ -450,6 +563,7 @@ class EnhancedMinimalAgent:
             "eco_friendly": 0.0,
             "farewell": 0.0,
             "follow_up": 0.0,
+            "advanced_query": 0.0,  # New intent for advanced queries
             "general": 0.0
         }
         
@@ -549,6 +663,17 @@ class EnhancedMinimalAgent:
         if any(keyword in message_lower for keyword in ["sst", "tax", "service charge"]) and re.search(r'\d+', message):
             intent_scores["calculation"] = 0.95
         
+        # ADVANCED QUERIES DETECTION - New feature for complex queries
+        advanced_query_patterns = [
+            "sst for all products", "tax for all products", "sst for all", "tax for all",
+            "show me sst for", "calculate sst for all", "tax on all products",
+            "sst calculation for all", "show sst for every product", "sst for each product",
+            "tax breakdown for all", "show tax for all items"
+        ]
+        
+        if any(pattern in message_lower for pattern in advanced_query_patterns):
+            intent_scores["advanced_query"] = 0.99  # Highest priority for advanced queries
+        
         # Product-related calculations (cost, total, pricing) - should be product search, not calculation
         has_product_calc_keywords = any(word in message_lower for word in ["cost", "total", "price", "calculate total", "calculate cost", "calculate price"])
         has_product_keywords = any(word in message_lower for word in ["product", "tumbler", "cup", "drink", "coffee", "cappuccino", "latte", "americano", "croissant", "meal", "combo"])
@@ -643,84 +768,136 @@ class EnhancedMinimalAgent:
         
         return action_plan
 
-    def find_matching_products(self, query: str, show_all: bool = False) -> List[Dict]:
-        """Find products with enhanced logic and filtering using real DB data."""
+    def find_matching_products(self, query: str, show_all: bool = False, session_id: str = None) -> List[Dict]:
+        """Enhanced product search with advanced filters, price analysis, and context-aware responses"""
         products = self.get_products()
-        if not products:  # Handle case where products is None or empty
+        if not products:
             return []
         
         if show_all:
             return products
-            
+
         query_lower = query.lower()
+        
+        # Enhanced context analysis for better intent understanding
+        context_analysis = self.analyze_conversation_context(query, session_id) if session_id else {"needs_context": False}
+        
+        # Handle context-aware queries (e.g., "that product", "tell me more about it")
+        if context_analysis.get("has_reference") and context_analysis.get("referenced_products"):
+            reference_patterns = [
+                "that product", "that item", "that tumbler", "that cup", "that mug",
+                "tell me more", "more details", "more about it", "about that",
+                "what about it", "it", "that one", "details about that"
+            ]
+            
+            if any(pattern in query_lower for pattern in reference_patterns):
+                # Return the last shown products as context
+                return context_analysis["referenced_products"]
+        
+        # Detect filtering intent
         filters = self.detect_filtering_intent(query)
         
-        # Start with all products
+        # Start with all products as base
         matching_products = products
-
-        # --- Improved: Apply material filter before product type for accuracy ---
-        filters = self.detect_filtering_intent(query)
+        
+        # Apply material filtering first (STRICT)
         if filters["material"]:
-            matching_products = [p for p in matching_products if filters["material"] in p.get("material", "").lower()]
-
-        # Now apply product type filter (e.g., mug, cup, tumbler)
-        product_type_keywords = {
-            "mug": ["mug"],
-            "cup": ["cup"],
-            "tumbler": ["tumbler"]
+            material_filtered = []
+            for p in matching_products:
+                product_material = (p.get("material", "") or "").lower()
+                if filters["material"].lower() in product_material:
+                    material_filtered.append(p)
+            
+            # STRICT: If no products match the material, return empty
+            if not material_filtered:
+                return []
+            
+            matching_products = material_filtered
+        
+        # Apply collection filtering (STRICT)
+        if filters["collection"]:
+            collection_filtered = []
+            for p in matching_products:
+                product_collection = (p.get("collection", "") or "").lower()
+                if filters["collection"].lower() in product_collection:
+                    collection_filtered.append(p)
+            
+            # STRICT: If no products match the collection, return empty
+            if not collection_filtered:
+                return []
+            
+            matching_products = collection_filtered
+        
+        # Apply category filtering for specific searches (cups, mugs, tumblers)
+        category_keywords = {
+            "tumbler": ["tumbler", "tumblers"],
+            "cup": ["cup", "cups", "cold cup", "cold cups"],
+            "mug": ["mug", "mugs"],
+            "drinkware": ["drinkware"]
         }
-        for product_type, keywords in product_type_keywords.items():
+        
+        for category, keywords in category_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
-                matching_products = [p for p in matching_products if any(keyword in p.get("name", "").lower() for keyword in keywords)]
-                break
-        
-        # Apply filters if specified
-        if filters["price_range"] or filters["category"] or filters["material"] or filters["collection"]:
-            if filters["price_range"]:
-                min_p, max_p = filters.get("min_price"), filters.get("max_price")
-                price_filtered = []
+                category_filtered = []
                 for p in matching_products:
-                    price = p.get("sale_price", 0)
-                    if price > 0:  # Only consider products with valid prices
-                        if (min_p is None or price >= min_p) and (max_p is None or price <= max_p):
-                            price_filtered.append(p)
-                matching_products = price_filtered
-            
-            if filters["category"]:
-                matching_products = [p for p in matching_products 
-                                   if p.get("category", "").lower() == filters["category"]]
-            
-            if filters["material"]:
-                matching_products = [p for p in matching_products 
-                                   if filters["material"] in p.get("material", "").lower()]
-            
-            if filters["collection"]:
-                matching_products = [p for p in matching_products 
-                                   if filters["collection"] in (p.get("collection", "") or "").lower()]
-            
-            # Sort by price for better organization
-            matching_products.sort(key=lambda p: p.get("sale_price", 0))
-            
-            # Handle price-based queries AFTER filtering by material/category/collection
-            if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
-                # Return cheapest matching products
-                return matching_products[:3]  # Return top 3 cheapest that match filters
-            elif any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
-                # Return most expensive matching products
-                return sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)[:3]
-            
-            return matching_products
+                    product_name = (p.get("name", "") or "").lower()
+                    product_category = (p.get("category", "") or "").lower()
+                    
+                    # Match by category or by keywords in product name
+                    if (category == "drinkware" and product_category == "drinkware") or \
+                       any(keyword in product_name for keyword in keywords):
+                        category_filtered.append(p)
+                
+                if category_filtered:  # Only apply filter if matches found
+                    matching_products = category_filtered
+                break  # Only apply one category filter
         
-        # Handle price-based queries (cheapest, most expensive, etc.) WITHOUT specific filters
-        if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
-            # Sort by price ascending and return cheapest products
-            sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
-            return sorted_products[:3]  # Return top 3 cheapest
+        # Apply price range filtering (STRICT)
+        if filters["price_range"]:
+            price_filtered = []
+            for p in matching_products:
+                try:
+                    price = self.extract_product_price(p)
+                    price_match = True
+                    
+                    if filters["min_price"] is not None and price < filters["min_price"]:
+                        price_match = False
+                    if filters["max_price"] is not None and price > filters["max_price"]:
+                        price_match = False
+                    
+                    if price_match:
+                        price_filtered.append(p)
+                except (ValueError, TypeError):
+                    continue
+            
+            # STRICT: If no products match the price range, return empty
+            if not price_filtered:
+                return []
+            
+            matching_products = price_filtered
         
+        # ENHANCED: Context-aware precise filtering for specific queries
+        # Handle "the most expensive" or "the cheapest" to return ONLY ONE result
+        is_singular_query = any(phrase in query_lower for phrase in [
+            "the most expensive", "the cheapest", "what is the most expensive", 
+            "what is the cheapest", "which is the most expensive", "which is the cheapest",
+            "what's the most expensive", "what's the cheapest"
+        ])
+        
+        # Handle superlative queries with precision
         if any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
-            # Sort by price descending and return most expensive products
             sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)
-            return sorted_products[:3]  # Return top 3 most expensive
+            if is_singular_query:
+                return sorted_products[:1]  # Return ONLY the most expensive
+            else:
+                return sorted_products[:3]  # Return top 3 most expensive
+        
+        if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
+            sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
+            if is_singular_query:
+                return sorted_products[:1]  # Return ONLY the cheapest
+            else:
+                return sorted_products[:3]  # Return top 3 cheapest
         
         # Handle specific category searches
         category_terms = {
@@ -793,7 +970,7 @@ class EnhancedMinimalAgent:
         
         return unique_products
 
-    def find_matching_outlets(self, query: str, show_all: bool = False) -> List[Dict]:
+    def find_matching_outlets(self, query: str, show_all: bool = False, session_id: str = None) -> List[Dict]:
         """Find outlets with enhanced logic and city filtering using real DB data."""
         outlets = self.get_outlets()
         if not outlets:  # Handle case where outlets is None or empty
@@ -803,6 +980,23 @@ class EnhancedMinimalAgent:
             return outlets
             
         query_lower = query.lower()
+        
+        # Enhanced context analysis for outlet references
+        if session_id:
+            context_analysis = self.analyze_conversation_context(query, session_id)
+            
+            # Handle context-aware outlet queries (e.g., "that outlet", "tell me more about it")
+            if context_analysis.get("has_reference") and context_analysis.get("referenced_outlets"):
+                outlet_reference_patterns = [
+                    "that outlet", "that store", "that location", "that place",
+                    "tell me more", "more details", "more about it", "about that",
+                    "what about it", "it", "that one", "details about that"
+                ]
+                
+                if any(pattern in query_lower for pattern in outlet_reference_patterns):
+                    # Return the last shown outlets as context
+                    return context_analysis["referenced_outlets"]
+        
         filters = self.detect_filtering_intent(query)
           # Apply filtering in sequence: first city, then service
         filtered_outlets = outlets
@@ -1054,6 +1248,68 @@ class EnhancedMinimalAgent:
             
         except Exception as e:
             return "I couldn't calculate the tax. Please try: 'Calculate SST for RM 100' or 'What's the tax on 50?'"
+
+    def handle_advanced_queries(self, message: str, session_id: str = None) -> str:
+        """Handle advanced queries like 'SST for all products' or 'show me tax for all items'"""
+        message_lower = message.lower()
+        
+        # Check for SST/Tax for all products queries
+        if any(pattern in message_lower for pattern in [
+            "sst for all products", "tax for all products", "sst for all", "tax for all",
+            "show me sst for", "calculate sst for all", "tax on all products",
+            "sst calculation for all", "show sst for every product"
+        ]):
+            products = self.get_products()
+            if not products:
+                return "I couldn't load the product data to calculate SST. Please try again later."
+            
+            tax_rate = self.tax_rates['sst']
+            response_parts = [
+                f"📊 **SST Calculation for All ZUS Coffee Products** (6% Malaysia SST)\n",
+                "*Price breakdown with SST for each item in our collection:*\n"
+            ]
+            
+            total_subtotal = 0
+            total_sst = 0
+            
+            for i, product in enumerate(products, 1):
+                name = product.get("name", "Unknown Product")
+                price_str = product.get("price", "").replace("RM", "").replace(",", "").strip()
+                
+                try:
+                    price = float(price_str) if price_str else 0
+                    if price > 0:
+                        sst_amount = price * tax_rate
+                        total_with_sst = price + sst_amount
+                        
+                        response_parts.append(
+                            f"**{i}. {name}**\n"
+                            f"   • Base Price: RM {price:.2f}\n"
+                            f"   • SST (6%): RM {sst_amount:.2f}\n"
+                            f"   • **Total with SST: RM {total_with_sst:.2f}**\n"
+                        )
+                        
+                        total_subtotal += price
+                        total_sst += sst_amount
+                    else:
+                        response_parts.append(f"**{i}. {name}** - Price not available\n")
+                        
+                except (ValueError, TypeError):
+                    response_parts.append(f"**{i}. {name}** - Price format error\n")
+            
+            # Add summary
+            if total_subtotal > 0:
+                total_with_all_sst = total_subtotal + total_sst
+                response_parts.append(f"\n📋 **Summary for All Products:**")
+                response_parts.append(f"• Total Subtotal: RM {total_subtotal:.2f}")
+                response_parts.append(f"• Total SST (6%): RM {total_sst:.2f}")
+                response_parts.append(f"• **Grand Total with SST: RM {total_with_all_sst:.2f}**")
+                response_parts.append(f"\n*Malaysia's current SST rate is 6% on goods and services.*")
+            
+            return "\n".join(response_parts)
+        
+        # Handle other advanced queries here in the future
+        return None
     
     async def process_message(self, message: str, session_id: str) -> Dict[str, Any]:
         """
@@ -1127,14 +1383,21 @@ class EnhancedMinimalAgent:
             # Improved calculation detection to avoid false positives from hyphens in words
             has_calc_operators = any(op in message for op in ['+', '*', '/', '=']) or any(f' {op} ' in message for op in ['-']) or any(kw in message_lower for kw in ['calculate', 'math'])
             has_calc_kw = has_calc_operators or any(kw in message_lower for kw in self.math_keywords)
-            multi_intent = (has_product_kw and has_outlet_kw) or (has_product_kw and has_calc_kw) or (has_outlet_kw and has_calc_kw)
+            
+            # Only trigger multi-intent if there are MULTIPLE strong intents, not just keywords
+            # AND the confidence is not very high for a single intent
+            multi_intent = (
+                (has_product_kw and has_outlet_kw) or 
+                (has_product_kw and has_calc_kw) or 
+                (has_outlet_kw and has_calc_kw)
+            ) and action_plan.get("confidence", 0) < 0.9  # Don't override high-confidence single intents
 
             if multi_intent:
                 response_parts = []
                 # Product answer
                 try:
                     if has_product_kw:
-                        matching_products = self.find_matching_products(message, show_all=True)
+                        matching_products = self.find_matching_products(message, show_all=True, session_id=session_id)
                         if matching_products:
                             response_parts.append(self.format_product_response(matching_products, session_id, message))
                         else:
@@ -1144,7 +1407,7 @@ class EnhancedMinimalAgent:
                 # Outlet answer
                 try:
                     if has_outlet_kw:
-                        matching_outlets = self.find_matching_outlets(message, show_all=True)
+                        matching_outlets = self.find_matching_outlets(message, show_all=True, session_id=session_id)
                         if matching_outlets:
                             response_parts.append(self.format_outlet_response(matching_outlets, session_id, message))
                         else:
@@ -1189,11 +1452,36 @@ class EnhancedMinimalAgent:
                     "confidence": 0.2
                 }
 
+        # Advanced query processing (e.g., "SST for all products")
+        if action_plan["intent"] == "advanced_query":
+            try:
+                result = self.handle_advanced_queries(message, session_id)
+                if result:  # If the advanced query was handled
+                    self.update_session_context(session_id, "advanced_query", {"query": message, "result": result})
+                    return {
+                        "message": result,
+                        "session_id": session_id,
+                        "intent": "advanced_query",
+                        "confidence": action_plan["confidence"]
+                    }
+                else:
+                    # Fall back to regular handling if advanced query not recognized
+                    pass
+            except Exception as e:
+                self.update_session_context(session_id, "advanced_query_error", {"query": message, "error": str(e)})
+                return {
+                    "message": "Sorry, I couldn't process that advanced query. Please try rephrasing or ask for specific products or calculations.",
+                    "session_id": session_id,
+                    "intent": "advanced_query",
+                    "confidence": 0.2,
+                    "error": str(e)
+                }
+
         # Product search processing
         if product_intent:
             try:
                 show_all = action_plan.get("action") == "show_all_products" or ("all products" in message_lower and not any(phrase in message_lower for phrase in ["under", "above", "between", "cheap", "expensive", "price", "rm"]))
-                matching_products = self.find_matching_products(message, show_all=show_all)
+                matching_products = self.find_matching_products(message, show_all=show_all, session_id=session_id)
                 if not matching_products:
                     self.update_session_context(session_id, "no_product_results", {"query": message})
                     return {
@@ -1203,6 +1491,11 @@ class EnhancedMinimalAgent:
                         "confidence": 0.3
                     }
                 response = self.format_product_response(matching_products, session_id, message)
+                
+                # Store shown products in context for future references
+                context = self.get_session_context(session_id)
+                context["last_shown_products"] = matching_products[:5]  # Store up to 5 recent products
+                
                 self.update_session_context(session_id, "product_search", {"query": message, "results_count": len(matching_products)})
                 return {
                     "message": response,
@@ -1227,7 +1520,7 @@ class EnhancedMinimalAgent:
                 filters = self.detect_filtering_intent(message)
                 show_all = (action_plan.get("action") == "show_all_outlets" or 
                            ("all outlets" in message_lower or "show all outlet" in message_lower)) and not (filters.get("city") or filters.get("service"))
-                matching_outlets = self.find_matching_outlets(message, show_all=show_all)
+                matching_outlets = self.find_matching_outlets(message, show_all=show_all, session_id=session_id)
                 if (filters.get("city") and not matching_outlets) or not matching_outlets:
                     self.update_session_context(session_id, "no_outlet_results", {"query": message})
                     return {
@@ -1237,6 +1530,11 @@ class EnhancedMinimalAgent:
                         "confidence": 0.3
                     }
                 response = self.format_outlet_response(matching_outlets, session_id, message)
+                
+                # Store shown outlets in context for future references
+                context = self.get_session_context(session_id)
+                context["last_shown_outlets"] = matching_outlets[:5]  # Store up to 5 recent outlets
+                
                 self.update_session_context(session_id, "outlet_search", {"query": message, "results_count": len(matching_outlets)})
                 return {
                     "message": response,

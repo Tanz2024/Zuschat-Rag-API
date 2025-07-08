@@ -13,15 +13,29 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Fix iOS viewport issues */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
   }
   
   body {
     @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     letter-spacing: -0.011em;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    /* Fix iOS Safari bottom bar/keyboard issues */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    /* Prevent zoom on input focus */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
   }
   
-  /* Modern typography scales */
+  /* Modern typography scales - Mobile first */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
@@ -33,46 +47,182 @@
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
+  
+  /* Mobile viewport fixes */
+  * {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+  
+  /* Fix iOS Safari 100vh issue and keyboard handling */
+  @supports (-webkit-touch-callout: none) {
+    html, body {
+      height: -webkit-fill-available;
+    }
+    
+    .app-layout {
+      min-height: -webkit-fill-available;
+      /* Prevent layout shift */
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+  }
+  
+  /* Prevent layout shift during load */
+  .app-layout {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.1s ease-in-out;
+  }
+  
+  .app-layout.loading {
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  /* Prevent text selection on UI elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Improve touch scrolling */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 }
 
 @layer components {
-  /* Layout Components */
+  /* Layout Components - Mobile First with keyboard handling */
   .app-layout {
-    @apply flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden transition-colors duration-300;
+    @apply flex bg-gray-50 dark:bg-gray-900 overflow-hidden transition-colors duration-300;
+    /* Mobile: Full height without address bar and keyboard handling */
+    height: 100vh;
+    height: 100dvh; /* New viewport units */
+    position: relative;
+    width: 100vw;
+    max-width: 100%;
   }
   
   .main-content {
     @apply flex flex-1 flex-col min-w-0;
+    height: 100%;
   }
   
   .header-height {
-    @apply h-16;
+    @apply h-14; /* Shorter header on mobile */
+    position: sticky;
+    top: 0;
+    z-index: 40;
   }
   
-  /* Chat Components - Production Level Typography */
+  @media (min-width: 640px) {
+    .header-height {
+      @apply h-16;
+    }
+  }
+  
+  /* Floating Action Button for hamburger (mobile) */
+  .floating-hamburger {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    left: 1rem;
+    z-index: 60;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Better touch area for accessibility */
+    cursor: pointer;
+    /* Prevent text selection */
+    user-select: none;
+    -webkit-user-select: none;
+    /* Ensure it's always accessible */
+    touch-action: manipulation;
+  }
+  
+  .floating-hamburger:hover,
+  .floating-hamburger:focus {
+    transform: scale(1.08);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.18), 0 3px 12px rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 1);
+  }
+  
+  .floating-hamburger:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease-out;
+  }
+  
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .floating-hamburger {
+      background: rgba(31, 41, 55, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .floating-hamburger:hover,
+    .floating-hamburger:focus {
+      background: rgba(31, 41, 55, 1);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .floating-hamburger {
+      display: none;
+    }
+  }
+  
+  /* Chat Components - Mobile-First GPT Style */
   .chat-container {
     @apply flex flex-col h-full bg-gray-50/30 dark:bg-gray-900/30 transition-colors duration-300;
   }
   
   .chat-messages {
     @apply flex-1 overflow-y-auto scrollbar-hide scroll-smooth;
+    /* Mobile optimizations */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   
   .chat-messages-with-sidebar {
-    @apply px-4 py-6 sm:px-6 lg:px-8;
+    @apply px-3 py-4 sm:px-4 sm:py-6 lg:px-8;
   }
   
   .chat-messages-expanded {
-    @apply px-6 py-8 sm:px-12 lg:px-16;
+    @apply px-3 py-4 sm:px-6 sm:py-8 lg:px-12 xl:px-16;
   }
   
+  /* GPT-style chat bubbles - Mobile optimized */
   .chat-bubble {
-    @apply px-5 py-4 sm:px-6 sm:py-5 rounded-2xl shadow-sm transition-all duration-200 ease-in-out border border-gray-200 dark:border-gray-700;
+    @apply px-4 py-3 sm:px-5 sm:py-4 rounded-2xl shadow-sm transition-all duration-200 ease-in-out border border-gray-200 dark:border-gray-700;
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
     letter-spacing: -0.011em;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  
+  @media (min-width: 640px) {
+    .chat-bubble {
+      font-size: 15px;
+    }
   }
   
   .chat-bubble-user {
@@ -85,67 +235,147 @@
     font-weight: 400;
   }
   
-  /* Typography enhancements for chat content */
+  /* Mobile-optimized text */
   .mobile-text-optimized {
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
     letter-spacing: -0.011em;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     font-weight: 400;
   }
   
-  .mobile-chat-spacing {
-    @apply mb-6;
+  @media (min-width: 640px) {
+    .mobile-text-optimized {
+      font-size: 15px;
+    }
   }
   
-  /* Product Cards */
+  .mobile-chat-spacing {
+    @apply mb-4 sm:mb-6;
+  }
+  
+  /* Product Cards - Mobile responsive */
   .product-card {
-    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200;
   }
   
   .product-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3;
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3;
   }
   
-  /* Input Components */
+  /* Input Components - Mobile First with keyboard handling */
   .chat-input-container {
-    @apply sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-lg backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 transition-colors duration-300;
+    @apply sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 transition-colors duration-300;
+    /* Mobile safe area padding and keyboard handling */
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    /* Prevent layout shift when keyboard appears */
+    position: -webkit-sticky;
+    position: sticky;
+    z-index: 30;
+    /* Handle keyboard on mobile with viewport adjustments */
+    transition: transform 0.2s ease-in-out, padding 0.2s ease-in-out;
+    /* Ensure input stays visible when keyboard appears */
+    bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  @media (min-width: 640px) {
+    .chat-input-container {
+      padding-bottom: 1.5rem;
+    }
+  }
+  
+  /* Enhanced keyboard handling with viewport units */
+  .chat-input-container.keyboard-visible {
+    /* Use the smaller of viewport height or visual viewport height */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    transform: translateY(0);
+    /* Additional padding when keyboard is visible */
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    /* Ensure container is above keyboard */
+    min-height: auto;
+  }
+  
+  /* Prevent page zoom on input focus - Enhanced */
+  .chat-input:focus {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* Additional zoom prevention */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  /* Prevent iOS zoom on any input */
+  input[type="text"],
+  input[type="email"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    appearance: none;
   }
   
   .chat-input {
-    @apply w-full px-4 py-4 pr-14 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out resize-none overflow-y-auto max-h-32 text-base leading-relaxed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100;
+    @apply w-full px-4 py-3 sm:py-4 pr-12 sm:pr-14 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out resize-none overflow-y-auto max-h-24 sm:max-h-32 text-sm sm:text-base leading-relaxed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100;
+    /* Mobile optimizations */
+    -webkit-appearance: none;
+    appearance: none;
+    font-size: 16px; /* Prevent zoom on iOS */
+    /* Better touch handling */
+    touch-action: manipulation;
   }
   
   .chat-input-disabled {
     @apply bg-gray-100 dark:bg-gray-600 cursor-not-allowed opacity-60;
   }
   
-  /* Buttons */
+  /* Buttons - Mobile optimized */
   .btn-primary {
-    @apply bg-blue-500 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-md transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500;
+    @apply bg-blue-500 hover:bg-blue-700 text-white font-medium px-4 py-2 sm:px-6 sm:py-3 rounded-md transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500;
+    min-height: 44px; /* iOS minimum touch target */
   }
   
   .btn-secondary {
-    @apply bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 transition-all duration-200 ease-in-out;
+    @apply bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-md border border-gray-300 dark:border-gray-600 transition-all duration-200 ease-in-out;
+    min-height: 44px;
   }
   
   .btn-icon {
     @apply p-2 rounded-md transition-colors duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700;
+    min-height: 44px;
+    min-width: 44px;
   }
   
   .btn-send {
-    @apply absolute right-3 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-700 text-white p-3 rounded-lg transition-all duration-200 ease-in-out disabled:opacity-50;
+    @apply absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-700 text-white p-2 sm:p-3 rounded-lg transition-all duration-200 ease-in-out disabled:opacity-50;
+    min-height: 40px;
+    min-width: 40px;
   }
   
   .btn-hamburger {
     @apply p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out;
-  }
+    min-height: 44px;
+    min-width: 44px;
   }
   
-  /* Sidebar - YouTube/ChatGPT Style */
+  /* Sidebar - Mobile-first GPT Style */
   .sidebar-container {
-    @apply fixed top-0 left-0 z-50 bg-white border-r border-gray-200 flex flex-col h-full w-80 transform transition-all duration-300 ease-in-out shadow-lg;
+    @apply fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transform transition-all duration-300 ease-in-out shadow-lg;
+    width: 280px; /* Smaller on mobile */
+  }
+  
+  @media (min-width: 640px) {
+    .sidebar-container {
+      width: 320px;
+    }
   }
   
   .sidebar-open {
@@ -158,30 +388,40 @@
   
   .sidebar-overlay {
     @apply fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ease-in-out;
+    /* Mobile backdrop */
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
   
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg mx-2 transition-all duration-200 ease-in-out cursor-pointer;
+    @apply flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 rounded-lg mx-2 transition-all duration-200 ease-in-out cursor-pointer;
+    min-height: 44px;
   }
   
   .sidebar-item.active {
     @apply bg-blue-500 text-white hover:bg-blue-600;
   }
   
-  /* Main Layout Adjustments */
+  /* Main Layout Adjustments - Mobile first */
   .main-layout {
     @apply w-full h-screen transition-all duration-300 ease-in-out;
   }
   
   .main-layout-sidebar-open {
-    @apply ml-80;
+    @apply ml-0; /* No margin on mobile */
+  }
+  
+  @media (min-width: 1024px) {
+    .main-layout-sidebar-open {
+      margin-left: 320px; /* Only on desktop */
+    }
   }
   
   .main-layout-sidebar-closed {
     @apply ml-0;
   }
   
-  /* Chat container expansion - TRUE FULL WIDTH when sidebar closed */
+  /* Chat container expansion - Mobile responsive */
   .chat-expanded {
     @apply w-full h-full;
   }
@@ -190,31 +430,33 @@
     @apply w-full h-full;
   }
   
-  /* Chat messages responsive width - REMOVE MAX-WIDTH constraints */
+  /* Chat messages responsive width - Mobile first */
   .chat-messages-expanded {
-    @apply w-full px-4 sm:px-6 md:px-12 lg:px-16;
+    @apply w-full px-3 sm:px-6 md:px-12 lg:px-16;
   }
   
   .chat-messages-with-sidebar {
-    @apply w-full max-w-4xl mx-auto px-4 sm:px-6;
+    @apply w-full max-w-4xl mx-auto px-3 sm:px-4 lg:px-6;
   }
   
-  /* Responsive chat bubbles for full-width mode */
+  /* Responsive chat bubbles - Mobile optimized */
   .chat-messages-expanded .chat-bubble {
-    @apply max-w-sm md:max-w-lg lg:max-w-xl xl:max-w-3xl;
+    @apply max-w-none sm:max-w-lg lg:max-w-xl xl:max-w-3xl;
   }
   
   .chat-messages-with-sidebar .chat-bubble {
-    @apply max-w-sm md:max-w-lg lg:max-w-xl;
+    @apply max-w-none sm:max-w-lg lg:max-w-xl;
   }
   
-  /* Feedback Buttons */
+  /* Feedback Buttons - Touch friendly */
   .feedback-buttons {
     @apply flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200;
   }
   
   .feedback-btn {
-    @apply p-1 rounded text-gray-400 hover:text-gray-600 transition-colors duration-200;
+    @apply p-2 rounded text-gray-400 hover:text-gray-600 transition-colors duration-200;
+    min-height: 44px;
+    min-width: 44px;
   }
   
   .feedback-btn.active-positive {
@@ -225,18 +467,27 @@
     @apply text-red-500 hover:text-red-600;
   }
   
-  /* Suggested Prompts */
+  /* Suggested Prompts - Mobile responsive */
   .suggested-prompts {
-    @apply flex flex-wrap gap-3;
+    @apply flex flex-wrap gap-2 sm:gap-3;
   }
   
   .suggested-prompt {
-    @apply bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-full text-base transition-colors duration-200 cursor-pointer min-h-[44px] flex items-center;
+    @apply bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2 sm:px-4 sm:py-3 rounded-full text-sm sm:text-base transition-colors duration-200 cursor-pointer flex items-center;
+    min-height: 44px;
   }
   
-  /* Toast Notifications */
+  /* Toast Notifications - Mobile positioned */
   .toast {
-    @apply fixed top-4 right-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-50 transform transition-all duration-300;
+    @apply fixed top-4 right-4 left-4 sm:left-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-50 transform transition-all duration-300;
+    max-width: calc(100vw - 2rem);
+  }
+  
+  @media (min-width: 640px) {
+    .toast {
+      @apply left-auto;
+      max-width: 400px;
+    }
   }
   
   .toast-error {
@@ -246,6 +497,181 @@
   .toast-success {
     @apply border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20;
   }
+  
+  /* Mobile-specific utilities */
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+  
+  .desktop-only {
+    @apply hidden sm:block;
+  }
+  
+  /* Welcome screen mobile optimizations */
+  .welcome-container {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+  
+  .welcome-title {
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3;
+  }
+  
+  .welcome-subtitle {
+    @apply text-base sm:text-lg lg:text-xl mb-4 sm:mb-6;
+  }
+  
+  .welcome-buttons {
+    @apply grid gap-2 sm:gap-3 w-full max-w-sm sm:max-w-md;
+  }
+  
+  .welcome-button {
+    @apply p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 text-left;
+    min-height: 60px;
+  }
+  
+  /* Header mobile optimizations */
+  .header-mobile {
+    @apply h-14 sm:h-16;
+  }
+  
+  .header-brand-mobile {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+  
+  /* Message bubble mobile optimizations */
+  .message-avatar {
+    @apply w-8 h-8 sm:w-10 sm:h-10;
+  }
+  
+  .message-content {
+    @apply text-sm sm:text-base;
+  }
+  
+  /* Scrollbar hiding for mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Mobile touch targets */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Slide up animation for messages */
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* iOS Safari fixes */
+  @supports (-webkit-touch-callout: none) {
+    .app-layout {
+      height: -webkit-fill-available;
+    }
+    
+    .chat-input {
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+    }
+  }
+  
+  /* Enhanced mobile UX improvements */
+  .mobile-optimized {
+    /* Prevent callout on touch and hold */
+    -webkit-touch-callout: none;
+    /* Prevent selection highlight */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Better touch response */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    /* Prevent magnification on double tap */
+    touch-action: manipulation;
+  }
+  
+  /* Improved button press feedback */
+  .btn-feedback {
+    transform: scale(1);
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  }
+  
+  .btn-feedback:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Better focus states for accessibility */
+  .focus-accessible:focus {
+    outline: 2px solid #0057FF;
+    outline-offset: 2px;
+  }
+  
+  /* Prevent zoom on input focus (iOS) */
+  input, textarea, select {
+    font-size: 16px !important;
+    transform: translateZ(0);
+  }
+  
+  /* Safe area padding utilities */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Improved scrolling for mobile */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+  
+  /* Better mobile text rendering */
+  .mobile-text {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Loading state to prevent FOUC */
+  .loading-hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  .loading-visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease-in-out;
+  }
+}
 
 @layer utilities {
   /* Mobile-first improvements for better readability */

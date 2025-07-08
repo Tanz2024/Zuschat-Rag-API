@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import Image from 'next/image'
 import ProductCard from './ProductCard'
 import { User, ThumbsUp, ThumbsDown } from 'lucide-react'
 
@@ -77,12 +78,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       }
     }
 
-    // Regular text content with modern typography
+    // Regular text content with modern typography - Mobile optimized
     return (
-      <div className="whitespace-pre-wrap break-words"
+      <div className="whitespace-pre-wrap break-words message-content"
            style={{
              fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-             fontSize: '15px',
+             fontSize: isUser ? '14px' : '14px',
              fontWeight: isUser ? '500' : '400',
              letterSpacing: '-0.011em',
              lineHeight: '1.6',
@@ -94,24 +95,26 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   return (
-    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'} slide-up group mobile-chat-spacing`}>
-      {/* Avatar */}
-      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${
+    <div className={`flex gap-3 sm:gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'} slide-up group mobile-chat-spacing`}>
+      {/* Avatar - Mobile responsive */}
+      <div className={`flex-shrink-0 message-avatar rounded-full flex items-center justify-center transition-colors duration-300 ${
         isUser ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 shadow-sm'
       }`}>
         {isUser ? (
-          <User className="h-5 w-5 text-white" />
+          <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
         ) : (
-          <img 
+          <Image 
             src="/assets/logos/zusslogo.jpg" 
             alt="Zuss AI" 
-            className="h-8 w-8 object-cover rounded-full"
+            width={32}
+            height={32}
+            className="h-6 w-6 sm:h-8 sm:w-8 object-cover rounded-full"
           />
         )}
       </div>
 
-      {/* Message Content */}
-      <div className={`max-w-sm md:max-w-lg lg:max-w-xl ${isUser ? 'mr-auto' : 'ml-auto'}`}>
+      {/* Message Content - Mobile responsive */}
+      <div className={`flex-1 ${isUser ? 'max-w-xs sm:max-w-sm md:max-w-lg lg:max-w-xl' : 'max-w-xs sm:max-w-sm md:max-w-lg lg:max-w-xl'}`}>
         <div className={`chat-bubble ${isUser ? 'chat-bubble-user' : 'chat-bubble-bot'}`}>
           {isTyping ? (
             <div className="flex items-center gap-1">
