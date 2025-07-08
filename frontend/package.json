@@ -1,7 +1,7 @@
 {
   "name": "zus-chatbot-frontend",
-  "version": "2.1.0",
-  "description": "ZUS Coffee Chatbot Frontend - Next.js with Tailwind CSS (Updated Suggestions)",
+  "version": "2.2.0",
+  "description": "ZUS Coffee Chatbot Frontend - Next.js with Tailwind CSS (Clean Production Version)",
   "private": true,
   "scripts": {
     "dev": "next dev",
