@@ -410,14 +410,14 @@ async def test_chat_get():
     return {
         "message": "✅ GET test endpoint working",
         "session_id": "default",
-        "intent": "test",
+        "intent": "help",
         "confidence": 1.0,
         "context": {"endpoint": "test-chat-get", "status": "working", "method": "GET"},
         "products": None,
         "outlets": None,
         "calculation_result": None,
         "suggestions": ["Use POST /test-chat for full testing", "Try the main /chat endpoint"],
-        "action": "test"
+        "action": "provide_answer"
     }
 
 # Test chat endpoint that doesn't use the complex chatbot
@@ -431,28 +431,28 @@ async def test_chat(request: ChatRequest):
         return {
             "message": f"✅ Test response for: {message}",
             "session_id": session_id,
-            "intent": "test",
+            "intent": "help",
             "confidence": 1.0,
             "context": {"endpoint": "test-chat", "status": "working"},
             "products": None,
             "outlets": None,
             "calculation_result": None,
             "suggestions": ["Try the main /chat endpoint", "Check out our ceramic mugs"],
-            "action": "test"
+            "action": "provide_answer"
         }
     except Exception as e:
         logger.error(f"Test chat error: {e}")
         return {
             "message": "❌ Test endpoint error occurred",
             "session_id": "default",
-            "intent": "error",
+            "intent": "unknown",
             "confidence": 0.0,
             "context": {"endpoint": "test-chat", "status": "error", "error": str(e)},
             "products": None,
             "outlets": None,
             "calculation_result": None,
             "suggestions": ["Check server logs", "Try again"],
-            "action": "error"
+            "action": "request_clarification"
         }
 
 # Startup validation
