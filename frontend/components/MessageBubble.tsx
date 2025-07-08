@@ -7,15 +7,25 @@ export interface ChatMessage {
   content: string
   role: 'user' | 'assistant'
   timestamp: Date
-  products?: any[]
+  products?: Product[]
   feedback?: 'positive' | 'negative' | null
+}
+
+interface Product {
+  id: string
+  name: string
+  price?: string
+  image?: string
+  description?: string
+  category?: string
+  availability?: boolean
 }
 
 interface MessageBubbleProps {
   message: ChatMessage
   isTyping?: boolean
   onFeedback?: (messageId: string, feedback: 'positive' | 'negative') => void
-  onProductClick?: (product: any) => void
+  onProductClick?: (product: Product) => void
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
@@ -50,7 +60,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <div className="space-y-3">
                 <p className="mobile-text-optimized">{message.content.replace(/```json[\s\S]*?```/, '').trim()}</p>
                 <div className="product-grid">
-                  {data.products.map((product: any, index: number) => (
+                  {data.products.map((product: Product, index: number) => (
                     <ProductCard
                       key={index}
                       product={product}
@@ -62,7 +72,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             )
           }
         }
-      } catch (error) {
+      } catch {
         // Fall back to regular text display
       }
     }

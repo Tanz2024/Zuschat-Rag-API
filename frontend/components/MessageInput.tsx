@@ -51,15 +51,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   }
 
-  const handleSuggestedPrompt = (prompt: string) => {
-    if (!isInputDisabled) {
-      setMessage(prompt)
-      // Auto-focus textarea after selecting suggestion
-      setTimeout(() => {
-        textareaRef.current?.focus()
-      }, 0)
-    }
-  }
+
 
   const handleQuickSend = (prompt: string) => {
     if (!isInputDisabled) {

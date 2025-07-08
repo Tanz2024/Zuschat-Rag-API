@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTheme } from '../hooks/useTheme'
-import { Trash2, Moon, Sun, Sparkles, Coffee, Search, X, ChevronDown } from 'lucide-react'
+import { Trash2, Moon, Sun, Sparkles, Coffee, Search, ChevronDown } from 'lucide-react'
 
 // VERCEL CACHE BUSTER - BUILD: 2025-07-05-19:55:00 - VERSION 2.0.0 - NO EXTERNAL IMPORTS
 // EMBEDDED PROMPTS DATA TO ELIMINATE ALL MODULE RESOLUTION ISSUES
@@ -147,7 +147,7 @@ interface SidebarProps {
   onClose?: () => void
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+const Sidebar: React.FC<SidebarProps> = () => {
   const { theme, toggleTheme, mounted } = useTheme()
   const [showSuggestedPrompts, setShowSuggestedPrompts] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')

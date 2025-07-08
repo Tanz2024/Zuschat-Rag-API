@@ -1,9 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import TypingIndicator from './TypingIndicator'
 import Toast from './Toast'
 import { useChat } from '../hooks/useChat'
+
+interface Product {
+  id: string
+  name: string
+  price?: string
+  image?: string
+  description?: string
+  category?: string
+  availability?: boolean
+}
 
 interface ChatWindowProps {
   isSidebarOpen?: boolean
@@ -34,13 +44,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isLoading])
 
+  // Memoize handleClearChat to avoid dependency issues
+  const handleClearChat = useCallback(() => {
+    clearChat()
+  }, [clearChat])
+
   // Auto-scroll on component mount
   useEffect(() => {
     const timer = setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }, 100)
     return () => clearTimeout(timer)
-  }, [])
+  }, [handleClearChat])
 
   // Listen for sidebar events
   useEffect(() => {
@@ -78,7 +93,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
       window.removeEventListener('sidebar-prompt-click', handleSidebarPrompt as EventListener)
       window.removeEventListener('sidebar-clear-chat', handleSidebarClearChat as EventListener)
     }
-  }, [sendMessage])
+  }, [sendMessage, handleClearChat])
 
   // Show error toast
   useEffect(() => {
@@ -107,20 +122,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
   }
 
   // Handle product clicks
-  const handleProductClick = (product: any) => {
+  const handleProductClick = (product: Product) => {
     const productMessage = `Tell me more about ${product.name}`
     sendMessage(productMessage)
   }
 
-  // Handle clear chat
-  const handleClearChat = () => {
-    clearChat()
-    setToast({
-      message: 'Chat history cleared',
-      type: 'info',
-      isVisible: true
-    })
-  }
+
 
   return (
     <div className="chat-container bg-gray-50/50 dark:bg-gray-900/50 transition-colors duration-300">
@@ -150,7 +157,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
               <span className="text-gray-500 dark:text-gray-400" style={{ fontWeight: '300' }}> • AI Assistant</span>
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-md leading-relaxed mb-6 transition-colors duration-300">
-              I'm here to help you find products, locate outlets, calculate prices, or answer questions about Zuss Coffee.
+              I&apos;m here to help you find products, locate outlets, calculate prices, or answer questions about Zuss Coffee.
             </p>
             
             {/* Quick start suggestions */}
