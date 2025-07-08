@@ -35,3 +35,15 @@ yarn-error.log*
 # Typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Development and temporary files
+*_SUMMARY.md
+*_CERTIFICATE.md
+*_FIX.md
+*_FIXES_*.md
+*_IMPROVEMENT.md
+*_REPORT.md
+*_READY.md
+.vercel-trigger
+*.tmp
+*.temp
