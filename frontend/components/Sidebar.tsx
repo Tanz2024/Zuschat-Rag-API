@@ -15,110 +15,76 @@ interface SuggestedPrompt {
 const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   // High Priority - Popular Queries
   {
-    text: "What's new at ZUS Coffee this month?",
-    category: "Popular",
-    priority: 1,
-    tags: ["new", "latest", "updates", "promotion"]
-  },
-  {
-    text: "Find ZUS Coffee outlets near KLCC",
-    category: "Popular", 
-    priority: 1,
-    tags: ["location", "klcc", "outlets", "nearby"]
-  },
-  {
-    text: "Show me your best-selling drinks",
-    category: "Popular",
-    priority: 1,
-    tags: ["drinks", "popular", "coffee", "bestseller"]
-  },
-  {
-    text: "What promotions are available today?",
-    category: "Popular",
-    priority: 1,
-    tags: ["promotion", "deals", "discount", "offers"]
-  },
-  // Product Related
-  {
-    text: "Show me coffee tumblers under RM40",
+    text: "Show me ZUS OG Cup 2.0 with screw-on lid",
     category: "Products",
-    priority: 2,
-    tags: ["tumbler", "drinkware", "price", "budget"]
+    priority: 1,
+    tags: ["cup", "og", "screw-on", "lid"]
   },
   {
-    text: "What drinkware collections do you have?",
+    text: "What's the cheapest ceramic mug available?",
     category: "Products",
-    priority: 2,
-    tags: ["drinkware", "collection", "merchandise", "products"]
+    priority: 1,
+    tags: ["ceramic", "mug", "cheapest", "price"]
   },
   {
-    text: "Show me eco-friendly drinkware options",
+    text: "Find all products under RM60",
     category: "Products",
-    priority: 2,
-    tags: ["eco", "sustainable", "environment", "green"]
+    priority: 1,
+    tags: ["products", "price", "budget", "under"]
   },
   {
-    text: "What steel tumblers are available?",
+    text: "Show me ZUS All-Can Tumbler 600ml details",
     category: "Products",
-    priority: 2,
-    tags: ["steel", "tumbler", "available", "metal"]
+    priority: 1,
+    tags: ["tumbler", "all-can", "600ml", "details"]
   },
-  // Outlet Related
   {
-    text: "ZUS Coffee outlets in KL with drive-thru",
+    text: "Find ZUS Coffee outlets in Kuala Lumpur",
     category: "Outlets",
-    priority: 2,
-    tags: ["location", "drive-thru", "kuala lumpur", "convenient"]
+    priority: 1,
+    tags: ["outlets", "kuala lumpur", "location", "find"]
   },
   {
-    text: "Which outlets are open 24 hours?",
+    text: "Show outlets with WiFi in Selangor",
     category: "Outlets",
-    priority: 2,
-    tags: ["24hours", "late night", "hours", "open"]
-  },
-  // Help & Information
-  {
-    text: "What products do you have?",
-    category: "Help",
-    priority: 2,
-    tags: ["products", "available", "catalog", "what"]
+    priority: 1,
+    tags: ["outlets", "wifi", "selangor", "amenities"]
   },
   {
-    text: "Show me all outlet locations",
-    category: "Help",
-    priority: 2,
-    tags: ["outlets", "locations", "all", "where"]
+    text: "Find outlets near Cheras",
+    category: "Outlets",
+    priority: 1,
+    tags: ["outlets", "cheras", "near", "location"]
   },
-  // Calculator & Math
   {
-    text: "Calculate 25 + 15",
+    text: "What outlets have drive-thru service?",
+    category: "Outlets",
+    priority: 1,
+    tags: ["outlets", "drive-thru", "service", "convenient"]
+  },
+  {
+    text: "Calculate 6% SST on RM55",
     category: "Calculator",
     priority: 2,
-    tags: ["calculator", "math", "addition", "calculate"]
+    tags: ["calculator", "sst", "tax", "percentage"]
   },
   {
-    text: "What is 15% of 200?",
-    category: "Calculator", 
-    priority: 2,
-    tags: ["percentage", "calculator", "math", "percent"]
-  },
-  {
-    text: "Calculate 8 × 7",
+    text: "What's the total for 2 × RM39?",
     category: "Calculator",
     priority: 2,
-    tags: ["multiplication", "calculator", "math", "times"]
+    tags: ["calculator", "multiply", "total", "math"]
   },
   {
-    text: "Square root of 25",
+    text: "Calculate RM105 + RM55 + RM39",
     category: "Calculator",
     priority: 2,
-    tags: ["square root", "calculator", "math", "sqrt"]
+    tags: ["calculator", "addition", "total", "sum"]
   },
   {
-    text: "2 to the power of 3",
+    text: "What's 20% discount on RM79?",
     category: "Calculator",
     priority: 2,
-    tags: ["power", "calculator", "math", "exponent"]
+    tags: ["calculator", "discount", "percentage", "savings"]
   }
 ]
 
