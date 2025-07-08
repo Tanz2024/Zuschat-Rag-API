@@ -647,19 +647,21 @@ class EnhancedMinimalAgent:
         
         # Start with all products
         matching_products = products
-        
-        # First, apply specific product type filtering (mug, cup, tumbler)
+
+        # --- Improved: Apply material filter before product type for accuracy ---
+        filters = self.detect_filtering_intent(query)
+        if filters["material"]:
+            matching_products = [p for p in matching_products if filters["material"] in p.get("material", "").lower()]
+
+        # Now apply product type filter (e.g., mug, cup, tumbler)
         product_type_keywords = {
             "mug": ["mug"],
-            "cup": ["cup"],  
+            "cup": ["cup"],
             "tumbler": ["tumbler"]
         }
-        
         for product_type, keywords in product_type_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
-                # Filter to only products that contain the type name
-                matching_products = [p for p in matching_products 
-                                   if any(keyword in p.get("name", "").lower() for keyword in keywords)]
+                matching_products = [p for p in matching_products if any(keyword in p.get("name", "").lower() for keyword in keywords)]
                 break
         
         # Apply filters if specified
