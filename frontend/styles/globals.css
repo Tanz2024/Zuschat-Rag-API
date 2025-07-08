@@ -26,10 +26,10 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     letter-spacing: -0.011em;
     overflow-x: hidden; /* Prevent horizontal scroll */
-    /* Fix iOS Safari bottom bar/keyboard issues */
-    position: fixed;
+    /* Mobile-friendly positioning */
+    position: relative;
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     /* Prevent zoom on input focus */
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
@@ -241,18 +241,16 @@
     @apply sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 shadow-lg backdrop-blur-sm bg-white/95 dark:bg-gray-800/95 transition-colors duration-300;
     /* Mobile safe area padding and keyboard handling */
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
-    /* Prevent layout shift when keyboard appears */
-    position: -webkit-sticky;
+    /* Keep it simple for mobile input */
     position: sticky;
     z-index: 30;
-    /* Enhanced keyboard handling */
-    transition: transform 0.3s ease-in-out, padding 0.3s ease-in-out;
+    /* Simple transition for keyboard */
+    transition: transform 0.2s ease-out;
     /* Ensure input stays visible when keyboard appears */
     bottom: env(safe-area-inset-bottom, 0);
-    /* Advanced mobile optimizations */
+    /* Mobile optimizations */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    will-change: transform, padding;
     /* Prevent pull-to-refresh interference */
     overscroll-behavior-y: contain;
   }
@@ -286,27 +284,31 @@
   /* Enhanced zoom prevention and touch optimization */
   .chat-input {
     @apply w-full px-4 py-3 sm:py-4 pr-12 sm:pr-14 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out resize-none overflow-y-auto max-h-24 sm:max-h-32 text-sm sm:text-base leading-relaxed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100;
-    /* Enhanced iOS zoom prevention */
-    font-size: 16px !important; /* Prevent zoom on iOS */
+    /* Enhanced iOS zoom prevention - using 16px to prevent zoom */
+    font-size: 16px !important;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
-    /* Better touch interaction */
+    /* Better touch interaction - allow text manipulation */
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
     /* Transform for hardware acceleration */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
-    /* Mobile optimizations */
+    /* Mobile optimizations - enable native input behavior */
     -webkit-appearance: none;
     appearance: none;
-    /* Advanced mobile enhancements */
+    /* Enhanced mobile input behavior */
     -webkit-user-select: text;
     user-select: text;
     -webkit-touch-callout: default;
     /* Better focus behavior */
     scroll-margin-top: 2rem;
     /* Enhanced input responsiveness */
-    will-change: height, scroll-position;
+    will-change: height;
+    /* Ensure input is focusable */
+    pointer-events: auto;
+    /* Remove any input restrictions */
+    -webkit-user-modify: read-write-plaintext-only;
   }
   
   .chat-input-disabled {
