@@ -295,11 +295,15 @@ async def chat_endpoint(request: ChatRequest):
     Always returns a response, even if individual components fail.
     """
     try:
+        logger.info(f"Chat endpoint called with request: {request}")
+        
         # Safely extract message and session_id with fallbacks
         try:
             message = getattr(request, 'message', '').strip() if request else ''
             session_id = getattr(request, 'session_id', 'default') if request else 'default'
-        except Exception:
+            logger.info(f"Extracted message: '{message}', session_id: '{session_id}'")
+        except Exception as e:
+            logger.error(f"Error extracting request data: {e}")
             message = ''
             session_id = 'default'
         
@@ -314,7 +318,9 @@ async def chat_endpoint(request: ChatRequest):
         
         # Get chatbot instance
         try:
+            logger.info("Getting chatbot instance...")
             chatbot = get_chatbot()
+            logger.info(f"Chatbot instance obtained: {type(chatbot)}")
         except Exception as e:
             logger.error(f"Failed to get chatbot: {e}")
             return ChatResponse(
@@ -324,11 +330,18 @@ async def chat_endpoint(request: ChatRequest):
                 confidence=0.1
             )
         
-        # Process message with the chatbot
+        # Process message with the chatbot with timeout protection
         try:
-            # Try enhanced method first
+            # Get chatbot with timeout protection
+            chatbot = get_chatbot()
+            
+            # Try enhanced method first with timeout
             if hasattr(chatbot, 'process_message'):
-                result = await chatbot.process_message(message, session_id)
+                # Add timeout to prevent hanging
+                result = await asyncio.wait_for(
+                    chatbot.process_message(message, session_id),
+                    timeout=30.0  # 30 second timeout
+                )
                 return ChatResponse(
                     message=result.get("message", "I'm sorry, I couldn't process that request properly."),
                     session_id=session_id,
@@ -352,6 +365,14 @@ async def chat_endpoint(request: ChatRequest):
                     intent="general_chat",
                     confidence=0.3
                 )
+        except asyncio.TimeoutError:
+            logger.error(f"Chatbot processing timeout for message: {message[:50]}...")
+            return ChatResponse(
+                message="I'm taking a bit longer to process your request. Let me help you quickly - what would you like to know about ZUS Coffee products or outlets?",
+                session_id=session_id,
+                intent="timeout",
+                confidence=0.3
+            )
         except Exception as e:
             logger.error(f"Chatbot processing error: {e}")
             return ChatResponse(
@@ -381,6 +402,29 @@ async def health_check():
 async def ping():
     """Simple ping endpoint for connectivity testing."""
     return {"status": "pong", "timestamp": "2025-07-08"}
+
+# Test chat endpoint that doesn't use the complex chatbot
+@app.post("/test-chat")
+async def test_chat(request: ChatRequest):
+    """Simple test endpoint to isolate chatbot issues."""
+    try:
+        message = getattr(request, 'message', '').strip() if request else ''
+        session_id = getattr(request, 'session_id', 'default') if request else 'default'
+        
+        return ChatResponse(
+            message=f"Test response for: {message}",
+            session_id=session_id,
+            intent="test",
+            confidence=1.0
+        )
+    except Exception as e:
+        logger.error(f"Test chat error: {e}")
+        return ChatResponse(
+            message="Test endpoint error",
+            session_id="default",
+            intent="error",
+            confidence=0.0
+        )
 
 # Startup validation
 if __name__ == "__main__":
