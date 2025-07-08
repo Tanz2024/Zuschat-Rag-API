@@ -230,8 +230,9 @@ async def general_exception_handler(request, exc):
             }
         )
 
-# Root endpoint
+# Root endpoint - support both GET and HEAD for health checks
 @app.get("/")
+@app.head("/")
 async def root():
     """Root endpoint with comprehensive system status."""
     return {
