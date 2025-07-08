@@ -77,7 +77,11 @@ export default function Home() {
       <Head>
         <title>ZUS Coffee • AI Assistant</title>
         <meta name="description" content="Get instant answers about ZUS Coffee outlets, products, and services with our AI assistant. Find nearby outlets, discover menu items, and calculate your orders." />
+<<<<<<< HEAD
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+=======
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+>>>>>>> 045029b (fixes)
         
         {/* Favicons */}
         <link rel="icon" href="/favicon-16.svg" sizes="16x16" type="image/svg+xml" />

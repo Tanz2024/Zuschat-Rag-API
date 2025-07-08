@@ -75,7 +75,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
       window.removeEventListener('sendChatMessage', handleSendMessage as EventListener)
       window.removeEventListener('clearChat', handleClearChatEvent)
     }
+<<<<<<< HEAD
   }, [sendMessage, handleClearChat]) // Added handleClearChat to dependency array
+=======
+  }, [sendMessage, handleClearChat])
+>>>>>>> 045029b (fixes)
 
   // Listen for sidebar events
   useEffect(() => {
@@ -137,15 +141,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center welcome-container">
             {/* Zuss Logo Welcome */}
+<<<<<<< HEAD
             <div className="relative mb-4 sm:mb-6">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg border-2 border-gray-100 dark:border-gray-600 transition-colors duration-300">
                 <Image 
+=======
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-lg border-2 border-gray-100 dark:border-gray-600 transition-colors duration-300">
+                <Image
+>>>>>>> 045029b (fixes)
                   src="/assets/logos/zusslogo.jpg" 
                   alt="Zuss Coffee AI" 
                   width={64}
                   height={64}
+<<<<<<< HEAD
                   className="h-12 w-12 sm:h-16 sm:w-16 object-cover rounded-full"
                   priority
+=======
+                  className="h-16 w-16 object-cover rounded-full"
+>>>>>>> 045029b (fixes)
                 />
               </div>
               {/* Online indicator */}
@@ -214,7 +228,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false }) => {
                 <div className="flex gap-4">
                   {/* Zuss AI Avatar */}
                   <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 shadow-sm transition-colors duration-300">
+<<<<<<< HEAD
                     <Image 
+=======
+                    <Image
+>>>>>>> 045029b (fixes)
                       src="/assets/logos/zusslogo.jpg" 
                       alt="Zuss AI" 
                       width={32}
