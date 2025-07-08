@@ -165,19 +165,11 @@ const Sidebar: React.FC<SidebarProps> = () => {
           <div className="relative group">
             {/* ZUS Coffee Logo - Primary Location - Circular */}
             <div className="relative">
-<<<<<<< HEAD
-              <Image 
-                src="/assets/logos/zusslogo.jpg" 
-                alt="ZUS Coffee" 
-                width={72}
-                height={72}
-=======
               <Image
                 src="/assets/logos/zusslogo.jpg" 
                 alt="ZUS Coffee" 
                 width={64}
                 height={64}
->>>>>>> 045029b (fixes)
                 className="h-16 w-16 md:h-18 md:w-18 object-cover rounded-full border-3 transition-all duration-500 ease-in-out group-hover:scale-110 filter hover:brightness-110 shadow-lg"
                 style={{ borderColor: '#0057FF' }}
                 priority

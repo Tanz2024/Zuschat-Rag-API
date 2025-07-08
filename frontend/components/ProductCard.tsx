@@ -28,13 +28,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
           <Image
             src={product.image}
             alt={product.name}
-<<<<<<< HEAD
-            width={300}
-            height={200}
-=======
             width={320}
             height={128}
->>>>>>> 045029b (fixes)
             className="w-full h-32 object-cover rounded-lg"
             onError={(e) => {
               const target = e.target as HTMLImageElement
