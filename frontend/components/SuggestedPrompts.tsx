@@ -1,6 +1,6 @@
 import React from 'react'
 
-// PRACTICAL ZUS COFFEE SUGGESTIONS - REAL DATA DRIVEN
+// PRACTICAL ZUS COFFEE SUGGESTIONS - REAL DATA DRIVEN (Updated 2025-07-08)
 // Focus on actual products, outlets, and useful calculations
 // All suggestions are validated to work with the chatbot's real capabilities
 interface SuggestedPrompt {
