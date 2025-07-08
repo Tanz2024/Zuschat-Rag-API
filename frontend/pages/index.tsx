@@ -3,7 +3,6 @@ import Head from 'next/head'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import ChatWindow from '../components/ChatWindow'
-import FloatingHamburger from '../components/FloatingHamburger'
 
 export default function Home() {
   // Use null initially to prevent hydration flicker
@@ -111,16 +110,10 @@ export default function Home() {
       </Head>
       
       <div className={`app-layout relative ${isLayoutReady ? '' : 'loading'}`}>
-        {/* Floating Hamburger - Mobile only */}
-        <FloatingHamburger 
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={toggleSidebar}
-        />
-        
-        {/* Sidebar overlay - Mobile optimized */}
+        {/* Sidebar overlay - Works on both mobile and desktop */}
         {isSidebarOpen && (
           <div 
-            className="sidebar-overlay lg:hidden"
+            className="sidebar-overlay"
             onClick={closeSidebar}
             onTouchStart={closeSidebar} // Better mobile touch support
           />
@@ -132,7 +125,10 @@ export default function Home() {
         </div>
         
         {/* Main content - Mobile first responsive */}
-        <div className={`main-layout ${typeof window !== 'undefined' && isSidebarOpen && window.innerWidth >= 1024 ? 'main-layout-sidebar-open' : 'main-layout-sidebar-closed'}`}>
+        <div 
+          className={`main-layout ${typeof window !== 'undefined' && isSidebarOpen && window.innerWidth >= 1024 ? 'main-layout-sidebar-open' : 'main-layout-sidebar-closed'}`}
+          onClick={isSidebarOpen ? closeSidebar : undefined} // Close sidebar when clicking main content
+        >
           <div className="flex flex-col h-full">
             <Header 
               isSidebarOpen={isSidebarOpen}

@@ -14,7 +14,30 @@ const Header: React.FC<HeaderProps> = ({ onClearChat, isSidebarOpen, onToggleSid
       <div className="flex justify-between items-center h-14 sm:h-16 px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto">
         {/* Left section */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Desktop hamburger menu - Hidden on mobile */}
+          {/* Mobile hamburger menu - exactly like ChatGPT */}
+          <button
+            onClick={onToggleSidebar}
+            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 btn-haptic mobile-focus-ring no-long-press"
+            aria-label="Toggle sidebar"
+            title={`${isSidebarOpen ? 'Close' : 'Open'} sidebar`}
+          >
+            <div className="relative w-6 h-6">
+              {/* Menu icon with smooth animation */}
+              <div className={`absolute inset-0 transition-all duration-200 ease-in-out ${
+                isSidebarOpen ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'
+              }`}>
+                <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              </div>
+              {/* X icon with smooth animation */}
+              <div className={`absolute inset-0 transition-all duration-200 ease-in-out ${
+                isSidebarOpen ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'
+              }`}>
+                <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              </div>
+            </div>
+          </button>
+
+          {/* Desktop hamburger menu */}
           <button
             onClick={onToggleSidebar}
             className="hidden lg:flex group p-2 sm:p-2.5 rounded-lg bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 shadow-sm border border-gray-300 dark:border-gray-600"

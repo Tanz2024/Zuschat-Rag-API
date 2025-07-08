@@ -27,29 +27,83 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   // Handle keyboard visibility for mobile
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    let initialHeight = window.innerHeight;
+    let timeoutId: NodeJS.Timeout;
+    
+    // Capture current ref value for cleanup
+    const containerElement = containerRef.current;
+    
     const handleResize = () => {
-      if (typeof window !== 'undefined') {
-        const visualViewport = window.visualViewport
-        if (visualViewport) {
-          const keyboardHeight = window.innerHeight - visualViewport.height
-          setIsKeyboardVisible(keyboardHeight > 150) // Threshold for keyboard detection
-          
-          // Adjust container position when keyboard is visible
-          if (containerRef.current) {
-            if (keyboardHeight > 150) {
-              containerRef.current.classList.add('keyboard-visible')
-            } else {
-              containerRef.current.classList.remove('keyboard-visible')
-            }
+      const currentHeight = window.innerHeight;
+      const heightDifference = initialHeight - currentHeight;
+      const keyboardVisible = heightDifference > 100; // Lower threshold for better detection
+      
+      setIsKeyboardVisible(keyboardVisible);
+      
+      // Adjust container position when keyboard is visible
+      if (containerRef.current) {
+        if (keyboardVisible) {
+          containerRef.current.classList.add('keyboard-visible');
+          document.body.classList.add('keyboard-open');
+        } else {
+          containerRef.current.classList.remove('keyboard-visible');
+          document.body.classList.remove('keyboard-open');
+        }
+      }
+    }
+
+    const handleVisualViewport = () => {
+      if (window.visualViewport) {
+        const keyboardVisible = window.visualViewport.height < window.innerHeight * 0.75;
+        setIsKeyboardVisible(keyboardVisible);
+        
+        if (containerRef.current) {
+          if (keyboardVisible) {
+            containerRef.current.classList.add('keyboard-visible');
+            document.body.classList.add('keyboard-open');
+          } else {
+            containerRef.current.classList.remove('keyboard-visible');
+            document.body.classList.remove('keyboard-open');
           }
         }
       }
     }
 
-    if (typeof window !== 'undefined' && window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize)
-      return () => window.visualViewport?.removeEventListener('resize', handleResize)
+    // Use visual viewport API if available (better for modern browsers)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewport);
+    } else {
+      // Fallback to window resize
+      window.addEventListener('resize', handleResize);
     }
+
+    // Handle orientation change
+    const handleOrientationChange = () => {
+      timeoutId = setTimeout(() => {
+        initialHeight = window.innerHeight;
+        handleResize();
+      }, 500);
+    };
+
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleVisualViewport);
+      } else {
+        window.removeEventListener('resize', handleResize);
+      }
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      
+      // Cleanup classes using captured ref value
+      if (containerElement) {
+        containerElement.classList.remove('keyboard-visible');
+      }
+      document.body.classList.remove('keyboard-open');
+    };
   }, [])
 
   // Auto-resize textarea
@@ -65,21 +119,24 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleFocus = () => {
     setIsFocused(true)
     
-    // Small delay to allow keyboard animation
+    // Add focus class to body for mobile styling
+    document.body.classList.add('input-focused');
+    
+    // Ensure input stays visible on mobile
     setTimeout(() => {
-      if (textareaRef.current && typeof window !== 'undefined') {
+      if (textareaRef.current && window.innerWidth <= 768) {
         textareaRef.current.scrollIntoView({ 
           behavior: 'smooth', 
           block: 'center',
           inline: 'nearest'
-        })
+        });
       }
-    }, 300)
+    }, 300); // Delay to allow keyboard animation
   }
 
   const handleBlur = () => {
     setIsFocused(false)
-    setIsKeyboardVisible(false)
+    document.body.classList.remove('input-focused');
     
     if (containerRef.current) {
       containerRef.current.classList.remove('keyboard-visible')
@@ -161,7 +218,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <button
             type="submit"
             disabled={!message.trim() || isInputDisabled}
-            className="btn-send mobile-touch-target"
+            className="btn-send mobile-touch-target btn-haptic mobile-focus-ring"
             aria-label="Send message"
           >
             {isLoading ? (

@@ -17,16 +17,31 @@ export default function Document() {
         {/* Fallback for older browsers */}
         <link rel="shortcut icon" href="/assets/logos/zusslogo.jpg" type="image/jpeg" />
         
-        {/* PWA and Mobile Optimization */}
+        {/* Advanced Mobile & PWA Optimizations */}
         <meta name="theme-color" content="#0057FF" />
         <meta name="application-name" content="ZUS Coffee AI" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="ZUS AI" />
+        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="HandheldFriendly" content="true" />
+        <meta name="MobileOptimized" content="320" />
         <meta name="format-detection" content="telephone=no" />
         
-        {/* Performance Hints */}
+        {/* Advanced Performance & Security */}
         <meta httpEquiv="X-DNS-Prefetch-Control" content="on" />
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        <meta name="robots" content="index,follow" />
+        
+        {/* Resource Hints for Better Performance */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+        
+        {/* Advanced Viewport for Foldable & Modern Devices */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
       </Head>
       <body className="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
         <script

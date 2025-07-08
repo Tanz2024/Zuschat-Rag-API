@@ -155,7 +155,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
   }
 
   return (
-    <aside className="sidebar-container bg-gradient-to-b from-white via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 border-r-2 border-blue-200 dark:border-gray-700 shadow-xl transition-colors duration-300">
+    <aside 
+      className="sidebar-container bg-gradient-to-b from-white via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 border-r-2 border-blue-200 dark:border-gray-700 shadow-xl transition-colors duration-300"
+      onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside sidebar
+    >
       {/* Header - ZUS Coffee Style with Logo */}
       <div className="p-6 border-b-2 border-blue-100 dark:border-gray-700 shrink-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700">
         <div className="flex items-center gap-4">
