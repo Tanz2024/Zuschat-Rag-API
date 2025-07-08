@@ -2,13 +2,13 @@
 
 A comprehensive full-stack AI chatbot application for ZUS Coffee featuring advanced conversational AI, RAG (Retrieval-Augmented Generation) capabilities, intelligent product search, outlet finder, and real-time chat functionality.
 
-## 🎯 Project Overview
+##  Project Overview
 
 The ZUS Coffee AI Chatbot is a production-ready conversational AI system designed to enhance customer experience by providing intelligent assistance for product discovery, outlet location services, pricing calculations, and general inquiries about ZUS Coffee's offerings.
 
-## ✨ Features
+##  Features
 
-### 🤖 Backend (FastAPI)
+###  Backend (FastAPI)
 - **Advanced Conversational AI**: Multi-turn conversations with context memory and intent recognition
 - **RAG Integration**: Vector-based knowledge retrieval using FAISS for accurate product information
 - **Tool Integration**: Built-in calculator, product search, and outlet finder with Text2SQL capabilities
@@ -17,7 +17,7 @@ The ZUS Coffee AI Chatbot is a production-ready conversational AI system designe
 - **Security**: Comprehensive SQL injection protection and input validation
 - **Error Handling**: Robust error management with graceful fallbacks
 
-### 🎨 Frontend (Next.js)
+###  Frontend (Next.js)
 - **Modern UI/UX**: Responsive design with TypeScript, Tailwind CSS, and dark/light mode
 - **Real-time Chat**: Seamless WebSocket integration for instant messaging
 - **Smart Suggestions**: Context-aware prompt suggestions to guide user interactions
@@ -25,7 +25,7 @@ The ZUS Coffee AI Chatbot is a production-ready conversational AI system designe
 - **Outlet Finder**: Location-based outlet discovery with maps integration
 - **Mobile-First**: Optimized for all device sizes with progressive web app features
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### System Architecture
 
@@ -96,7 +96,7 @@ graph TB
   - Lower infrastructure complexity
 - **Trade-off**: Latency vs. Reliability - Slight latency increase but guaranteed delivery
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - **Python**: 3.8+ (recommended: 3.11)
@@ -151,7 +151,7 @@ npm run dev
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 
-## 🚀 Production Deployment
+##  Production Deployment
 
 ### Quick Render Deployment (25 minutes)
 
@@ -165,9 +165,9 @@ The project includes complete Render deployment configuration:
 5. **Test** deployment with included scripts
 
 #### Option 2: Manual Deployment
-1. 📋 Follow [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
-2. 📖 Read [Complete Render Guide](docs/RENDER_DEPLOYMENT_GUIDE.md)
-3. 🧪 Test with provided validation scripts
+1.  Follow [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+2.  Read [Complete Render Guide](docs/RENDER_DEPLOYMENT_GUIDE.md)
+3.  Test with provided validation scripts
 
 **Deployment Files:**
 - `render.yaml` - Complete Render blueprint
@@ -266,7 +266,7 @@ zuschat-rag-api/
 └── 📄 render.yaml              # Render deployment blueprint
 ```
 
-## 🔧 Technical Stack
+##  Technical Stack
 
 ### Backend Technologies
 - **Framework**: FastAPI 0.104+ (High-performance async web framework)
@@ -292,7 +292,7 @@ zuschat-rag-api/
 - **Type Checking**: mypy (Python), TypeScript compiler
 - **Version Control**: Git with conventional commits
 
-## 📊 Performance Metrics
+##  Performance Metrics
 
 ### Chatbot Performance
 - **Response Time**: <200ms average
@@ -324,7 +324,7 @@ zuschat-rag-api/
 - **Mobile Compatibility**: Cross-device testing
 - **Accessibility**: WCAG 2.1 compliance
 
-## 📚 Documentation
+##  Documentation
 
 ### Core Documentation
 - **[API Documentation](docs/API_DOCUMENTATION.md)**: Comprehensive API specification with examples
@@ -344,7 +344,7 @@ zuschat-rag-api/
 - **Architecture Decisions**: Documented in `docs/architecture/`
 - **Deployment Guides**: Step-by-step deployment instructions
 
-## 🛡️ Security Features
+## 🛡 Security Features
 
 ### Backend Security
 - **SQL Injection Protection**: Parameterized queries only
@@ -360,7 +360,7 @@ zuschat-rag-api/
 - **Input Sanitization**: Client-side validation
 - **Secure Communication**: HTTPS enforcement
 
-## 🔍 Monitoring & Logging
+##  Monitoring & Logging
 
 ### Application Monitoring
 - **Health Checks**: `/health` endpoint with detailed status
@@ -392,11 +392,11 @@ zuschat-rag-api/
 - **Documentation**: Update docs for new features
 - **Testing**: Add tests for new functionality
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **ZUS Coffee** for the opportunity to enhance customer experience
 - **FastAPI Team** for the excellent web framework
