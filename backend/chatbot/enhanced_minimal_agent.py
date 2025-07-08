@@ -527,9 +527,15 @@ class EnhancedMinimalAgent:
         if any(word in message_lower for word in product_keywords) and intent_scores["outlet_search"] < 0.5:
             intent_scores["product_search"] = 0.85
             
-        # Price/filtering related queries - should be product search, not calculation
+        # Price/filtering related queries - should be product search, not calculation or promotion
         if any(phrase in message_lower for phrase in ["priced between", "under rm", "cost under", "price difference", "compare prices", "cheapest", "most expensive"]):
-            intent_scores["product_search"] = 0.9
+            intent_scores["product_search"] = 0.95  # Higher priority than promotion_inquiry
+            
+        # Material + price queries should definitely be product search
+        material_keywords = ["ceramic", "stainless steel", "acrylic", "glass", "steel"]
+        price_keywords = ["cheapest", "most expensive", "cheap", "expensive", "price", "cost"]
+        if any(mat in message_lower for mat in material_keywords) and any(price in message_lower for price in price_keywords):
+            intent_scores["product_search"] = 0.98  # Very high priority
             
         # Enhanced calculation detection - distinguish between pure math and product calculations
         calculation_keywords = ["math", "compute", "plus", "minus", "times", "divided by", "power", "square root", "percent", "percentage"]
@@ -558,11 +564,15 @@ class EnhancedMinimalAgent:
         elif message_lower.startswith(("what is", "compute")) and calculation_operators and not has_product_keywords:
             intent_scores["calculation"] = 0.95  # Strong calculation intent for explicit requests
             
-        # Enhanced promotion inquiry detection
+        # Enhanced promotion inquiry detection - BUT NOT for specific product queries
         promotion_keywords = ["promotion", "promotions", "sale", "sales", "discount", "discounts", "offer", "offers", 
                              "deal", "deals", "special", "specials", "new", "latest", "month", "today", "available",
                              "what's new", "whats new", "this month", "current", "ongoing"]
-        if any(word in message_lower for word in promotion_keywords):
+        
+        # Check if this is a specific product query (cheapest, most expensive, specific product name)
+        is_specific_product_query = any(term in message_lower for term in ["cheapest", "most expensive", "ceramic", "stainless steel", "acrylic", "tumbler", "cup", "mug", "show me", "find"])
+        
+        if any(word in message_lower for word in promotion_keywords) and not is_specific_product_query:
             # Boost score for explicit promotion queries
             if any(explicit in message_lower for explicit in ["promotion", "promotions", "deal", "deals", "offer", "offers", "discount"]):
                 intent_scores["promotion_inquiry"] = 0.98  # Higher than product_search
