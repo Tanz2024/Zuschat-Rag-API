@@ -1560,29 +1560,56 @@ class EnhancedMinimalAgent:
             is_collection_query = any(term in query_lower for term in ["sundaze", "aqua", "corak", "mountain", "kopi patah hati"])
             is_price_query = any(term in query_lower for term in ["cheap", "expensive", "price", "cost", "rm", "under", "above", "cheapest", "most expensive"])
             
-            # Customize header based on query type
+            # Advanced, specific headers based on query analysis
             if any(term in query_lower for term in ["show all", "all products", "show products", "list all"]):
-                response_parts.append(f"**Here are all {len(products)} products in our ZUS Coffee collection:**\n")
+                response_parts.append(f"🥤 **Complete ZUS Coffee Drinkware Collection** ({len(products)} items)\n*Your perfect coffee companion awaits!*\n")
             elif is_price_query:
                 if "cheap" in query_lower or "cheapest" in query_lower:
-                    response_parts.append(f"**Here are our most affordable products ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                    if "ceramic" in query_lower:
+                        response_parts.append(f"🏆 **Most Affordable Ceramic Option:**\n*Perfect for home & office use*\n")
+                    elif "mug" in query_lower:
+                        response_parts.append(f"💰 **Budget-Friendly Mugs** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Great value for daily coffee rituals*\n")
+                    elif "tumbler" in query_lower:
+                        response_parts.append(f"💰 **Best Value Tumblers** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Quality meets affordability*\n")
+                    else:
+                        response_parts.append(f"💰 **Most Affordable Options** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Quality drinkware that won't break the bank*\n")
                 elif "expensive" in query_lower or "most expensive" in query_lower:
-                    response_parts.append(f"**Here are our premium products ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                    if "ceramic" in query_lower:
+                        response_parts.append(f"👑 **Premium Ceramic Collection:**\n*Luxury meets functionality*\n")
+                    elif "mug" in query_lower:
+                        response_parts.append(f"👑 **Premium Mugs** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Superior quality & design*\n")
+                    else:
+                        response_parts.append(f"👑 **Premium Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Top-tier drinkware for discerning customers*\n")
                 else:
-                    response_parts.append(f"**Products matching your price criteria ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                    response_parts.append(f"💰 **Price-Filtered Results** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Products matching your budget*\n")
             elif is_category_query:
-                category_name = "drinkware"
                 if "tumbler" in query_lower:
-                    category_name = "tumblers"
+                    response_parts.append(f"🥤 **Tumbler Collection** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Perfect for on-the-go coffee lovers*\n")
                 elif "cup" in query_lower:
-                    category_name = "cups"
+                    response_parts.append(f"☕ **Cup Collection** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Your daily coffee ritual enhanced*\n")
                 elif "mug" in query_lower:
-                    category_name = "mugs"
-                response_parts.append(f"**Here are our {category_name} ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                    response_parts.append(f"☕ **Mug Collection** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Classic comfort for home & office*\n")
+                else:
+                    response_parts.append(f"🥤 **Drinkware Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Every sip, perfectly crafted*\n")
             elif is_collection_query:
-                response_parts.append(f"**Products from our collections ({len(products)} item{'s' if len(products) != 1 else ''}):**\n")
+                if "sundaze" in query_lower:
+                    response_parts.append(f"🌞 **Sundaze Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Bright & vibrant like sunny days*\n")
+                elif "aqua" in query_lower:
+                    response_parts.append(f"🌊 **Aqua Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Ocean-inspired tranquility*\n")
+                elif "mountain" in query_lower:
+                    response_parts.append(f"🏔️ **Mountain Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Earth-toned, nature-inspired*\n")
+                else:
+                    response_parts.append(f"🎨 **Special Collections** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Unique designs for every personality*\n")
             else:
-                response_parts.append(f"**Found {len(products)} product{'s' if len(products) != 1 else ''} matching your request:**\n")
+                # Analyze query for more specific headers
+                if "ceramic" in query_lower and "mug" in query_lower:
+                    response_parts.append(f"☕ **Ceramic Mug Selection** ({len(products)} option{'s' if len(products) != 1 else ''})\n*Classic ceramic craftsmanship*\n")
+                elif "stainless steel" in query_lower:
+                    response_parts.append(f"⚡ **Stainless Steel Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Durable & temperature-retaining*\n")
+                elif "acrylic" in query_lower:
+                    response_parts.append(f"🧊 **Acrylic Collection** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Perfect for cold beverages*\n")
+                else:
+                    response_parts.append(f"✨ **Your Search Results** ({len(products)} item{'s' if len(products) != 1 else ''})\n*Hand-picked for your needs*\n")
             
             for i, product in enumerate(display_products, 1):
                 name = product.get("name", "Unknown Product")
@@ -1632,15 +1659,25 @@ class EnhancedMinimalAgent:
             if len(products) > max_display:
                 response_parts.append(f"\n... and {len(products) - max_display} more products available! Ask me to 'show all products' to see everything.")
             
-            # Add helpful footer based on query type
+            # Advanced contextual tips and recommendations
             if is_price_query:
-                response_parts.append("\n **Price Tips:** Ask me about 'cheapest products', 'most expensive products', or 'products under RM50' for better filtering!")
+                if "cheap" in query_lower or "cheapest" in query_lower:
+                    response_parts.append("\n💡 **Smart Shopping:** These are your best value options! Also consider our promotions like 'Buy 1 Free 1' for maximum savings.")
+                elif "expensive" in query_lower or "most expensive" in query_lower:
+                    response_parts.append("\n💎 **Premium Choice:** These represent our finest quality and design. Perfect for gifts or treating yourself to luxury.")
+                else:
+                    response_parts.append("\n💰 **Price Explorer:** Try 'cheapest tumbler', 'most expensive mug', or 'products under RM50' for precise filtering!")
             elif is_category_query:
-                response_parts.append("\n **Category Tips:** Try asking about specific collections like 'Sundaze', 'Aqua', 'Mountain', or 'Kopi Patah Hati'!")
+                if "mug" in query_lower:
+                    response_parts.append("\n☕ **Mug Expertise:** Perfect for home & office. Consider ceramic for microwaving or stainless steel for temperature retention!")
+                elif "tumbler" in query_lower:
+                    response_parts.append("\n🥤 **Tumbler Guide:** Ideal for travel & commuting. Stainless steel models offer superior insulation for hot/cold drinks!")
+                else:
+                    response_parts.append("\n🎨 **Collection Explorer:** Discover our special editions - 'Sundaze' (vibrant), 'Aqua' (calming), 'Mountain' (earthy)!")
             elif any(term in query_lower for term in ["show all", "all products"]):
-                response_parts.append("\n **Complete Collection:** This is our entire drinkware collection! Need help choosing? Ask about specific features, prices, or collections.")
+                response_parts.append("\n🏆 **Expert Recommendations:**\n• **Budget-conscious:** ZUS OG Ceramic Mug (RM 39)\n• **Travel-ready:** ZUS All-Can Tumbler (RM 105)\n• **Style-focused:** Sundaze/Aqua Collections\n• **Eco-friendly:** Reusable options replace 200+ disposable cups!")
             else:
-                response_parts.append("\n **Need more details?** Ask me about specific products, collections, price ranges, or say 'show all products' to see everything!")
+                response_parts.append("\n🔍 **Discover More:** Ask 'cheapest ceramic mug', 'stainless steel tumblers', or 'Sundaze collection' for targeted results!")
             
             return "\n".join(response_parts)
             
@@ -1689,25 +1726,37 @@ class EnhancedMinimalAgent:
         return "I can only calculate prices for products we have in our ZUS Coffee collection. Our current inventory includes drinkware items like tumblers, cups, and mugs. Please ask me to show you our available products first, or search for specific items we carry."
 
     def format_outlet_response(self, outlets: List[Dict], session_id: str, query: str) -> str:
-        """Format outlet search results into a user-friendly response with complete outlet data"""
+        """Advanced outlet response formatting with location intelligence and contextual information"""
         try:
             if not outlets:
-                return "Sorry, I couldn't find any outlets matching your request. Please try a different location or ask about our outlets in KL, Selangor, or Petaling Jaya!"
+                return "❌ **No outlets found** matching your criteria.\n\n🔍 **Try searching for:**\n• Specific areas: 'KL outlets', 'Selangor outlets', 'PJ outlets'\n• Services: 'drive-thru outlets', 'outlets with parking'\n• General: 'all outlets' to see complete list"
             
-            # Limit to top 8 outlets for better readability
-            display_outlets = outlets[:8]
+            # Smart display limit based on query type
+            max_display = 5 if len(outlets) > 10 else 8
+            display_outlets = outlets[:max_display]
             
             response_parts = []
-            
-            # Check if this is a specific query for hours/services
             query_lower = query.lower()
-            is_hours_query = any(term in query_lower for term in ["hours", "open", "close", "timing", "what time"])
-            is_services_query = any(term in query_lower for term in ["service", "services", "drive-thru", "wifi", "parking", "delivery"])
             
+            # Advanced query analysis for contextual headers
+            is_area_specific = any(area in query_lower for area in ["kl", "kuala lumpur", "selangor", "pj", "petaling jaya"])
+            is_service_specific = any(service in query_lower for service in ["drive-thru", "wifi", "parking", "delivery", "24"])
+            is_hours_query = any(term in query_lower for term in ["hours", "open", "close", "timing", "what time"])
+            
+            # Dynamic, context-aware headers
             if len(outlets) == 1:
-                response_parts.append(f"**Here's the outlet information:**\n")
+                outlet_name = display_outlets[0].get("name", "ZUS Coffee")
+                response_parts.append(f"📍 **{outlet_name} - Complete Information**\n*Everything you need to know*\n")
+            elif is_area_specific:
+                area_name = "Kuala Lumpur" if "kl" in query_lower or "kuala lumpur" in query_lower else "Petaling Jaya" if "pj" in query_lower else "Selangor"
+                response_parts.append(f"🗺️ **ZUS Coffee Outlets in {area_name}** ({len(outlets)} location{'s' if len(outlets) != 1 else ''})\n*Your coffee destinations mapped out*\n")
+            elif is_service_specific:
+                service_type = "Drive-Thru" if "drive" in query_lower else "24-Hour" if "24" in query_lower else "Full-Service"
+                response_parts.append(f"🚗 **{service_type} ZUS Coffee Outlets** ({len(outlets)} location{'s' if len(outlets) != 1 else ''})\n*Convenience meets quality*\n")
+            elif is_hours_query:
+                response_parts.append(f"🕐 **ZUS Coffee Operating Hours** ({len(outlets)} outlet{'s' if len(outlets) != 1 else ''})\n*Plan your coffee time perfectly*\n")
             else:
-                response_parts.append(f"**Found {len(outlets)} outlet{'s' if len(outlets) != 1 else ''} for you:**\n")
+                response_parts.append(f"☕ **ZUS Coffee Outlet Directory** ({len(outlets)} location{'s' if len(outlets) != 1 else ''})\n*Your neighborhood coffee destinations*\n")
             
             for i, outlet in enumerate(display_outlets, 1):
                 name = outlet.get("name", "ZUS Coffee Outlet")
@@ -1715,40 +1764,85 @@ class EnhancedMinimalAgent:
                 hours = outlet.get("hours", "Hours not available")
                 services = outlet.get("services", [])
                 
-                # Format outlet information with complete data
-                outlet_info = f"**{i}. {name}**\n"
-                outlet_info += f"📍 **Address:** {address}\n"
-                outlet_info += f"🕐 **Operating Hours:** {hours}\n"
-                
-                if services:
-                    # Format services nicely
-                    services_text = ", ".join(services)
-                    outlet_info += f"🏪 **Services:** {services_text}\n"
+                # Advanced outlet formatting with visual hierarchy
+                if len(display_outlets) == 1:
+                    # Single outlet - comprehensive view
+                    outlet_info = f"🏪 **{name}**\n"
+                    outlet_info += f"📍 **Location:** {address}\n"
+                    outlet_info += f"   *Easy to find with clear signage*\n\n"
+                    outlet_info += f"🕐 **Operating Hours:** {hours}\n"
+                    outlet_info += f"   *Consistent daily schedule*\n\n"
+                    
+                    if services:
+                        outlet_info += f"🛍️ **Available Services:**\n"
+                        for service in services:
+                            if "drive-thru" in service.lower():
+                                outlet_info += f"   🚗 {service} *(Quick & convenient)*\n"
+                            elif "wifi" in service.lower():
+                                outlet_info += f"   📶 {service} *(Stay connected)*\n"
+                            elif "parking" in service.lower():
+                                outlet_info += f"   🅿️ {service} *(Hassle-free visits)*\n"
+                            else:
+                                outlet_info += f"   ✅ {service}\n"
+                        outlet_info += "\n"
+                    
+                    # Add visit recommendations
+                    outlet_info += f"💡 **Best Times to Visit:**\n"
+                    outlet_info += f"   • Morning rush: 7-9 AM (fresh brews, full menu)\n"
+                    outlet_info += f"   • Afternoon break: 2-4 PM (less crowded)\n"
+                    outlet_info += f"   • Evening wind-down: 6-8 PM (relaxed atmosphere)\n"
+                    
                 else:
-                    outlet_info += f"🏪 **Services:** Please contact outlet for service details\n"
-                
-                # Add phone/contact if available (though not in current data structure)
-                if outlet.get("phone"):
-                    outlet_info += f"📞 **Contact:** {outlet.get('phone')}\n"
-                
+                    # Multiple outlets - ranked comparison view
+                    location_emoji = "🏢" if "mall" in name.lower() or "plaza" in name.lower() else "🏪"
+                    rank_indicator = f"#{i}" if i <= 3 else f"{i}."
+                    
+                    outlet_info = f"{location_emoji} **{rank_indicator} {name}**\n"
+                    outlet_info += f"   📍 {address}\n"
+                    outlet_info += f"   🕐 {hours}\n"
+                    
+                    # Highlight key services with icons
+                    if services:
+                        service_icons = []
+                        for service in services[:3]:  # Top 3 services
+                            if "drive-thru" in service.lower():
+                                service_icons.append("🚗 Drive-Thru")
+                            elif "wifi" in service.lower():
+                                service_icons.append("📶 WiFi")
+                            elif "parking" in service.lower():
+                                service_icons.append("🅿️ Parking")
+                            elif "24" in service:
+                                service_icons.append("🌙 24hrs")
+                            else:
+                                service_icons.append(f"✅ {service}")
+                        
+                        if service_icons:
+                            outlet_info += f"   �️ {' • '.join(service_icons)}\n"
+                    
                 response_parts.append(outlet_info)
             
-            if len(outlets) > 8:
-                response_parts.append(f"\n... and {len(outlets) - 8} more outlets available! Ask me for more specific locations.")
+            # Smart continuation indicator
+            if len(outlets) > max_display:
+                response_parts.append(f"\n📋 **+{len(outlets) - max_display} more outlets available!**\n*Ask for specific areas or services to filter results*")
             
-            # Add helpful footer based on query type
-            if is_hours_query:
-                response_parts.append("\n💡 **Note:** Operating hours may vary during holidays and special events. Please call ahead to confirm.")
-            elif is_services_query:
-                response_parts.append("\n💡 **Tip:** Services may vary by location. Contact the outlet directly for the most up-to-date information.")
+            # Advanced contextual recommendations
+            if is_area_specific:
+                response_parts.append(f"\n🎯 **Area Expertise:** These outlets are strategically located for easy access. Consider traffic patterns during peak hours!")
+            elif is_service_specific:
+                if "drive-thru" in query_lower:
+                    response_parts.append(f"\n🚗 **Drive-Thru Pro Tips:** Perfect for busy schedules! Pre-order via app for even faster service.")
+                else:
+                    response_parts.append(f"\n🛍️ **Service Excellence:** Each outlet is equipped to provide the full ZUS Coffee experience!")
+            elif is_hours_query:
+                response_parts.append(f"\n⏰ **Timing Intelligence:** Hours may vary during holidays. Call ahead during festive seasons for confirmation!")
             else:
-                response_parts.append("\n💡 **Need more info?** Ask me about operating hours, services, or directions to any outlet!")
+                response_parts.append(f"\n�️ **Navigation Tips:** Use GPS for precise directions. Most outlets have clear ZUS Coffee signage and are located in high-traffic areas!")
             
             return "\n".join(response_parts)
             
         except Exception as e:
             logger.error(f"Error formatting outlet response: {e}")
-            return "I found some outlets but encountered an error displaying them. Please try again or ask for specific outlet information."
+            return "🔧 **System Notice:** Found outlets but encountered a display error. Please try rephrasing your query or ask for 'all outlets' to see the complete list."
 
 # Singleton pattern for agent instance
 _agent_instance = None
