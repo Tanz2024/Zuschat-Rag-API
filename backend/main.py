@@ -403,6 +403,23 @@ async def ping():
     """Simple ping endpoint for connectivity testing."""
     return {"status": "pong", "timestamp": "2025-07-08"}
 
+# Simple GET version of test endpoint
+@app.get("/test-chat-get")
+async def test_chat_get():
+    """Simple GET test endpoint for basic connectivity."""
+    return {
+        "message": "✅ GET test endpoint working",
+        "session_id": "default",
+        "intent": "test",
+        "confidence": 1.0,
+        "context": {"endpoint": "test-chat-get", "status": "working", "method": "GET"},
+        "products": None,
+        "outlets": None,
+        "calculation_result": None,
+        "suggestions": ["Use POST /test-chat for full testing", "Try the main /chat endpoint"],
+        "action": "test"
+    }
+
 # Test chat endpoint that doesn't use the complex chatbot
 @app.post("/test-chat")
 async def test_chat(request: ChatRequest):
@@ -411,20 +428,32 @@ async def test_chat(request: ChatRequest):
         message = getattr(request, 'message', '').strip() if request else ''
         session_id = getattr(request, 'session_id', 'default') if request else 'default'
         
-        return ChatResponse(
-            message=f"Test response for: {message}",
-            session_id=session_id,
-            intent="test",
-            confidence=1.0
-        )
+        return {
+            "message": f"✅ Test response for: {message}",
+            "session_id": session_id,
+            "intent": "test",
+            "confidence": 1.0,
+            "context": {"endpoint": "test-chat", "status": "working"},
+            "products": None,
+            "outlets": None,
+            "calculation_result": None,
+            "suggestions": ["Try the main /chat endpoint", "Check out our ceramic mugs"],
+            "action": "test"
+        }
     except Exception as e:
         logger.error(f"Test chat error: {e}")
-        return ChatResponse(
-            message="Test endpoint error",
-            session_id="default",
-            intent="error",
-            confidence=0.0
-        )
+        return {
+            "message": "❌ Test endpoint error occurred",
+            "session_id": "default",
+            "intent": "error",
+            "confidence": 0.0,
+            "context": {"endpoint": "test-chat", "status": "error", "error": str(e)},
+            "products": None,
+            "outlets": None,
+            "calculation_result": None,
+            "suggestions": ["Check server logs", "Try again"],
+            "action": "error"
+        }
 
 # Startup validation
 if __name__ == "__main__":
