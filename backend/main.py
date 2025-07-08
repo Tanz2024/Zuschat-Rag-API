@@ -21,6 +21,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Log startup immediately
+logger.info("=== ZUS Coffee Chatbot Backend Starting ===")
+logger.info(f"Target Port: {os.getenv('PORT', '10000')}")
+logger.info("Initializing components...")
+
 # Import models (basic Pydantic models, no database dependency)
 try:
     try:
@@ -126,9 +131,13 @@ except Exception as e:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events with error handling."""
+    """Application lifespan events with error handling and immediate port binding."""
     # Startup
     logger.info("Starting ZUS Chatbot Backend...")
+    
+    # Log port information immediately
+    port = os.getenv("PORT", "10000")
+    logger.info(f"Backend will bind to port: {port}")
     
     # Initialize database (graceful failure)
     try:
@@ -149,6 +158,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Chatbot test failed: {e}")
     
     logger.info(f"Backend ready - Database: {database_available}, Chatbot: {chatbot_type}")
+    logger.info(f"Server should be accessible on port {port}")
     
     yield
     
@@ -358,6 +368,13 @@ async def chat_endpoint(request: ChatRequest):
             intent="unknown",
             confidence=0.1
         )
+
+# Health check endpoint - immediate response for Render
+@app.get("/health")
+@app.head("/health")
+async def health_check():
+    """Fast health check for Render deployment."""
+    return {"status": "healthy", "service": "zus-chatbot", "timestamp": "2025-07-08"}
 
 # Simple ping endpoint for basic connectivity testing
 @app.get("/ping")
