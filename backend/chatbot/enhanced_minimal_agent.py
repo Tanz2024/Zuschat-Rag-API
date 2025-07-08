@@ -648,6 +648,20 @@ class EnhancedMinimalAgent:
         # Start with all products
         matching_products = products
         
+        # First, apply specific product type filtering (mug, cup, tumbler)
+        product_type_keywords = {
+            "mug": ["mug"],
+            "cup": ["cup"],  
+            "tumbler": ["tumbler"]
+        }
+        
+        for product_type, keywords in product_type_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                # Filter to only products that contain the type name
+                matching_products = [p for p in matching_products 
+                                   if any(keyword in p.get("name", "").lower() for keyword in keywords)]
+                break
+        
         # Apply filters if specified
         if filters["price_range"] or filters["category"] or filters["material"] or filters["collection"]:
             if filters["price_range"]:
@@ -674,9 +688,18 @@ class EnhancedMinimalAgent:
             
             # Sort by price for better organization
             matching_products.sort(key=lambda p: p.get("sale_price", 0))
+            
+            # Handle price-based queries AFTER filtering by material/category/collection
+            if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
+                # Return cheapest matching products
+                return matching_products[:3]  # Return top 3 cheapest that match filters
+            elif any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
+                # Return most expensive matching products
+                return sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)[:3]
+            
             return matching_products
         
-        # Handle price-based queries (cheapest, most expensive, etc.)
+        # Handle price-based queries (cheapest, most expensive, etc.) WITHOUT specific filters
         if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
             # Sort by price ascending and return cheapest products
             sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
