@@ -46,7 +46,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false, onToggle
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
   const [isSwipeActive, setIsSwipeActive] = useState(false)
-  const [swipeProgress, setSwipeProgress] = useState(0)
+  // Removed swipeProgress as it's not being used for visual feedback anymore
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Handle component mounting - prevent flash of suggestions
@@ -61,7 +61,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false, onToggle
 
   // Minimum swipe distance to trigger sidebar action
   const minSwipeDistance = 50
-  const maxSwipeDistance = 200
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -172,20 +171,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false, onToggle
     
     // Only process horizontal swipes (not vertical scrolling)
     if (deltaY < 50) {
-      const progress = Math.min(Math.abs(deltaX) / maxSwipeDistance, 1)
-      setSwipeProgress(progress)
-      
       // Prevent default only for horizontal swipes to allow vertical scrolling
       if (Math.abs(deltaX) > 20) {
         e.preventDefault()
       }
     }
-  }, [touchStart, maxSwipeDistance])
+  }, [touchStart])
 
   const handleTouchEnd = useCallback(() => {
     if (!touchStart || !touchEnd) {
       setIsSwipeActive(false)
-      setSwipeProgress(0)
       return
     }
 
@@ -208,7 +203,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false, onToggle
     setTouchStart(null)
     setTouchEnd(null)
     setIsSwipeActive(false)
-    setSwipeProgress(0)
   }, [touchStart, touchEnd, minSwipeDistance, isSidebarOpen, onToggleSidebar])
 
 
@@ -220,30 +214,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isSidebarOpen = false, onToggle
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* GPT-style swipe indicators */}
-      {isSwipeActive && swipeProgress > 0.1 && (
-        <div className="swipe-feedback-container">
-          {/* Left edge swipe indicator (to open sidebar) */}
-          {!isSidebarOpen && touchStart?.x && touchStart.x < 50 && (
-            <div 
-              className="swipe-indicator swipe-indicator-left"
-              style={{ opacity: Math.min(swipeProgress * 2, 1) }}
-            >
-              <div className="swipe-arrow">→</div>
-            </div>
-          )}
-          
-          {/* Right swipe indicator (to close sidebar) */}
-          {isSidebarOpen && swipeProgress > 0.2 && (
-            <div 
-              className="swipe-indicator swipe-indicator-right"
-              style={{ opacity: Math.min(swipeProgress * 2, 1) }}
-            >
-              <div className="swipe-arrow">←</div>
-            </div>
-          )}
-        </div>
-      )}
+
 
       {/* Messages Container - Production Layout */}
       <div className={`chat-messages ${isSidebarOpen ? 'chat-messages-with-sidebar' : 'chat-messages-expanded'}`}>

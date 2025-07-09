@@ -186,17 +186,37 @@ const MessageInput: React.FC<MessageInputProps> = ({
             enterKeyHint="send"
           />
           
-          {/* Send Button */}
+          {/* GPT-style Send Button */}
           <button
             type="submit"
             disabled={!message.trim() || isInputDisabled}
-            className="btn-send mobile-touch-target btn-haptic mobile-focus-ring"
+            className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:opacity-50 text-gray-600 dark:text-gray-300 disabled:text-gray-400 w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-all duration-200 ease-in-out flex items-center justify-center mobile-touch-target btn-haptic mobile-focus-ring"
+            style={{
+              backgroundColor: !message.trim() || isInputDisabled ? undefined : '#0084ff',
+              color: !message.trim() || isInputDisabled ? undefined : 'white',
+              minHeight: '44px', // iOS minimum touch target
+              minWidth: '44px',
+              touchAction: 'manipulation', // Prevent double-tap zoom
+              WebkitTapHighlightColor: 'transparent' // Remove iOS tap highlight
+            }}
+            onTouchStart={(e) => {
+              // Prevent scroll on button touch and add visual feedback
+              e.currentTarget.style.transform = 'translateY(-50%) scale(0.95)'
+            }}
+            onTouchEnd={(e) => {
+              // Restore button scale
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+            }}
+            onTouchCancel={(e) => {
+              // Restore button scale if touch is cancelled
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+            }}
             aria-label="Send message"
           >
             {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
         </div>

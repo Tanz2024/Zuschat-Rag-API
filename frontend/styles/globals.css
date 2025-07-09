@@ -332,12 +332,6 @@
     min-width: 44px;
   }
   
-  .btn-send {
-    @apply absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-700 text-white p-2 sm:p-3 rounded-lg transition-all duration-200 ease-in-out disabled:opacity-50;
-    min-height: 40px;
-    min-width: 40px;
-  }
-  
   .btn-hamburger {
     @apply p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out;
     min-height: 44px;
@@ -348,11 +342,29 @@
   .sidebar-container {
     @apply fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transform transition-all duration-300 ease-in-out shadow-lg;
     width: 280px; /* Smaller on mobile */
+    max-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   
   @media (min-width: 640px) {
     .sidebar-container {
       width: 320px;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .sidebar-container {
+      width: 350px; /* Slightly wider on desktop for better spacing */
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      height: 100vh;
+      max-height: 100vh;
+      overflow-y: auto;
+      z-index: 40; /* Lower z-index on desktop */
     }
   }
   
@@ -401,7 +413,12 @@
   
   @media (min-width: 1024px) {
     .main-layout-sidebar-open {
-      margin-left: 320px; /* Only on desktop */
+      margin-left: 350px; /* Match sidebar width on desktop */
+    }
+    
+    .main-layout {
+      position: relative;
+      z-index: 1;
     }
   }
   
@@ -1471,7 +1488,7 @@
     transform: scale(0.98) rotate(0.5deg);
   }
 
-  /* GPT-style Swipe Gesture Indicators */
+  /* GPT-style Swipe Gesture System */
   .swipe-feedback-container {
     position: fixed;
     inset: 0;
@@ -1479,66 +1496,10 @@
     z-index: 60;
   }
   
-  .swipe-indicator {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0, 102, 255, 0.9);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 20px;
-    font-size: 18px;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
-    opacity: 0;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-  }
-  
-  .swipe-indicator-left {
-    left: 20px;
-    animation: swipeHintLeft 0.6s ease-in-out infinite alternate;
-  }
-  
-  .swipe-indicator-right {
-    right: 20px;
-    animation: swipeHintRight 0.6s ease-in-out infinite alternate;
-  }
-  
-  .swipe-arrow {
-    font-size: 24px;
-    line-height: 1;
-  }
-  
   /* Chat container swipe state */
   .chat-container.swipe-active {
     transition: none;
     will-change: transform;
-  }
-  
-  /* Swipe animations */
-  @keyframes swipeHintLeft {
-    0% { 
-      transform: translateY(-50%) translateX(0);
-      opacity: 0.7;
-    }
-    100% { 
-      transform: translateY(-50%) translateX(10px);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes swipeHintRight {
-    0% { 
-      transform: translateY(-50%) translateX(0);
-      opacity: 0.7;
-    }
-    100% { 
-      transform: translateY(-50%) translateX(-10px);
-      opacity: 1;
-    }
   }
   
   /* Mobile swipe zone enhancement */
@@ -1557,15 +1518,6 @@
   @media (max-width: 768px) {
     .chat-container {
       touch-action: pan-y; /* Allow vertical scrolling but handle horizontal swipes */
-    }
-    
-    .swipe-indicator {
-      font-size: 16px;
-      padding: 10px 14px;
-    }
-    
-    .swipe-arrow {
-      font-size: 20px;
     }
   }
 }
