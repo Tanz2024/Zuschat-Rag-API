@@ -1470,6 +1470,104 @@
   .micro-spring:active {
     transform: scale(0.98) rotate(0.5deg);
   }
+
+  /* GPT-style Swipe Gesture Indicators */
+  .swipe-feedback-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+  }
+  
+  .swipe-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 102, 255, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+  
+  .swipe-indicator-left {
+    left: 20px;
+    animation: swipeHintLeft 0.6s ease-in-out infinite alternate;
+  }
+  
+  .swipe-indicator-right {
+    right: 20px;
+    animation: swipeHintRight 0.6s ease-in-out infinite alternate;
+  }
+  
+  .swipe-arrow {
+    font-size: 24px;
+    line-height: 1;
+  }
+  
+  /* Chat container swipe state */
+  .chat-container.swipe-active {
+    transition: none;
+    will-change: transform;
+  }
+  
+  /* Swipe animations */
+  @keyframes swipeHintLeft {
+    0% { 
+      transform: translateY(-50%) translateX(0);
+      opacity: 0.7;
+    }
+    100% { 
+      transform: translateY(-50%) translateX(10px);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes swipeHintRight {
+    0% { 
+      transform: translateY(-50%) translateX(0);
+      opacity: 0.7;
+    }
+    100% { 
+      transform: translateY(-50%) translateX(-10px);
+      opacity: 1;
+    }
+  }
+  
+  /* Mobile swipe zone enhancement */
+  .chat-container::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  
+  /* Touch-friendly swipe area */
+  @media (max-width: 768px) {
+    .chat-container {
+      touch-action: pan-y; /* Allow vertical scrolling but handle horizontal swipes */
+    }
+    
+    .swipe-indicator {
+      font-size: 16px;
+      padding: 10px 14px;
+    }
+    
+    .swipe-arrow {
+      font-size: 20px;
+    }
+  }
 }
 
 @layer utilities {

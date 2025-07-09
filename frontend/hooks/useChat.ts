@@ -46,6 +46,8 @@ export const useChat = (options: UseChatOptions = {}): UseChatReturn => {
   // Load chat history from localStorage on mount
   useEffect(() => {
     const savedMessages = localStorage.getItem('chatHistory')
+    let initialMessages: ChatMessage[] = []
+    
     if (savedMessages) {
       try {
         const parsed = JSON.parse(savedMessages)
@@ -53,13 +55,13 @@ export const useChat = (options: UseChatOptions = {}): UseChatReturn => {
           ...msg,
           timestamp: new Date(msg.timestamp)
         }))
-        setMessages(messagesWithDates)
+        initialMessages = messagesWithDates
       } catch (error) {
         console.error('Error loading chat history:', error)
       }
     }
     
-    if (messages.length === 0) {
+    if (initialMessages.length === 0) {
       // Initialize with welcome message
       const welcomeMessage: ChatMessage = {
         id: generateId(),
@@ -67,8 +69,10 @@ export const useChat = (options: UseChatOptions = {}): UseChatReturn => {
         content: 'Hello! I\'m your ZUS Coffee assistant. I can help you with product information, outlet locations, and simple calculations. How can I assist you today?',
         timestamp: new Date(),
       }
-      setMessages([welcomeMessage])
+      initialMessages = [welcomeMessage]
     }
+    
+    setMessages(initialMessages)
   }, [])
 
   // Save messages to localStorage whenever they change

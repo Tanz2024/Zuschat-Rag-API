@@ -18,10 +18,10 @@ export default function Home() {
       setIsSidebarOpen(false) // Default to closed for maximum chat space
     }
     
-    // Small delay to prevent layout shift
+    // Coordinated delay to prevent any flash on page refresh
     setTimeout(() => {
       setIsLayoutReady(true)
-    }, 100)
+    }, 150) // Shorter than components to ensure proper order
   }, [])
 
   // Save sidebar state to localStorage
@@ -77,7 +77,6 @@ export default function Home() {
       <Head>
         <title>ZUS Coffee • AI Assistant</title>
         <meta name="description" content="Get instant answers about ZUS Coffee outlets, products, and services with our AI assistant. Find nearby outlets, discover menu items, and calculate your orders." />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         
         {/* Favicons */}
         <link rel="icon" href="/favicon-16.svg" sizes="16x16" type="image/svg+xml" />
@@ -135,7 +134,10 @@ export default function Home() {
               onToggleSidebar={toggleSidebar}
             />
             <main className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? 'chat-sidebar-open' : 'chat-expanded'}`}>
-              <ChatWindow isSidebarOpen={isSidebarOpen} />
+              <ChatWindow 
+                isSidebarOpen={isSidebarOpen} 
+                onToggleSidebar={toggleSidebar}
+              />
             </main>
           </div>
         </div>

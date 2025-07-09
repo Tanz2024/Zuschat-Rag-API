@@ -19,10 +19,21 @@ const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const [message, setMessage] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
   const isInputDisabled = isDisabled || isLoading
+
+  // Handle mounting state to prevent flash of content
+  useEffect(() => {
+    // Increased delay to coordinate with ChatWindow and prevent "Try asking:" from flashing on page load
+    const timer = setTimeout(() => {
+      setIsMounted(true)
+    }, 250) // Slightly longer than ChatWindow delay
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   // Handle keyboard visibility for mobile
   useEffect(() => {
@@ -125,9 +136,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div ref={containerRef} className="chat-input-container">
-      {/* Suggested Prompts */}
-      {showSuggestions && message.length === 0 && !isFocused && (
-        <div className="mb-4 sm:mb-6">
+      {/* Suggested Prompts - Only show after component is mounted and no messages */}
+      {isMounted && showSuggestions && message.length === 0 && !isFocused && (
+        <div className="mb-4 sm:mb-6 animate-mobile-fade">
           <p className="text-gray-600 dark:text-gray-300 mb-3 sm:mb-4 transition-colors duration-300 select-none text-sm sm:text-base"
              style={{ 
                fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
