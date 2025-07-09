@@ -89,9 +89,9 @@ chatbot_type = "none"
 
 try:
     try:
-        from backend.chatbot.enhanced_minimal_agent import get_chatbot
+        from backend.chatbot.enhanced_minimal_agent import get_chatbot, EnhancedMinimalAgent
     except ImportError:
-        from chatbot.enhanced_minimal_agent import get_chatbot
+        from chatbot.enhanced_minimal_agent import get_chatbot, EnhancedMinimalAgent
     chatbot_available = True
     chatbot_type = "enhanced_minimal"
     logger.info("Using ENHANCED MINIMAL chatbot with real data keyword matching")
@@ -399,32 +399,32 @@ async def chat_endpoint(request: ChatRequest):
                 confidence=0.5
             )
         
-        # FAST RESPONSE: Check for instant replies first (under 50ms)
-        fast_response = get_fast_response(message)
-        if fast_response:
-            logger.info(f"Fast response triggered for: {message[:30]}...")
-            return ChatResponse(
-                message=fast_response["message"],
-                session_id=session_id,
-                intent=fast_response["intent"],
-                confidence=fast_response["confidence"]
-            )
+        # FAST RESPONSE: Disabled to allow proper chatbot processing
+        # fast_response = get_fast_response(message)
+        # if fast_response:
+        #     logger.info(f"Fast response triggered for: {message[:30]}...")
+        #     return ChatResponse(
+        #         message=fast_response["message"],
+        #         session_id=session_id,
+        #         intent=fast_response["intent"],
+        #         confidence=fast_response["confidence"]
+        #     )
         
-        # Check fast response cache first
-        try:
-            logger.info("Checking fast response cache...")
-            cached_response = get_fast_response(message)
-            if cached_response:
-                logger.info(f"Fast response cache hit for message: {message}")
-                return ChatResponse(
-                    message=cached_response["message"],
-                    session_id=session_id,
-                    intent=cached_response["intent"],
-                    confidence=cached_response["confidence"]
-                )
-            logger.info("No fast response cache hit")
-        except Exception as e:
-            logger.error(f"Error checking fast response cache: {e}")
+        # Check fast response cache first - DISABLED to allow proper chatbot processing
+        # try:
+        #     logger.info("Checking fast response cache...")
+        #     cached_response = get_fast_response(message)
+        #     if cached_response:
+        #         logger.info(f"Fast response cache hit for message: {message}")
+        #         return ChatResponse(
+        #             message=cached_response["message"],
+        #             session_id=session_id,
+        #             intent=cached_response["intent"],
+        #             confidence=cached_response["confidence"]
+        #         )
+        #     logger.info("No fast response cache hit")
+        # except Exception as e:
+        #     logger.error(f"Error checking fast response cache: {e}")
         
         # Get chatbot instance
         try:

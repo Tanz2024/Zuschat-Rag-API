@@ -69,7 +69,7 @@ class EnhancedMinimalAgent:
         }
 
         # Enhanced tax and calculation keywords
-        self.tax_keywords = ['tax', 'sst', 'gst', 'total', 'calculate tax', 'with tax', 'including tax']
+        self.tax_keywords = ['tax', 'sst', 'gst', 'calculate tax', 'with tax', 'including tax']
         self.tax_rates = {
             'sst': 0.06,  # 6% SST in Malaysia
             'gst': 0.06,  # If GST returns
@@ -659,9 +659,19 @@ class EnhancedMinimalAgent:
                               re.search(r'(?:square\s+root|sqrt)\s+of\s+\d+', message_lower) or
                               re.search(r'\d+\s*%\s*of\s*\d+', message_lower))
         
-        # Tax/SST calculations - pure calculation intent
-        if any(keyword in message_lower for keyword in ["sst", "tax", "service charge"]) and re.search(r'\d+', message):
+        # Check for specific calculation patterns that should get highest priority
+        is_total_multiplication = re.search(r'total\s+for\s+\d+\s*[×*]\s*rm\s*\d+', message_lower)
+        is_discount_calculation = re.search(r'\d+\s*%\s*discount\s+on\s+rm\s*\d+', message_lower)
+        
+        # Tax/SST calculations - pure calculation intent (but lower priority than specific patterns)
+        if any(keyword in message_lower for keyword in ["sst", "tax", "service charge"]) and re.search(r'\d+', message) and not is_total_multiplication:
             intent_scores["calculation"] = 0.95
+        
+        # Prioritize specific calculation patterns
+        if is_total_multiplication:
+            intent_scores["calculation"] = 0.99  # Highest priority for total multiplication
+        if is_discount_calculation:
+            intent_scores["calculation"] = 0.99  # Highest priority for discount calculations
         
         # ADVANCED QUERIES DETECTION - New feature for complex queries
         advanced_query_patterns = [
@@ -689,21 +699,29 @@ class EnhancedMinimalAgent:
         elif message_lower.startswith(("what is", "compute")) and calculation_operators and not has_product_keywords:
             intent_scores["calculation"] = 0.95  # Strong calculation intent for explicit requests
             
-        # Enhanced promotion inquiry detection - BUT NOT for specific product queries
+        # Enhanced promotion inquiry detection - BUT NOT for calculation queries
         promotion_keywords = ["promotion", "promotions", "sale", "sales", "discount", "discounts", "offer", "offers", 
                              "deal", "deals", "special", "specials", "new", "latest", "month", "today", "available",
                              "what's new", "whats new", "this month", "current", "ongoing"]
         
+        # Check if this is a mathematical discount calculation (e.g., "20% discount on RM79")
+        is_discount_calculation = re.search(r'\d+\s*%\s*discount\s+on\s+rm\s*\d+', message_lower)
+        
         # Check if this is a specific product query (cheapest, most expensive, specific product name)
         is_specific_product_query = any(term in message_lower for term in ["cheapest", "most expensive", "ceramic", "stainless steel", "acrylic", "tumbler", "cup", "mug", "show me", "find"])
         
-        if any(word in message_lower for word in promotion_keywords) and not is_specific_product_query:
-            # Boost score for explicit promotion queries
-            if any(explicit in message_lower for explicit in ["promotion", "promotions", "deal", "deals", "offer", "offers", "discount"]):
+        # Only classify as promotion if NOT a mathematical calculation
+        if any(word in message_lower for word in promotion_keywords) and not is_specific_product_query and not is_discount_calculation:
+            # Boost score for explicit promotion queries (but not calculations)
+            if any(explicit in message_lower for explicit in ["promotion", "promotions", "deal", "deals", "offer", "offers"]) and not is_discount_calculation:
                 intent_scores["promotion_inquiry"] = 0.98  # Higher than product_search
             # Medium score for implicit promotion queries
             elif any(implicit in message_lower for implicit in ["new", "latest", "month", "today", "available", "special"]):
                 intent_scores["promotion_inquiry"] = 0.92  # Higher than product_search
+        
+        # Prioritize calculation for discount math even if "discount" is mentioned
+        if is_discount_calculation:
+            intent_scores["calculation"] = 0.99  # Highest priority for discount calculations
             
         if any(word in message_lower for word in ["eco-friendly", "sustainable", "environment"]):
             intent_scores["eco_friendly"] = 0.8
@@ -770,208 +788,147 @@ class EnhancedMinimalAgent:
 
     def find_matching_products(self, query: str, show_all: bool = False, session_id: str = None) -> List[Dict]:
         """Enhanced product search with advanced filters, price analysis, and context-aware responses"""
+        logger.info(f"[DEBUG] find_matching_products called with query='{query}', show_all={show_all}, session_id={session_id}")
         products = self.get_products()
         if not products:
             return []
-        
         if show_all:
             return products
-
         query_lower = query.lower()
-        
-        # Enhanced context analysis for better intent understanding
         context_analysis = self.analyze_conversation_context(query, session_id) if session_id else {"needs_context": False}
-        
-        # Handle context-aware queries (e.g., "that product", "tell me more about it")
+        # Context-aware: handle references to previous products
         if context_analysis.get("has_reference") and context_analysis.get("referenced_products"):
             reference_patterns = [
                 "that product", "that item", "that tumbler", "that cup", "that mug",
                 "tell me more", "more details", "more about it", "about that",
                 "what about it", "it", "that one", "details about that"
             ]
-            
             if any(pattern in query_lower for pattern in reference_patterns):
-                # Return the last shown products as context
                 return context_analysis["referenced_products"]
-        
-        # Detect filtering intent
         filters = self.detect_filtering_intent(query)
-        
-        # Start with all products as base
         matching_products = products
-        
-        # Apply material filtering first (STRICT)
+        # Material filter
         if filters["material"]:
-            material_filtered = []
-            for p in matching_products:
-                product_material = (p.get("material", "") or "").lower()
-                if filters["material"].lower() in product_material:
-                    material_filtered.append(p)
-            
-            # STRICT: If no products match the material, return empty
-            if not material_filtered:
+            matching_products = [p for p in matching_products if filters["material"].lower() in (p.get("material", "") or "").lower()]
+            if not matching_products:
                 return []
-            
-            matching_products = material_filtered
-        
-        # Apply collection filtering (STRICT)
+        # Collection filter
         if filters["collection"]:
-            collection_filtered = []
-            for p in matching_products:
-                product_collection = (p.get("collection", "") or "").lower()
-                if filters["collection"].lower() in product_collection:
-                    collection_filtered.append(p)
-            
-            # STRICT: If no products match the collection, return empty
-            if not collection_filtered:
+            matching_products = [p for p in matching_products if filters["collection"].lower() in (p.get("collection", "") or "").lower()]
+            if not matching_products:
                 return []
-            
-            matching_products = collection_filtered
-        
-        # Apply category filtering for specific searches (cups, mugs, tumblers)
+        # Category filter
         category_keywords = {
             "tumbler": ["tumbler", "tumblers"],
             "cup": ["cup", "cups", "cold cup", "cold cups"],
             "mug": ["mug", "mugs"],
             "drinkware": ["drinkware"]
         }
-        
         for category, keywords in category_keywords.items():
             if any(keyword in query_lower for keyword in keywords):
-                category_filtered = []
+                filtered = []
                 for p in matching_products:
-                    product_name = (p.get("name", "") or "").lower()
-                    product_category = (p.get("category", "") or "").lower()
-                    
-                    # Match by category or by keywords in product name
-                    if (category == "drinkware" and product_category == "drinkware") or \
-                       any(keyword in product_name for keyword in keywords):
-                        category_filtered.append(p)
-                
-                if category_filtered:  # Only apply filter if matches found
-                    matching_products = category_filtered
-                break  # Only apply one category filter
-        
-        # Apply price range filtering (STRICT)
+                    name = (p.get("name", "") or "").lower()
+                    cat = (p.get("category", "") or "").lower()
+                    if (category == "drinkware" and cat == "drinkware") or any(k in name for k in keywords):
+                        filtered.append(p)
+                if filtered:
+                    matching_products = filtered
+                break
+        # Price range filter
         if filters["price_range"]:
-            price_filtered = []
+            filtered = []
             for p in matching_products:
                 try:
                     price = self.extract_product_price(p)
-                    price_match = True
-                    
                     if filters["min_price"] is not None and price < filters["min_price"]:
-                        price_match = False
+                        continue
                     if filters["max_price"] is not None and price > filters["max_price"]:
-                        price_match = False
-                    
-                    if price_match:
-                        price_filtered.append(p)
-                except (ValueError, TypeError):
+                        continue
+                    filtered.append(p)
+                except Exception:
                     continue
-            
-            # STRICT: If no products match the price range, return empty
-            if not price_filtered:
+            if not filtered:
                 return []
-            
-            matching_products = price_filtered
-        
-        # ENHANCED: Context-aware precise filtering for specific queries
-        # Handle "the most expensive" or "the cheapest" to return ONLY ONE result
-        is_singular_query = any(phrase in query_lower for phrase in [
+            matching_products = filtered
+            # Superlative queries on price-filtered
+            if any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
+                sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)
+                is_singular = any(phrase in query_lower for phrase in ["the most expensive", "what is the most expensive", "which is the most expensive", "what's the most expensive"])
+                return sorted_products[:1] if is_singular else sorted_products[:3]
+            if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
+                sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
+                is_singular = any(phrase in query_lower for phrase in ["the cheapest", "what is the cheapest", "which is the cheapest", "what's the cheapest"])
+                return sorted_products[:1] if is_singular else sorted_products[:3]
+            return matching_products
+        # Superlative queries (no price filter)
+        is_singular = any(phrase in query_lower for phrase in [
             "the most expensive", "the cheapest", "what is the most expensive", 
             "what is the cheapest", "which is the most expensive", "which is the cheapest",
             "what's the most expensive", "what's the cheapest"
         ])
-        
-        # Handle superlative queries with precision
         if any(term in query_lower for term in ["most expensive", "expensive", "highest price", "priciest"]):
             sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0), reverse=True)
-            if is_singular_query:
-                return sorted_products[:1]  # Return ONLY the most expensive
-            else:
-                return sorted_products[:3]  # Return top 3 most expensive
-        
+            return sorted_products[:1] if is_singular else sorted_products[:3]
         if any(term in query_lower for term in ["cheapest", "cheap", "lowest price", "least expensive"]):
             sorted_products = sorted(matching_products, key=lambda p: p.get("sale_price", 0))
-            if is_singular_query:
-                return sorted_products[:1]  # Return ONLY the cheapest
-            else:
-                return sorted_products[:3]  # Return top 3 cheapest
-        
-        # Handle specific category searches
-        category_terms = {
-            "tumbler": "drinkware",
-            "tumblers": "drinkware", 
-            "cup": "drinkware",
-            "cups": "drinkware",
-            "mug": "drinkware",
-            "mugs": "drinkware",
-            "drinkware": "drinkware",
-            "cold cup": "drinkware",
-            "cold cups": "drinkware"
-        }
-        
-        # Check if this is a category-specific search
-        for term, category in category_terms.items():
-            if term in query_lower and len(query_lower.split()) <= 3:
-                # Return all products in this category
-                return [p for p in products if p.get("category", "").lower() == category]
-        
-        # General queries that should return all products
-        general_product_terms = ["products", "what products", "show me products", "available", "all products", "show all", "show products"]
-        if any(term in query_lower for term in general_product_terms):
+            return sorted_products[:1] if is_singular else sorted_products[:3]
+        # Category-only queries (no other filters)
+        if not (filters["material"] or filters["collection"] or filters["price_range"]):
+            category_terms = {
+                "tumbler": "drinkware",
+                "tumblers": "drinkware", 
+                "cup": "drinkware",
+                "cups": "drinkware",
+                "mug": "drinkware",
+                "mugs": "drinkware",
+                "drinkware": "drinkware",
+                "cold cup": "drinkware",
+                "cold cups": "drinkware"
+            }
+            for term, category in category_terms.items():
+                if term in query_lower and len(query_lower.split()) <= 3:
+                    return [p for p in products if category in (p.get("category", "") or "").lower()]
+        # General queries for all products
+        general_terms = ["products", "what products", "show me products", "available", "all products", "show all", "show products"]
+        if any(term in query_lower for term in general_terms) and not (filters["price_range"] or filters["material"] or filters["collection"]):
             return products
-        
-        # Handle AI-based keyword matching with fuzzy search
+        if filters["material"] or filters["collection"] or filters["price_range"]:
+            return matching_products
+        # Fallback: keyword/feature match
         result = []
-        
-        # Smart keyword matching - look for any word that could be a product feature
         query_words = [w for w in query_lower.split() if len(w) > 2]
-        
         for product in products:
-            product_name_lower = (product.get("name", "") or "").lower()
-            product_description = (product.get("description", "") or "").lower()
-            product_material = (product.get("material", "") or "").lower()
-            product_collection = (product.get("collection", "") or "").lower()
-            product_colors = [c.lower() for c in product.get("colors", [])]
-            product_features = [f.lower() for f in product.get("features", [])]
-            
-            # Check if any query word matches product attributes
-            match_found = False
-            for query_word in query_words:
-                if (query_word in product_name_lower or 
-                    query_word in product_description or
-                    query_word in product_material or
-                    query_word in product_collection or
-                    any(query_word in color for color in product_colors) or
-                    any(query_word in feature for feature in product_features)):
-                    match_found = True
+            name = (product.get("name", "") or "").lower()
+            desc = (product.get("description", "") or "").lower()
+            material = (product.get("material", "") or "").lower()
+            collection = (product.get("collection", "") or "").lower()
+            colors = [c.lower() for c in product.get("colors", [])]
+            features = [f.lower() for f in product.get("features", [])]
+            match = False
+            for word in query_words:
+                if word in name or word in desc or word in material or word in collection or word in colors or word in features:
+                    match = True
                     break
-            
-            if match_found:
+            if match:
                 result.append(product)
-        
         # Remove duplicates
         seen = set()
         unique_products = []
-        for product in result:
-            if product.get("name") not in seen:
-                seen.add(product.get("name"))
-                unique_products.append(product)
-
-        # If no specific matches found but query contains general terms, return all products
+        for p in result:
+            n = p.get("name")
+            if n and n not in seen:
+                seen.add(n)
+                unique_products.append(p)
         if not unique_products and any(term in query_lower for term in ["show", "display", "list", "available"]):
             return products
-        
-        # STRICT: If no matches for specific product names, return empty (no hallucination)
         if not unique_products and any(len(w) > 4 for w in query_words):
             return []
-        
         return unique_products
 
     def find_matching_outlets(self, query: str, show_all: bool = False, session_id: str = None) -> List[Dict]:
         """Find outlets with enhanced logic and city filtering using real DB data."""
+        logger.info(f"[DEBUG] find_matching_outlets called with query='{query}', show_all={show_all}, session_id={session_id}")
         outlets = self.get_outlets()
         if not outlets:  # Handle case where outlets is None or empty
             return []
@@ -998,33 +955,65 @@ class EnhancedMinimalAgent:
                     return context_analysis["referenced_outlets"]
         
         filters = self.detect_filtering_intent(query)
-          # Apply filtering in sequence: first city, then service
+        
+        # Enhanced city mapping for better location matching
+        city_mappings = {
+            'kl': ['kuala lumpur', 'kl'],
+            'kuala lumpur': ['kuala lumpur', 'kl'],
+            'pj': ['petaling jaya', 'pj'],
+            'petaling jaya': ['petaling jaya', 'pj'],
+            'selangor': ['selangor', 'shah alam'],
+            'shah alam': ['shah alam', 'selangor'],
+            'klcc': ['klcc', 'kuala lumpur'],
+            'pavilion': ['pavilion', 'kuala lumpur'],
+            'mid valley': ['mid valley', 'kuala lumpur'],
+            'sunway': ['sunway', 'selangor'],
+            'damansara': ['damansara', 'petaling jaya', 'pj', 'selangor'],
+            'bangsar': ['bangsar', 'kuala lumpur', 'kl'],
+            'ss2': ['ss2', 'petaling jaya', 'pj', 'selangor'],
+            'ss15': ['ss15', 'subang jaya', 'selangor']
+        }
+        
+        # Apply filtering in sequence: first city, then service
         filtered_outlets = outlets
         
         # Apply location/city filtering first if specified
         if filters["city"]:
             city = filters["city"]
-            # Only match if city is present as a whole word in the address (not as a substring)
             city_filtered = []
+            
+            # Get all possible variations of the city name
+            city_variations = city_mappings.get(city, [city])
+            
             for o in filtered_outlets:
                 address = (o.get("address", "") or "").lower()
-                # Strict: match city as a whole word, or as a substring with clear boundaries (space, comma, start/end)
-                if (
-                    address == city
-                    or address.startswith(city + ' ')
-                    or address.endswith(' ' + city)
-                    or f' {city} ' in address
-                    or f',{city} ' in address
-                    or f' {city},' in address
-                    or f',{city},' in address
-                    or address.endswith(',' + city)
-                    or address.startswith(city + ',')
-                    or city in [w.strip() for w in address.replace(',', ' ').replace('-', ' ').split()]
-                ):
+                outlet_name = (o.get("name", "") or "").lower()
+                
+                # Check if any city variation matches the address or outlet name
+                match_found = False
+                for city_var in city_variations:
+                    if (
+                        city_var in address or
+                        city_var in outlet_name or
+                        # Specific landmark matching
+                        (city_var == 'klcc' and 'suria klcc' in address) or
+                        (city_var == 'pavilion' and 'pavilion' in address) or
+                        (city_var == 'mid valley' and 'mid valley' in address)
+                    ):
+                        match_found = True
+                        break
+                
+                if match_found:
                     city_filtered.append(o)
-            # STRICT: If no outlets match the city, return empty
+            
+            # If no exact matches, try partial matching for common abbreviations
             if not city_filtered:
-                return []
+                for o in filtered_outlets:
+                    address = (o.get("address", "") or "").lower()
+                    # Try substring matching for areas
+                    if any(city_part in address for city_part in city_variations):
+                        city_filtered.append(o)
+            
             filtered_outlets = city_filtered
 
         # Apply service filtering on the already filtered results (IMPROVED: Better service matching)
@@ -1082,16 +1071,37 @@ class EnhancedMinimalAgent:
             outlet_address_lower = (outlet.get("address", "") or "").lower()
             outlet_services = outlet.get("services", [])
             
-            # Split names and addresses into words for better matching
-            outlet_words = outlet_name_lower.replace('-', ' ').split()
-            address_words = outlet_address_lower.replace(',', ' ').replace('-', ' ').split()
+            # Enhanced matching for common location queries
+            location_keywords = {
+                'klcc': ['klcc', 'suria klcc'],
+                'pavilion': ['pavilion', 'bukit bintang'],
+                'mid valley': ['mid valley', 'lingkaran syed putra'],
+                'shah alam': ['shah alam', 'selangor'],
+                'pj': ['petaling jaya', 'pj'],
+                'kl': ['kuala lumpur', 'kl']
+            }
             
-            # Check if query matches outlet name, address, or services
-            if (any(word in query_lower for word in outlet_words if len(word) > 2) or
-                any(word in query_lower for word in address_words if len(word) > 3) or
-                any((service or "").lower() in query_lower for service in outlet_services)):
+            # Check for location-specific matches
+            match_found = False
+            for location, keywords in location_keywords.items():
+                if location in query_lower:
+                    if any(keyword in outlet_name_lower or keyword in outlet_address_lower for keyword in keywords):
+                        match_found = True
+                        break
+            
+            # General name/address matching
+            if not match_found:
+                outlet_words = outlet_name_lower.replace('-', ' ').split()
+                address_words = outlet_address_lower.replace(',', ' ').replace('-', ' ').split()
+                
+                # Check if query matches outlet name, address, or services
+                if (any(word in query_lower for word in outlet_words if len(word) > 2) or
+                    any(word in query_lower for word in address_words if len(word) > 3) or
+                    any((service or "").lower() in query_lower for service in outlet_services)):
+                    match_found = True
+            
+            if match_found:
                 result.append(outlet)
-                continue
         
         # Remove duplicates
         seen = set()
@@ -1101,9 +1111,10 @@ class EnhancedMinimalAgent:
                 seen.add(outlet.get("name"))
                 unique_outlets.append(outlet)
 
-        # STRICT: If no matches, return empty (no hallucination, no fallback)
-        if not unique_outlets:
-            return []
+        # If no specific matches and query seems location-based, return all outlets
+        if not unique_outlets and any(term in query_lower for term in ["outlet", "location", "store", "where"]):
+            return outlets
+        
         return unique_outlets
 
     def handle_advanced_calculation(self, message: str) -> str:
@@ -1112,16 +1123,51 @@ class EnhancedMinimalAgent:
         Handles: basic math, percentages, square roots, powers, tax calculations
         Never hallucinates - only works with real mathematical expressions.
         """
+
         try:
-            # Normalize multiplication and division symbols and strip currency symbols for calculation
+            # --- PATCH: Always check discount and multiplication patterns FIRST, before any normalization or other logic ---
+            discount_match = re.search(r'(\d+(?:\.\d+)?)\s*%\s*discount\s+on\s+rm\s*(\d+(?:\.\d+)?)', message.lower())
+            if discount_match:
+                discount_percent, price = float(discount_match.group(1)), float(discount_match.group(2))
+                discount_amount = (discount_percent / 100) * price
+                final_price = price - discount_amount
+                return f"Here's your discount calculation: **{discount_percent}% discount on RM {price}**\n• Discount amount: RM {discount_amount:.2f}\n• Final price: **RM {final_price:.2f}**\n\nNeed more calculations?"
+
+            # Multiplication patterns (e.g., "total for 2 × RM39", "2 × RM39", "2 units of RM39", "total price for 2 items at RM39 each")
+            mult_patterns = [
+                r'total\s+for\s+(\d+(?:\.\d+)?)\s*[×*x]\s*rm\s*(\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?)\s*[×*x]\s*rm\s*(\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?)\s*units?\s*of\s*rm\s*(\d+(?:\.\d+)?)',
+                r'total\s+price\s+for\s+(\d+(?:\.\d+)?)\s*(?:items?|units?)?\s*at\s*rm\s*(\d+(?:\.\d+)?)(?:\s*each)?',
+            ]
+            for patt in mult_patterns:
+                m = re.search(patt, message.lower())
+                if m:
+                    quantity, unit_price = float(m.group(1)), float(m.group(2))
+                    total = quantity * unit_price
+                    return f"Here's your calculation: **{quantity} × RM {unit_price} = RM {total:.2f}**. Need more calculations or ZUS Coffee information?"
+
+            # Addition/sum patterns (e.g., "add up RM105, RM55, and RM39", "sum RM105, RM55, RM39")
+            sum_patterns = [
+                r'add up ([^\n\r]+)',
+                r'sum ([^\n\r]+)',
+            ]
+            for patt in sum_patterns:
+                m = re.search(patt, message.lower())
+                if m:
+                    # Extract all numbers (with or without RM)
+                    numbers = re.findall(r'\d+(?:\.\d+)?', m.group(1))
+                    if numbers:
+                        numbers_f = [float(n) for n in numbers]
+                        total = sum(numbers_f)
+                        numbers_str = ', '.join([f"RM {n}" for n in numbers])
+                        return f"Here's your calculation: **{numbers_str} = RM {total:.2f}**. Need more calculations or ZUS Coffee information?"
+
+            # Now continue with normalization and all other logic...
             original_message = message
             message = message.replace('×', '*').replace('÷', '/')
-            
-            # Remove RM symbols for calculation but remember if they were present
             has_currency = 'rm' in message.lower() or 'ringgit' in message.lower()
             message = re.sub(r'\bRM\s*', '', message, flags=re.IGNORECASE)
-            
-            # Check for natural language division by zero first
             if re.search(r'(?:divided|divide)\s+by\s+(?:zero|0)', message.lower()):
                 return "Error: Cannot divide by zero. Please adjust your calculation and try again."
             
@@ -1132,8 +1178,31 @@ class EnhancedMinimalAgent:
             # Security check - reject non-mathematical queries (NO DUMMY DATA)
             non_math_terms = ["banana", "apple", "fruit", "product", "outlet", "coffee", "zus", "cappuccino", "latte", "americano", "croissant", "muffin", "sandwich", "cookie", "cake", "tumbler", "cup", "mug", "drinkware"]
             if any(term in message.lower() for term in non_math_terms):
-                return "I can only calculate mathematical expressions with numbers and operators (+, -, *, /). I don't calculate combinations of products or non-mathematical items. For product information, please ask me to show you our available products."
+                return "Error: Invalid mathematical expression. I can only calculate mathematical expressions with numbers and operators (+, -, *, /). I don't calculate combinations of products or non-mathematical items. For product information, please ask me to show you our available products."
             
+
+            # --- PATCH: AGGRESSIVE: Always check discount and multiplication patterns FIRST ---
+            # Discount calculation (e.g., "20% discount on RM79")
+            discount_match = re.search(r'(\d+(?:\.\d+)?)\s*%\s*discount\s+on\s+rm\s*(\d+(?:\.\d+)?)', message.lower())
+            if discount_match:
+                discount_percent, price = float(discount_match.group(1)), float(discount_match.group(2))
+                discount_amount = (discount_percent / 100) * price
+                final_price = price - discount_amount
+                return f"Here's your discount calculation: **{discount_percent}% discount on RM {price}**\n• Discount amount: RM {discount_amount:.2f}\n• Final price: **RM {final_price:.2f}**\n\nNeed more calculations?"
+
+            # Multiplication patterns (e.g., "total for 2 × RM39", "2 × RM39", "2 units of RM39")
+            mult_patterns = [
+                r'total\s+for\s+(\d+(?:\.\d+)?)\s*[×*x]\s*rm\s*(\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?)\s*[×*x]\s*rm\s*(\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?)\s*units?\s*of\s*rm\s*(\d+(?:\.\d+)?)',
+            ]
+            for patt in mult_patterns:
+                m = re.search(patt, message.lower())
+                if m:
+                    quantity, unit_price = float(m.group(1)), float(m.group(2))
+                    total = quantity * unit_price
+                    return f"Here's your calculation: **{quantity} × RM {unit_price} = RM {total:.2f}**. Need more calculations or ZUS Coffee information?"
+
             # Handle percentage calculations (e.g., "15% of 200")
             percentage_match = re.search(r'(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)', message.lower())
             if percentage_match:
@@ -1159,7 +1228,17 @@ class EnhancedMinimalAgent:
                 return f"Here's your power calculation: **{base}^{exponent} = {result:.2f}**. Need more calculations?"
             
             # Handle SST/Tax calculations (check for tax keywords BEFORE general calculation)
-            if any(keyword in original_message.lower() for keyword in self.tax_keywords):
+            # Be more specific about tax detection to avoid false positives
+            specific_tax_patterns = [
+                r'\d+%\s*sst\s+on\s+rm\s*\d+',  # "6% SST on RM55"
+                r'sst\s+(?:for|on)\s+rm\s*\d+',  # "SST for RM55" or "SST on RM55"
+                r'calculate\s+sst\s+(?:for|on)',  # "calculate SST for"
+                r'tax\s+(?:for|on)\s+rm\s*\d+',  # "tax for RM55" or "tax on RM55"
+                r'calculate\s+tax\s+(?:for|on)',  # "calculate tax for"
+            ]
+            
+            # Only trigger tax calculation for very specific patterns, not general "total" queries
+            if any(re.search(pattern, original_message.lower()) for pattern in specific_tax_patterns):
                 return self.handle_tax_calculation(original_message)
             
             if not expressions:
@@ -1176,7 +1255,7 @@ class EnhancedMinimalAgent:
             # Clean and validate expression - normalize symbols
             expression = expression.replace('=', '').replace(' ', '').replace('×', '*').replace('÷', '/')
             if not expression or not re.match(r'^[\d\+\-\*\/\(\)\.]+$', expression):
-                return "Please provide a valid mathematical expression using numbers and operators. For example: '25.5 + 18.2' or '(100 - 20) * 3'."
+                return "Error: Invalid mathematical expression. Please provide a valid mathematical expression using numbers and operators. For example: '25.5 + 18.2' or '(100 - 20) * 3'."
             
             # Check for division by zero before evaluation
             if re.search(r'/\s*0(?:\s|$|\+|\-|\*|/|\))', expression + ' ') or expression.endswith('/0'):
@@ -1223,12 +1302,37 @@ class EnhancedMinimalAgent:
     def handle_tax_calculation(self, message: str) -> str:
         """Handle SST/tax calculations for Malaysian pricing"""
         try:
-            # Extract price from message
-            price_match = re.search(r'(\d+(?:\.\d+)?)', message)
-            if not price_match:
+            # PATCH: Handle specific SST patterns like "6% SST on RM55" - always extract the correct price and rate
+            sst_pattern = re.search(r'(\d+(?:\.\d+)?)\s*%\s*sst\s+on\s+rm\s*(\d+(?:\.\d+)?)', message.lower())
+            if sst_pattern:
+                given_rate = float(sst_pattern.group(1)) / 100  # Use the specified rate (6%)
+                price = float(sst_pattern.group(2))  # Extract the price (55)
+                tax_amount = price * given_rate
+                total = price + tax_amount
+                return f"**SST Calculation:** Subtotal: RM {price:.2f} | SST ({given_rate*100:.0f}%): RM {tax_amount:.2f} | **Total: RM {total:.2f}**. Note: Malaysia's standard SST is 6% on goods and services."
+            
+            # PATCH: Handle "Calculate SST on RM55" or "SST for RM55" - use standard 6% rate
+            sst_amount_pattern = re.search(r'sst\s+(?:on|for)\s+rm\s*(\d+(?:\.\d+)?)', message.lower())
+            if sst_amount_pattern:
+                price = float(sst_amount_pattern.group(1))
+                tax_rate = self.tax_rates['sst']  # Standard 6%
+                tax_amount = price * tax_rate
+                total = price + tax_amount
+                return f"**SST Calculation:** Subtotal: RM {price:.2f} | SST ({tax_rate*100:.0f}%): RM {tax_amount:.2f} | **Total: RM {total:.2f}**. Malaysia's current SST is 6% on goods and services."
+            
+            # PATCH: For other tax calculations, extract price more carefully
+            # Look for RM followed by number first (more specific)
+            price_matches = re.findall(r'rm\s*(\d+(?:\.\d+)?)', message.lower())
+            if not price_matches:
+                # Fall back to all numbers, but exclude small percentages (< 10) which are likely rates
+                all_numbers = re.findall(r'(\d+(?:\.\d+)?)', message)
+                price_matches = [n for n in all_numbers if float(n) >= 10]  # Assume prices are >= 10 RM
+            
+            if not price_matches:
                 return "Please specify a price amount for tax calculation. Example: 'Calculate tax for RM 100' or 'What's the SST on 50?'"
             
-            price = float(price_match.group(1))
+            # Use the largest number found (likely the price, not the percentage)
+            price = max(float(match) for match in price_matches)
             
             # Determine tax type
             if 'sst' in message.lower():
