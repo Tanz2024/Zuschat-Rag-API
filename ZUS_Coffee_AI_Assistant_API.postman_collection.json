@@ -1,0 +1,81 @@
+{
+  "info": {
+    "_postman_id": "zus-coffee-ai-assistant-2025",
+    "name": "ZUS Coffee AI Assistant API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Chat Endpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Show me all tumblers under RM100\",\n  \"session_id\": \"test-session-1\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/chat",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "chat"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "RAG Products Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/rag/products",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "products"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "RAG Outlets Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/rag/outlets",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "rag", "outlets"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Text2SQL Endpoint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"List all outlets in KL\",\n  \"session_id\": \"test-session-1\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/text2sql",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "text2sql"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
