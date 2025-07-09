@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import logging
 import asyncio
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 from fastapi.middleware.gzip import GZipMiddleware
@@ -261,19 +262,26 @@ app.add_middleware(
 # Add compression for faster responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Performance monitoring middleware
+# Performance monitoring middleware with error handling
 @app.middleware("http")
 async def performance_middleware(request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    
-    # Log slow requests
-    if process_time > 1.0:
-        logger.warning(f"Slow request: {request.url.path} took {process_time:.2f}s")
-    
-    return response
+    try:
+        import time  # Explicit import to avoid scoping issues
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        
+        # Log slow requests
+        if process_time > 1.0:
+            logger.warning(f"Slow request: {request.url.path} took {process_time:.2f}s")
+        
+        return response
+    except Exception as e:
+        logger.error(f"Performance middleware error: {e}")
+        # Continue without performance monitoring if there's an issue
+        response = await call_next(request)
+        return response
 
 # Global error handlers
 @app.exception_handler(HTTPException)
