@@ -100,7 +100,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   }
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent) => {
+    // Don't blur if clicking on the send button
+    if (e.relatedTarget && 
+        e.relatedTarget instanceof HTMLButtonElement && 
+        e.relatedTarget.type === 'submit') {
+      return
+    }
+    
     setIsFocused(false)
     document.body.classList.remove('input-focused');
     
@@ -199,9 +206,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
               touchAction: 'manipulation', // Prevent double-tap zoom
               WebkitTapHighlightColor: 'transparent' // Remove iOS tap highlight
             }}
+            onMouseDown={(e) => {
+              // Prevent input blur when clicking send button
+              e.preventDefault()
+            }}
             onTouchStart={(e) => {
               // Prevent scroll on button touch and add visual feedback
               e.currentTarget.style.transform = 'translateY(-50%) scale(0.95)'
+              // Don't prevent default here to allow the touch to proceed to click
             }}
             onTouchEnd={(e) => {
               // Restore button scale
@@ -210,6 +222,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onTouchCancel={(e) => {
               // Restore button scale if touch is cancelled
               e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+            }}
+            onClick={(e) => {
+              // Handle the click directly and prevent any blur interference
+              e.preventDefault()
+              e.stopPropagation()
+              if (message.trim() && !isInputDisabled) {
+                handleSubmit(e)
+              }
             }}
             aria-label="Send message"
           >
