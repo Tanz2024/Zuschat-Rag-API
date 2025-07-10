@@ -155,8 +155,6 @@ Backend (FastAPI, enhanced_minimal_agent.py)
 Response
 ```
 
-### Chatbot UI Example
-![Chat UI Screenshot](public/assets/logos/zus-logo.svg)
 
 ---
 
